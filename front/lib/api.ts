@@ -31,16 +31,20 @@ export interface Folder {
 export interface Document {
   id: number
   file_path: string
-  status: 'PROCESSING' | 'COMPLETED' | 'FAILED'
+  status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
   extracted_text?: string
   user_id: number
   folder_id?: number
+  processing_progress?: number
+  current_step?: string
+  can_cancel?: boolean
 }
 
 export interface Flashcard {
   id: number
   front: string
   back: string
+  type: 'concept' | 'code' | 'diagram' | 'example' | 'comparison'
   document_id: number
 }
 
@@ -172,9 +176,35 @@ class ApiClient {
     return response.json()
   }
 
+  async getDocuments(): Promise<Document[]> {
+    return this.request<Document[]>('/documents/')
+  }
+
+  async getDocument(documentId: number): Promise<Document> {
+    return this.request<Document>(`/documents/${documentId}`)
+  }
+
+  // Text generation
+  async generateFlashcardsFromText(text: string, title?: string): Promise<Document> {
+    return this.request<Document>('/documents/text', {
+      method: 'POST',
+      body: JSON.stringify({ text, title }),
+    })
+  }
+
   // Flashcards
   async getDocumentFlashcards(documentId: number): Promise<Flashcard[]> {
     return this.request<Flashcard[]>(`/documents/${documentId}/flashcards`)
+  }
+
+  async cancelDocumentProcessing(documentId: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/documents/${documentId}/cancel`, {
+      method: 'POST',
+    })
+  }
+
+  async getUserDocuments(): Promise<Document[]> {
+    return this.request<Document[]>('/users/documents')
   }
 }
 

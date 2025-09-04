@@ -33,6 +33,20 @@ services:
       - db
       - redis
     restart: always
+  celery-worker:
+    build: ./back
+    container_name: flashify-worker
+    command: celery -A app.worker worker --loglevel=info
+    env_file:
+      - ./back/.env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./back/app:/app/app
+    depends_on:
+      - db
+      - redis
+    restart: always
+
   frontend:
     build: ./front
     container_name: flashify-frontend

@@ -3,6 +3,10 @@
 import { useState, useRef } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { LoginForm } from "@/components/auth/login-form"
+import { FileUpload } from "@/components/upload/file-upload"
+import { TextInput } from "@/components/upload/text-input"
+import { DocumentList } from "@/components/documents/document-list"
+import { FlashcardStudy } from "@/components/study/flashcard-study"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -38,6 +42,7 @@ export default function FlashifyApp() {
   const [isFlipping, setIsFlipping] = useState(false)
   const [studyProgress, setStudyProgress] = useState(65)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [studyingDocument, setStudyingDocument] = useState<any>(null)
 
   const flipAudioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -381,112 +386,15 @@ export default function FlashifyApp() {
                 </TabsList>
 
                 <TabsContent value="text" className="space-y-4">
-                  <Card className="border-card-border">
-                    <CardHeader className="p-4 lg:p-6">
-                      <CardTitle className="text-base lg:text-lg">Inserir Texto</CardTitle>
-                      <CardDescription className="text-sm">
-                        Cole ou digite o conteúdo que você quer transformar em flashcards
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 p-4 lg:p-6 pt-0">
-                      <div className="space-y-2">
-                        <Label htmlFor="title" className="text-sm font-medium">
-                          Título do Conjunto
-                        </Label>
-                        <Input
-                          id="title"
-                          placeholder="Ex: Biologia - Fotossíntese"
-                          className="text-sm lg:text-base border-input bg-background focus:border-lime-accent dark:focus:border-primary focus:ring-lime-accent/20 dark:focus:ring-primary/20"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="content" className="text-sm font-medium">
-                          Conteúdo
-                        </Label>
-                        <Textarea
-                          id="content"
-                          placeholder="Cole aqui o texto que você quer transformar em flashcards..."
-                          className="min-h-[150px] lg:min-h-[200px] text-sm lg:text-base border-input bg-background focus:border-lime-accent dark:focus:border-primary focus:ring-lime-accent/20 dark:focus:ring-primary/20"
-                        />
-                      </div>
-                      <Button className="w-full bg-lime-accent hover:bg-lime-accent/90 text-lime-accent-foreground dark:bg-primary dark:hover:bg-primary/90 dark:text-primary-foreground border border-lime-accent/30 dark:border-primary/30 shadow-sm hover:shadow-md transition-all">
-                        <Brain className="w-4 h-4 mr-2" />
-                        Gerar Flashcards
-                      </Button>
-                    </CardContent>
-                  </Card>
+                  <TextInput onSuccess={() => setActiveTab("library")} />
                 </TabsContent>
 
                 <TabsContent value="pdf" className="space-y-4">
-                  <Card className="border-card-border">
-                    <CardHeader className="p-4 lg:p-6">
-                      <CardTitle className="text-base lg:text-lg">Upload de PDF</CardTitle>
-                      <CardDescription className="text-sm">
-                        Envie um arquivo PDF para extrair o conteúdo automaticamente
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 p-4 lg:p-6 pt-0">
-                      <div className="border-2 border-dashed border-lime-accent/30 dark:border-primary/30 rounded-lg p-6 lg:p-8 text-center bg-lime-accent/5 dark:bg-primary/5 hover:bg-lime-accent/10 dark:hover:bg-primary/10 transition-colors">
-                        <Upload className="w-8 h-8 lg:w-12 lg:h-12 text-lime-accent dark:text-primary mx-auto mb-4" />
-                        <p className="text-sm lg:text-base text-foreground mb-2">
-                          Arraste e solte seu PDF aqui ou clique para selecionar
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-lime-accent/50 dark:border-primary/50 text-lime-accent dark:text-primary hover:bg-lime-accent/10 dark:hover:bg-primary/10 bg-transparent"
-                        >
-                          Selecionar Arquivo
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="pdf-title" className="text-sm font-medium">
-                          Título do Conjunto
-                        </Label>
-                        <Input
-                          id="pdf-title"
-                          placeholder="Ex: Matemática - Cálculo I"
-                          className="text-sm lg:text-base border-input bg-background focus:border-lime-accent dark:focus:border-primary focus:ring-lime-accent/20 dark:focus:ring-primary/20"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <FileUpload onSuccess={() => setActiveTab("library")} />
                 </TabsContent>
 
                 <TabsContent value="image" className="space-y-4">
-                  <Card className="border-card-border">
-                    <CardHeader className="p-4 lg:p-6">
-                      <CardTitle className="text-base lg:text-lg">Upload de Imagem</CardTitle>
-                      <CardDescription className="text-sm">
-                        Envie uma imagem para extrair texto e gerar flashcards
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 p-4 lg:p-6 pt-0">
-                      <div className="border-2 border-dashed border-lime-accent/30 dark:border-primary/30 rounded-lg p-6 lg:p-8 text-center bg-lime-accent/5 dark:bg-primary/5 hover:bg-lime-accent/10 dark:hover:bg-primary/10 transition-colors">
-                        <ImageIcon className="w-8 h-8 lg:w-12 lg:h-12 text-lime-accent dark:text-primary mx-auto mb-4" />
-                        <p className="text-sm lg:text-base text-foreground mb-2">
-                          Arraste e solte sua imagem aqui ou clique para selecionar
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-lime-accent/50 dark:border-primary/50 text-lime-accent dark:text-primary hover:bg-lime-accent/10 dark:hover:bg-primary/10 bg-transparent"
-                        >
-                          Selecionar Imagem
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="image-title" className="text-sm font-medium">
-                          Título do Conjunto
-                        </Label>
-                        <Input
-                          id="image-title"
-                          placeholder="Ex: História - Segunda Guerra"
-                          className="text-sm lg:text-base border-input bg-background focus:border-lime-accent dark:focus:border-primary focus:ring-lime-accent/20 dark:focus:ring-primary/20"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <FileUpload onSuccess={() => setActiveTab("library")} />
                 </TabsContent>
               </Tabs>
             </div>
@@ -495,118 +403,24 @@ export default function FlashifyApp() {
 
         {activeTab === "study" && (
           <div className="flex-1 p-4 lg:p-8 overflow-auto">
-            <div className="max-w-2xl mx-auto space-y-6">
-              {/* Study Header */}
-              <div className="text-center space-y-4">
-                <h2 className="text-xl lg:text-2xl font-bold text-foreground">Modo Estudo</h2>
-                <div className="flex flex-wrap items-center justify-center gap-2 lg:gap-4 text-xs lg:text-sm text-muted-foreground">
-                  <span>
-                    Card {currentCard + 1} de {flashcards.length}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className="text-xs border-lime-accent/30 dark:border-primary/30 text-lime-accent dark:text-primary"
-                  >
-                    {flashcards[currentCard]?.subject}
-                  </Badge>
-                  <Badge
-                    variant={flashcards[currentCard]?.difficulty === "Fácil" ? "default" : "secondary"}
-                    className="text-xs text-lime-accent-foreground dark:bg-primary/20 dark:text-primary-foreground border-lime-accent/30 dark:border-primary/30"
-                  >
-                    {flashcards[currentCard]?.difficulty}
-                  </Badge>
+            {studyingDocument ? (
+              <FlashcardStudy 
+                documentId={studyingDocument.id}
+                onBack={() => setStudyingDocument(null)}
+              />
+            ) : (
+              <div className="max-w-4xl mx-auto">
+                <div className="text-center mb-8">
+                  <h2 className="text-xl lg:text-2xl font-bold text-foreground">Modo Estudo</h2>
+                  <p className="text-sm lg:text-base text-muted-foreground">
+                    Selecione um conjunto de flashcards para começar a estudar
+                  </p>
                 </div>
-                <Progress
-                  value={((currentCard + 1) / flashcards.length) * 100}
-                  className="w-full max-w-md mx-auto [&>div]:bg-lime-accent dark:[&>div]:bg-primary"
+                <DocumentList 
+                  onStudyDocument={(doc) => setStudyingDocument(doc)}
                 />
               </div>
-
-              <div className="perspective-1000">
-                <Card
-                  className={`min-h-[250px] lg:min-h-[300px] cursor-pointer transition-transform duration-600 transform-style-preserve-3d border-card-border hover:border-lime-accent/50 dark:hover:border-primary/50 shadow-lg hover:shadow-xl ${
-                    isFlipping ? "rotate-y-180" : ""
-                  }`}
-                  onClick={handleCardFlip}
-                  style={{
-                    transformStyle: "preserve-3d",
-                    transform: isFlipping ? "rotateY(180deg)" : "rotateY(0deg)",
-                  }}
-                >
-                  <CardContent className="flex items-center justify-center p-6 lg:p-8 h-full">
-                    <div className="text-center space-y-4">
-                      {!showAnswer ? (
-                        <>
-                          <div className="text-xs lg:text-sm text-lime-accent dark:text-primary font-medium mb-4">
-                            PERGUNTA
-                          </div>
-                          <p className="text-base lg:text-lg font-medium text-balance px-2 text-foreground">
-                            {flashcards[currentCard]?.question}
-                          </p>
-                          <p className="text-xs lg:text-sm text-muted-foreground mt-8">Clique para ver a resposta</p>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-xs lg:text-sm text-lime-accent dark:text-primary font-medium mb-4">
-                            RESPOSTA
-                          </div>
-                          <p className="text-base lg:text-lg text-balance px-2 text-foreground">
-                            {flashcards[currentCard]?.answer}
-                          </p>
-                          <p className="text-xs lg:text-sm text-muted-foreground mt-8">Clique para ver a pergunta</p>
-                        </>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <div className="flex gap-4">
-                  <Button
-                    variant="outline"
-                    onClick={handlePrevCard}
-                    disabled={currentCard === 0}
-                    size="sm"
-                    className="border-lime-accent/50 dark:border-primary/50 dark:text-primary hover:bg-lime-accent/10 dark:hover:bg-primary/10 text-black bg-lime-accent"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-1 lg:mr-2" />
-                    <span className="hidden sm:inline">Anterior</span>
-                  </Button>
-
-                  <Button
-                    onClick={handleNextCard}
-                    disabled={currentCard === flashcards.length - 1}
-                    size="sm"
-                    className="bg-lime-accent hover:bg-lime-accent/90 text-lime-accent-foreground dark:bg-primary dark:hover:bg-primary/90 dark:text-primary-foreground border border-lime-accent/30 dark:border-primary/30"
-                  >
-                    <span className="hidden sm:inline">Próximo</span>
-                    <Play className="w-4 h-4 ml-1 lg:ml-2" />
-                  </Button>
-                </div>
-
-                {showAnswer && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950 bg-transparent"
-                    >
-                      <X className="w-4 h-4 mr-1 lg:mr-2" />
-                      <span className="hidden sm:inline">Difícil</span>
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-green-500 hover:bg-green-600 text-white border border-green-400 dark:bg-green-600 dark:hover:bg-green-700"
-                    >
-                      <Check className="w-4 h-4 mr-1 lg:mr-2" />
-                      <span className="hidden sm:inline">Fácil</span>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -625,50 +439,12 @@ export default function FlashifyApp() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <Card
-                    key={i}
-                    className="cursor-pointer hover:shadow-lg transition-shadow border-card-border hover:border-lime-accent/50 dark:hover:border-primary/50"
-                  >
-                    <CardHeader className="p-4 lg:p-6">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm lg:text-base">Conjunto {i}</CardTitle>
-                        <Badge
-                          variant="default"
-                          className="text-xs text-black dark:bg-primary dark:text-primary-foreground border-lime-accent/30 dark:border-primary/30 bg-lime-accent"
-                        >
-                          {Math.floor(Math.random() * 20) + 5} cards
-                        </Badge>
-                      </div>
-                      <CardDescription className="text-xs lg:text-sm">
-                        Criado há {i} dia{i > 1 ? "s" : ""}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-4 lg:p-6 pt-0">
-                      <div className="space-y-3">
-                        <Progress
-                          value={Math.floor(Math.random() * 100)}
-                          className="[&>div]:bg-lime-accent dark:[&>div]:bg-primary"
-                        />
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs lg:text-sm text-muted-foreground">
-                            Progresso: {Math.floor(Math.random() * 100)}%
-                          </span>
-                          <Button
-                            size="sm"
-                            onClick={() => setActiveTab("study")}
-                            className="bg-lime-accent hover:bg-lime-accent/90 text-black dark:bg-primary dark:hover:bg-primary/90 dark:text-primary-foreground border border-lime-accent/30 dark:border-primary/30 shadow-sm hover:shadow-md transition-all"
-                          >
-                            <Play className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
-                            <span className="hidden sm:inline">Estudar</span>
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <DocumentList 
+                onStudyDocument={(doc) => {
+                  setStudyingDocument(doc)
+                  setActiveTab("study")
+                }}
+              />
             </div>
           </div>
         )}

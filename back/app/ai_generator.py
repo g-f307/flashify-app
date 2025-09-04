@@ -18,20 +18,50 @@ def generate_flashcards_from_text(text: str) -> list[dict]:
         print("Texto de entrada está vazio. Pulando a geração de flashcards.")
         return []
 
-    # Prompt adaptado para o Gemini, pedindo JSON.
+    # Prompt melhorado para gerar flashcards mais abrangentes
     prompt = f"""
-    Você é um assistente especialista em criar materiais de estudo.
-    Sua tarefa é ler o texto fornecido e gerar um conjunto de flashcards.
-    Para cada flashcard, crie uma pergunta (frente) e uma resposta direta (verso).
-    Responda APENAS em formato JSON, com uma lista de objetos, onde cada objeto
-    tem as chaves "front" e "back".
-    Exemplo de formato:
+    Você é um assistente especialista em criar materiais de estudo abrangentes e práticos.
+    
+    Sua tarefa é ler o texto fornecido e gerar um conjunto de flashcards que vão ALÉM do conteúdo literal do documento.
+    
+    INSTRUÇÕES IMPORTANTES:
+    1. Use o documento como BASE, mas expanda com seu conhecimento da IA
+    2. Crie exemplos práticos, códigos, diagramas quando relevante
+    3. Para conceitos técnicos: inclua exemplos de código
+    4. Para processos/fluxos: inclua diagramas Mermaid
+    5. Para conceitos abstratos: crie analogias e exemplos práticos
+    6. Diversifique os tipos de pergunta: definições, aplicações, comparações, exemplos
+    
+    FORMATO DE RESPOSTA:
+    Responda APENAS em formato JSON com uma lista de objetos. Cada flashcard deve ter:
+    - "front": A pergunta
+    - "back": A resposta completa (pode incluir código, diagramas Mermaid, exemplos)
+    - "type": Tipo do flashcard ("concept", "code", "diagram", "example", "comparison")
+    
+    TIPOS DE FLASHCARD:
+    - "concept": Definições e conceitos teóricos
+    - "code": Inclui exemplos de código na resposta
+    - "diagram": Inclui diagramas Mermaid na resposta
+    - "example": Exemplos práticos e aplicações
+    - "comparison": Comparações entre conceitos
+    
+    EXEMPLOS DE FORMATO:
     {{
       "flashcards": [
-        {{"front": "Qual é a capital do Brasil?", "back": "Brasília"}},
-        {{"front": "Quem escreveu 'Dom Casmurro'?", "back": "Machado de Assis"}}
+        {{
+          "front": "Como implementar autenticação JWT em uma API REST?",
+          "back": "```python\\nimport jwt\\nfrom datetime import datetime, timedelta\\n\\ndef create_token(user_id):\\n    payload = {{\\n        'user_id': user_id,\\n        'exp': datetime.utcnow() + timedelta(hours=24)\\n    }}\\n    return jwt.encode(payload, 'secret_key', algorithm='HS256')\\n```\\n\\nO token JWT é gerado com payload contendo ID do usuário e data de expiração.",
+          "type": "code"
+        }},
+        {{
+          "front": "Qual é o fluxo de autenticação OAuth 2.0?",
+          "back": "```mermaid\\nsequenceDiagram\\n    participant U as Usuário\\n    participant C as Cliente\\n    participant A as Auth Server\\n    participant R as Resource Server\\n    \\n    U->>C: Iniciar login\\n    C->>A: Solicitar autorização\\n    A->>U: Exibir tela de login\\n    U->>A: Credenciais\\n    A->>C: Código de autorização\\n    C->>A: Trocar código por token\\n    A->>C: Access token\\n    C->>R: Fazer requisição com token\\n```",
+          "type": "diagram"
+        }}
       ]
     }}
+
+    Gere entre 8-15 flashcards variados, priorizando a compreensão prática e aplicação real dos conceitos.
 
     Texto para análise:
     ---

@@ -9,6 +9,15 @@ class DocumentStatus(str, Enum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+# Enum para o tipo do flashcard
+class FlashcardType(str, Enum):
+    CONCEPT = "concept"
+    CODE = "code"
+    DIAGRAM = "diagram"
+    EXAMPLE = "example"
+    COMPARISON = "comparison"
 
 
 class User(SQLModel, table=True):
@@ -39,6 +48,9 @@ class Document(SQLModel, table=True):
     file_path: str # Caminho para o arquivo salvo (S3 ou local)
     status: DocumentStatus = Field(default=DocumentStatus.PROCESSING)
     extracted_text: Optional[str] = Field(default=None, sa_column=Column(Text))
+    processing_progress: int = Field(default=0)  # Porcentagem de 0 a 100
+    current_step: Optional[str] = Field(default=None)  # Passo atual do processamento
+    can_cancel: bool = Field(default=True)  # Se pode ser cancelado
 
     user_id: int = Field(foreign_key="user.id")
     user: User = Relationship(back_populates="documents")
@@ -52,7 +64,8 @@ class Document(SQLModel, table=True):
 class Flashcard(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     front: str
-    back: str
+    back: str = Field(sa_column=Column(Text))  # Use Text para suportar conteúdo longo
+    type: FlashcardType = Field(default=FlashcardType.CONCEPT)
 
     document_id: int = Field(foreign_key="document.id")
     document: Document = Relationship(back_populates="flashcards")

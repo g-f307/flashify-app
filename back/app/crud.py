@@ -78,9 +78,22 @@ def create_flashcards_for_document(
     db_flashcards = []
     for fc_data in flashcards_data:
         if "front" in fc_data and "back" in fc_data: # Validação mínima
+            # Determina o tipo do flashcard baseado no conteúdo
+            flashcard_type = fc_data.get("type", "concept")
+            # Converter para uppercase para corresponder ao enum
+            type_mapping = {
+                "concept": models.FlashcardType.CONCEPT,
+                "code": models.FlashcardType.CODE,
+                "diagram": models.FlashcardType.DIAGRAM,
+                "example": models.FlashcardType.EXAMPLE,
+                "comparison": models.FlashcardType.COMPARISON
+            }
+            enum_type = type_mapping.get(flashcard_type.lower(), models.FlashcardType.CONCEPT)
+            
             db_flashcard = models.Flashcard(
                 front=fc_data["front"],
                 back=fc_data["back"],
+                type=enum_type,
                 document_id=document_id
             )
             db_flashcards.append(db_flashcard)
@@ -96,3 +109,7 @@ def create_flashcards_for_document(
 
 def get_flashcards_by_document(session: Session, document_id: int) -> list[models.Flashcard]:
     return session.exec(select(models.Flashcard).where(models.Flashcard.document_id == document_id)).all()
+
+def get_documents_by_user(session: Session, user_id: int) -> list[models.Document]:
+    statement = select(models.Document).where(models.Document.user_id == user_id)
+    return session.exec(statement).all()
