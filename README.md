@@ -67,7 +67,7 @@ cd ..
 docker-compose up --build
 ```
 
-Acesse o frontend em `http://localhost:3000` e a API em `http://localhost:8000`.
+Acesse o frontend em `http://localhost:4000` e a API em `http://localhost:9000`.
 
 ## Variáveis de Ambiente
 
