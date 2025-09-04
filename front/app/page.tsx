@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useRef } from "react"
+import { useAuth } from "@/contexts/auth-context"
+import { LoginForm } from "@/components/auth/login-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -29,6 +31,7 @@ import {
 } from "lucide-react"
 
 export default function FlashifyApp() {
+  const { isAuthenticated, isLoading, user, logout } = useAuth()
   const [activeTab, setActiveTab] = useState("home")
   const [currentCard, setCurrentCard] = useState(0)
   const [showAnswer, setShowAnswer] = useState(false)
@@ -37,6 +40,38 @@ export default function FlashifyApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const flipAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Show loading spinner
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
+            <Brain className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <p>Carregando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="w-full max-w-md p-4">
+          <div className="text-center mb-8">
+            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Brain className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <h1 className="text-2xl font-bold">Flashify</h1>
+            <p className="text-muted-foreground">Acelere seu aprendizado</p>
+          </div>
+          <LoginForm />
+        </div>
+      </div>
+    )
+  }
 
   // Sample flashcards data
   const flashcards = [
@@ -164,8 +199,15 @@ export default function FlashifyApp() {
               <User className="w-4 h-4 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">Usuário</p>
-              <p className="text-xs text-muted-foreground">Fazer login</p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {user?.username || 'Usuário'}
+              </p>
+              <button 
+                onClick={logout}
+                className="text-xs text-muted-foreground hover:text-red-600 transition-colors"
+              >
+                Sair
+              </button>
             </div>
           </div>
         </div>

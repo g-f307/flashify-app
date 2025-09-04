@@ -6,6 +6,17 @@ def get_user_by_email(session: Session, email: str) -> models.User | None:
     statement = select(models.User).where(models.User.email == email)
     return session.exec(statement).first()
 
+def get_user_by_username(session: Session, username: str) -> models.User | None:
+    statement = select(models.User).where(models.User.username == username)
+    return session.exec(statement).first()
+
+def get_user_by_username_or_email(session: Session, identifier: str) -> models.User | None:
+    """Get user by username or email"""
+    statement = select(models.User).where(
+        (models.User.username == identifier) | (models.User.email == identifier)
+    )
+    return session.exec(statement).first()
+
 def create_user(session: Session, user_create: schemas.UserCreate) -> models.User:
     hashed_password = security.get_password_hash(user_create.password)
 

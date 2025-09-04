@@ -1,6 +1,7 @@
 # app/main.py
 # app/main.py
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 from .database import engine 
 from .routers import auth
@@ -14,6 +15,23 @@ def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
 app = FastAPI(title="Flashify API")
+
+# Configure CORS
+origins = [
+    "http://localhost:3000",  # Next.js default port
+    "http://localhost:4000",  # Our frontend port
+    "http://frontend:3000",   # Docker internal
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:4000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth.router)
 app.include_router(folders.router)

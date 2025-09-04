@@ -1,4 +1,24 @@
 services:
+  db:
+    image: postgres:15
+    container_name: flashify-db
+    environment:
+      POSTGRES_USER: flashify
+      POSTGRES_PASSWORD: flashify
+      POSTGRES_DB: flashify
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: flashify-redis
+    ports:
+      - "6380:6379"
+    restart: always
+
   backend:
     build: ./back
     container_name: flashify-backend
@@ -9,6 +29,9 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./back/app:/app/app
+    depends_on:
+      - db
+      - redis
     restart: always
   frontend:
     build: ./front
@@ -20,6 +43,10 @@ services:
     volumes:
       - ./front:/app
       - /app/node_modules
+      - /app/.next
     depends_on:
       - backend
     restart: always
+
+volumes:
+  postgres_data:
