@@ -1,0 +1,13 @@
+# Arquivos de segredos
+.env
+*.json
+
+# Dependências do Backend (Python)
+back/venv/
+
+# Dependências do Frontend (Node.js/React/Vue/etc.)
+front/node_modules/
+
+# Arquivos de cache do Python
+__pycache__/
+*.pyc

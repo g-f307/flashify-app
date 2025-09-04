@@ -1,0 +1,275 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Simplificando para milkglass predominante com lilás como contraste */
+  --background: #faf7f0; /* Milkglass como fundo principal */
+  --foreground: #4a4a4a; /* Cinza escuro para texto legível */
+  --card: #d2c7ff; /* Cards em lilás para contraste */
+  --card-foreground: #2d2d2d; /* Texto escuro nos cards lilás */
+  --popover: #d2c7ff;
+  --popover-foreground: #2d2d2d;
+  --primary: #d2c7ff; /* Lilás como cor primária */
+  --primary-foreground: #2d2d2d;
+  --secondary: #faf7f0; /* Milkglass como secundária */
+  --secondary-foreground: #4a4a4a;
+  --muted: #f0ede5; /* Milkglass mais escuro para muted */
+  --muted-foreground: #666;
+  --accent: #d2c7ff; /* Lilás como accent */
+  --accent-foreground: #2d2d2d;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e0ddd5; /* Borda sutil no milkglass */
+  --input: #faf7f0;
+  --ring: #d2c7ff;
+  --chart-1: #d2c7ff;
+  --chart-2: #faf7f0;
+  --chart-3: #b8a9e8;
+  --chart-4: #f0ede5;
+  --chart-5: #dc2626;
+  --radius: 0.5rem;
+  --sidebar: #d2c7ff; /* Sidebar em lilás */
+  --sidebar-foreground: #2d2d2d;
+  --sidebar-primary: #faf7f0; /* Milkglass como primary na sidebar */
+  --sidebar-primary-foreground: #4a4a4a;
+  --sidebar-accent: #faf7f0;
+  --sidebar-accent-foreground: #4a4a4a;
+  --sidebar-border: #b8a9e8; /* Borda lilás mais escura */
+  --sidebar-ring: #d2c7ff;
+  /* Adicionando cor lime-accent para modo claro */
+  --lime-accent: #f4ffc7; /* Verde lima para destaque */
+  --lime-accent-foreground: #2d2d2d; /* Texto escuro no lime */
+}
+
+.dark {
+  /* Mantendo modo escuro perfeito como aprovado */
+  --background: oklch(0.12 0.08 300); /* Plum Noir #2D0A33 como fundo */
+  --foreground: oklch(0.92 0.03 60); /* Buttercream para texto */
+  --card: oklch(0.18 0.08 300); /* Cards com Plum Noir mais claro */
+  --card-foreground: oklch(0.92 0.03 60);
+  --popover: oklch(0.18 0.08 300);
+  --popover-foreground: oklch(0.92 0.03 60);
+  --primary: oklch(0.85 0.15 120); /* Neon Verde #E1FB62 como primária */
+  --primary-foreground: oklch(0.12 0.08 300); /* Plum Noir para contraste */
+  --secondary: oklch(0.55 0.12 320); /* Lavender Smoke como secundária */
+  --secondary-foreground: oklch(0.92 0.03 60);
+  --muted: oklch(0.22 0.08 300); /* Muted com Plum Noir */
+  --muted-foreground: oklch(0.65 0.08 320); /* Lavender Smoke médio */
+  --accent: oklch(0.85 0.15 120); /* Neon Verde #E1FB62 como accent */
+  --accent-foreground: oklch(0.12 0.08 300); /* Plum Noir para contraste */
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(0.92 0.03 60);
+  --border: oklch(0.25 0.08 300); /* Bordas com Plum Noir */
+  --input: oklch(0.25 0.08 300);
+  --ring: oklch(0.85 0.15 120 / 0.7); /* Focus ring Neon Verde mais intenso */
+  --chart-1: oklch(0.85 0.15 120); /* Neon Verde como chart principal */
+  --chart-2: oklch(0.55 0.12 320); /* Lavender Smoke */
+  --chart-3: oklch(0.7 0.18 40); /* Honey Drizzle */
+  --chart-4: oklch(0.15 0.08 300); /* Plum Noir */
+  --chart-5: oklch(0.6 0.22 25);
+  --sidebar: oklch(0.15 0.08 300); /* Sidebar com Plum Noir */
+  --sidebar-foreground: oklch(0.92 0.03 60);
+  --sidebar-primary: oklch(0.85 0.15 120); /* Neon Verde primary */
+  --sidebar-primary-foreground: oklch(0.12 0.08 300);
+  --sidebar-accent: oklch(0.22 0.08 300); /* Accent escuro */
+  --sidebar-accent-foreground: oklch(0.85 0.15 120); /* Neon Verde para texto accent */
+  --sidebar-border: oklch(0.25 0.08 300);
+  --sidebar-ring: oklch(0.85 0.15 120 / 0.7); /* Ring Neon Verde mais intenso */
+  /* Mantendo lime-accent no modo escuro também */
+  --lime-accent: oklch(0.85 0.15 120); /* Neon Verde no modo escuro */
+  --lime-accent-foreground: oklch(0.12 0.08 300);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  /* Adicionando lime-accent ao tema Tailwind */
+  --color-lime-accent: var(--lime-accent);
+  --color-lime-accent-foreground: var(--lime-accent-foreground);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Adicionando estilos CSS para animação de flip 3D dos flashcards */
+@layer utilities {
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .transform-style-preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .duration-600 {
+    transition-duration: 600ms;
+  }
+
+  /* Classes para destacar neon verde no modo escuro */
+  .dark .neon-glow {
+    box-shadow: 0 0 20px oklch(0.85 0.15 120 / 0.3), 0 0 40px oklch(0.85 0.15 120 / 0.1);
+  }
+
+  .dark .neon-border {
+    border-color: oklch(0.85 0.15 120);
+  }
+
+  .dark .neon-text {
+    color: oklch(0.85 0.15 120);
+  }
+
+  .dark .neon-bg {
+    background-color: oklch(0.85 0.15 120 / 0.1);
+  }
+
+  /* Melhorando definição visual dos elementos no modo claro */
+  /* Contornos e bordas mais definidas para elementos */
+  .element-border {
+    border: 2px solid #d2c7ff;
+    box-shadow: 0 2px 8px rgba(210, 199, 255, 0.15);
+  }
+
+  .card-enhanced {
+    border: 2px solid #d2c7ff;
+    box-shadow: 0 4px 12px rgba(210, 199, 255, 0.2);
+    transition: all 0.3s ease;
+  }
+
+  .card-enhanced:hover {
+    box-shadow: 0 6px 20px #f4ffc7, 0 4px 15px rgba(244, 255, 199, 0.4);
+    border-color: #f4ffc7;
+    transform: translateY(-2px);
+  }
+
+  /* Sidebar hover effects com verde lima */
+  .sidebar-item {
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+  }
+
+  .sidebar-item:hover {
+    background-color: #f4ffc7;
+    border-color: #f4ffc7;
+    box-shadow: 0 2px 8px rgba(244, 255, 199, 0.3);
+    transform: translateX(4px);
+  }
+
+  /* Botões funcionais com hover verde lima */
+  .functional-button {
+    transition: all 0.3s ease;
+    border: 2px solid #d2c7ff;
+    box-shadow: 0 2px 6px rgba(210, 199, 255, 0.2);
+  }
+
+  .functional-button:hover {
+    background-color: #f4ffc7;
+    border-color: #f4ffc7;
+    box-shadow: 0 4px 12px rgba(244, 255, 199, 0.4);
+    transform: translateY(-1px);
+  }
+
+  /* Flashcards com melhor definição */
+  .flashcard-enhanced {
+    border: 3px solid #d2c7ff;
+    box-shadow: 0 6px 20px rgba(210, 199, 255, 0.25);
+    transition: all 0.3s ease;
+  }
+
+  .flashcard-enhanced:hover {
+    box-shadow: 0 8px 25px #f4ffc7, 0 6px 20px rgba(244, 255, 199, 0.4);
+    border-color: #f4ffc7;
+  }
+
+  /* Input fields com melhor contraste */
+  .input-enhanced {
+    border: 2px solid #d2c7ff;
+    background-color: #faf7f0;
+    transition: all 0.3s ease;
+  }
+
+  .input-enhanced:focus {
+    border-color: #f4ffc7;
+    box-shadow: 0 0 0 3px rgba(244, 255, 199, 0.3);
+    outline: none;
+  }
+
+  /* Progress bars e indicadores */
+  .progress-enhanced {
+    background-color: #f0ede5;
+    border: 1px solid #d2c7ff;
+    border-radius: 8px;
+  }
+
+  .progress-fill {
+    background: linear-gradient(90deg, #d2c7ff 0%, #f4ffc7 100%);
+    transition: width 0.3s ease;
+  }
+
+  /* Adicionando hover com verde lima para sombras e cards informativos */
+  .hover-lime-shadow:hover {
+    box-shadow: 0 4px 20px #f4ffc7, 0 2px 10px rgba(244, 255, 199, 0.3);
+  }
+
+  .info-card-lime {
+    background-color: #f4ffc7;
+    border-color: #f4ffc7;
+  }
+
+  .lime-glow {
+    box-shadow: 0 0 15px rgba(244, 255, 199, 0.4);
+  }
+}

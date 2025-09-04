@@ -1,0 +1,10 @@
+# .gitignore
+
+# Arquivos de ambiente e segredos
+.env
+*.json
+
+# Arquivos do Python
+venv/
+__pycache__/
+*.pyc
