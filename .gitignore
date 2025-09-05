@@ -1,13 +1,108 @@
-# Arquivos de segredos
+# Environment variables and secrets
 .env
-*.json
+.env.local
+.env.production
+.env.staging
+.env.test
+*.key
+*.pem
+*.p12
 
-# Dependências do Backend (Python)
+# Backend (Python/FastAPI)
 back/venv/
-
-# Dependências do Frontend (Node.js/React/Vue/etc.)
-front/node_modules/
-
-# Arquivos de cache do Python
-__pycache__/
+back/__pycache__/
+**/__pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Frontend (Next.js/React)
+front/node_modules/
+front/.next/
+front/out/
+front/build/
+front/dist/
+front/.cache/
+front/.parcel-cache/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
+
+# Uploads and user content
+uploads/
+!uploads/.gitkeep
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Package files
+*.tar.gz
+*.zip
+*.rar
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis dump file
+dump.rdb
