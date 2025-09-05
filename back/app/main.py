@@ -7,6 +7,7 @@ from .database import engine
 from .routers import auth
 from .routers import folders
 from .routers import documents
+from .routers import flashcards
 
 # Importe o modelo para que ele seja registrado pelo SQLModel
 from . import models
@@ -36,6 +37,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(folders.router)
 app.include_router(documents.router)
+app.include_router(flashcards.router)
 
 @app.on_event("startup")
 def on_startup():

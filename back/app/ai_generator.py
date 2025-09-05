@@ -10,6 +10,59 @@ load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 
+def chat_about_flashcard(
+    message: str, 
+    flashcard_front: str, 
+    flashcard_back: str, 
+    document_context: str,
+    conversation_history: list[dict] = None
+) -> str:
+    """
+    Permite conversa contextual sobre um flashcard específico usando o documento original.
+    """
+    if not message or message.isspace():
+        return "Por favor, faça uma pergunta sobre este tópico."
+    
+    # Prepara o histórico da conversa
+    history_text = ""
+    if conversation_history:
+        for entry in conversation_history[-5:]:  # Últimas 5 mensagens
+            history_text += f"Usuário: {entry['user']}\nAssistente: {entry['assistant']}\n\n"
+    
+    # Contexto limitado do documento (primeiros 3000 chars)
+    context_snippet = document_context[:3000] if document_context else ""
+    
+    prompt = f"""
+    Você é um tutor especialista respondendo sobre um tópico específico de estudo.
+    
+    CONTEXTO DO FLASHCARD:
+    Pergunta: {flashcard_front}
+    Resposta: {flashcard_back}
+    
+    CONTEXTO DO DOCUMENTO (para referência):
+    {context_snippet}
+    
+    HISTÓRICO DA CONVERSA:
+    {history_text}
+    
+    INSTRUÇÕES:
+    1. Responda APENAS sobre o tópico deste flashcard
+    2. Use o contexto do documento para dar respostas precisas
+    3. Se perguntado sobre outros assuntos, redirecione para o tópico do flashcard
+    4. Seja didático e dê exemplos práticos quando apropriado
+    5. Mantenha respostas concisas (máximo 200 palavras)
+    
+    PERGUNTA DO USUÁRIO: {message}
+    
+    Resposta:"""
+    
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        return f"Desculpe, ocorreu um erro ao processar sua pergunta: {e}"
+
 def generate_flashcards_from_text(text: str) -> list[dict]:
     """
     Usa o modelo Gemini do Google para gerar flashcards a partir de um texto.

@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { EnhancedFlashcardRenderer } from './enhanced-flashcard-renderer'
-import { RotateCcw, Play, Check, X, ArrowLeft } from 'lucide-react'
+import { RotateCcw, Play, Check, X, ArrowLeft, MessageCircle } from 'lucide-react'
+import { FlashcardChat } from './flashcard-chat'
 
 interface Flashcard {
   id: number
@@ -34,6 +35,7 @@ export function FlashcardStudy({ documentId, onBack }: FlashcardStudyProps) {
     incorrect: 0,
     total: 0
   })
+  const [showChat, setShowChat] = useState(false)
 
   useEffect(() => {
     fetchFlashcards()
@@ -189,6 +191,17 @@ export function FlashcardStudy({ documentId, onBack }: FlashcardStudyProps) {
     )
   }
 
+  if (showChat) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <FlashcardChat 
+          flashcard={currentCard}
+          onClose={() => setShowChat(false)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
@@ -201,9 +214,20 @@ export function FlashcardStudy({ documentId, onBack }: FlashcardStudyProps) {
             </Button>
           )}
           <div className="flex-1" />
-          <Badge variant="outline">
-            {currentIndex + 1} de {flashcards.length}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowChat(true)}
+              variant="outline"
+              size="sm"
+              className="text-lime-accent dark:text-primary border-lime-accent/50 dark:border-primary/50"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Chat
+            </Button>
+            <Badge variant="outline">
+              {currentIndex + 1} de {flashcards.length}
+            </Badge>
+          </div>
         </div>
         
         <Progress value={progress} className="w-full" />

@@ -113,3 +113,35 @@ def get_flashcards_by_document(session: Session, document_id: int) -> list[model
 def get_documents_by_user(session: Session, user_id: int) -> list[models.Document]:
     statement = select(models.Document).where(models.Document.user_id == user_id)
     return session.exec(statement).all()
+
+# CRUD para flashcard conversations
+def get_flashcard(session: Session, flashcard_id: int) -> models.Flashcard | None:
+    """Busca um flashcard pelo ID."""
+    return session.get(models.Flashcard, flashcard_id)
+
+def create_flashcard_conversation(
+    session: Session, 
+    flashcard_id: int, 
+    user_message: str, 
+    assistant_response: str
+) -> models.FlashcardConversation:
+    """Cria uma nova conversa sobre um flashcard."""
+    from datetime import datetime
+    
+    db_conversation = models.FlashcardConversation(
+        flashcard_id=flashcard_id,
+        user_message=user_message,
+        assistant_response=assistant_response,
+        created_at=datetime.now().isoformat()
+    )
+    session.add(db_conversation)
+    session.commit()
+    session.refresh(db_conversation)
+    return db_conversation
+
+def get_flashcard_conversations(session: Session, flashcard_id: int) -> list[models.FlashcardConversation]:
+    """Recupera todas as conversas de um flashcard."""
+    statement = select(models.FlashcardConversation).where(
+        models.FlashcardConversation.flashcard_id == flashcard_id
+    ).order_by(models.FlashcardConversation.created_at)
+    return session.exec(statement).all()
