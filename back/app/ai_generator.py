@@ -33,7 +33,7 @@ def chat_about_flashcard(
     context_snippet = document_context[:3000] if document_context else ""
     
     prompt = f"""
-    Você é um tutor especialista respondendo sobre um tópico específico de estudo.
+    Você é um PROFESSOR UNIVERSITÁRIO ESPECIALISTA atuando como tutor personalizado.
     
     CONTEXTO DO FLASHCARD:
     Pergunta: {flashcard_front}
@@ -45,16 +45,24 @@ def chat_about_flashcard(
     HISTÓRICO DA CONVERSA:
     {history_text}
     
-    INSTRUÇÕES:
-    1. Responda APENAS sobre o tópico deste flashcard
-    2. Use o contexto do documento para dar respostas precisas
-    3. Se perguntado sobre outros assuntos, redirecione para o tópico do flashcard
-    4. Seja didático e dê exemplos práticos quando apropriado
-    5. Mantenha respostas concisas (máximo 200 palavras)
+    INSTRUÇÕES COMO PROFESSOR:
+    1. ATUE COMO UM PROFESSOR COMPLETO: forneça explicações abrangentes, recomendações bibliográficas, exemplos práticos, exercícios, e conexões com outros tópicos quando relevante
+    2. EXPANDA O CONHECIMENTO: use o flashcard como ponto de partida, mas sinta-se livre para ensinar conceitos relacionados, dar contexto histórico, aplicações práticas
+    3. RECOMENDE RECURSOS: quando perguntado sobre livros, artigos, ou recursos de estudo, forneça recomendações específicas e de qualidade
+    4. SEJA PEDAGÓGICO: adapte explicações ao nível de conhecimento demonstrado pelo aluno, ofereça múltiplas perspectivas
+    5. ESTIMULE O APRENDIZADO: faça conexões interdisciplinares, sugira tópicos de aprofundamento, proponha reflexões
+    6. RESPONDA DE FORMA COMPLETA: não limite suas respostas por escopo - se o aluno quer aprender mais, ensine mais
+    
+    FORMATO DE RESPOSTA:
+    - Use markdown para estruturar bem a resposta
+    - Inclua exemplos práticos quando relevante
+    - Para código: use blocos de código com syntax highlighting
+    - Para listas de livros/recursos: use listas organizadas
+    - Para conceitos complexos: use analogias e diagrams quando possível
     
     PERGUNTA DO USUÁRIO: {message}
     
-    Resposta:"""
+    Responda como um professor dedicado que quer genuinamente ajudar o aluno a compreender e aprofundar o conhecimento:"""
     
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
