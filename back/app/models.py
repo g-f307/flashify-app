@@ -69,3 +69,16 @@ class Flashcard(SQLModel, table=True):
 
     document_id: int = Field(foreign_key="document.id")
     document: Document = Relationship(back_populates="flashcards")
+    
+    # Relacionamento para conversas sobre o flashcard
+    conversations: List["FlashcardConversation"] = Relationship(back_populates="flashcard")
+
+# Modelo para armazenar conversas sobre flashcards
+class FlashcardConversation(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_message: str = Field(sa_column=Column(Text))
+    assistant_response: str = Field(sa_column=Column(Text))
+    created_at: Optional[str] = Field(default=None)  # Timestamp da mensagem
+    
+    flashcard_id: int = Field(foreign_key="flashcard.id")
+    flashcard: Flashcard = Relationship(back_populates="conversations")

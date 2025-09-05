@@ -48,6 +48,23 @@ export interface Flashcard {
   document_id: number
 }
 
+export interface FlashcardConversation {
+  id: number
+  user_message: string
+  assistant_response: string
+  created_at: string
+  flashcard_id: number
+}
+
+export interface ChatMessage {
+  message: string
+}
+
+export interface ChatResponse {
+  response: string
+  conversation_id: number
+}
+
 class ApiClient {
   private baseURL: string
   private token: string | null = null
@@ -205,6 +222,22 @@ class ApiClient {
 
   async getUserDocuments(): Promise<Document[]> {
     return this.request<Document[]>('/users/documents')
+  }
+
+  // Flashcard Chat
+  async chatWithFlashcard(flashcardId: number, message: string): Promise<ChatResponse> {
+    return this.request<ChatResponse>(`/flashcards/${flashcardId}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    })
+  }
+
+  async getFlashcardConversations(flashcardId: number): Promise<FlashcardConversation[]> {
+    return this.request<FlashcardConversation[]>(`/flashcards/${flashcardId}/conversations`)
+  }
+
+  async getFlashcardDetails(flashcardId: number): Promise<Flashcard> {
+    return this.request<Flashcard>(`/flashcards/${flashcardId}`)
   }
 }
 
