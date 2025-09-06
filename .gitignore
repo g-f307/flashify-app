@@ -1,108 +1,72 @@
 # Environment variables and secrets
+# Mantendo apenas os arquivos realmente sensíveis
 .env
 .env.local
 .env.production
-.env.staging
 .env.test
 *.key
 *.pem
-*.p12
 
 # Backend (Python/FastAPI)
-back/venv/
-back/__pycache__/
-**/__pycache__/
+# Apenas arquivos temporários e caches
+venv/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+.pytest_cache/
+# Não ignorar pacotes customizados
+!back/app/
 
 # Frontend (Next.js/React)
-front/node_modules/
-front/.next/
-front/out/
-front/build/
-front/dist/
-front/.cache/
-front/.parcel-cache/
+# Apenas node_modules e builds gerados
+node_modules/
+.pnpm-store/
+.next/
+out/
+build/
+dist/
+.turbo/
+.vercel/
 
-# IDE and Editor files
-.vscode/
+# IDE e arquivos de editor
+# Permitir configurações do VS Code para o time
+# .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS generated files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-*.log
 
-# Uploads and user content
-uploads/
+# Uploads e conteúdo do usuário
+# Arquivos de exemplo podem ser incluídos, mas não todos os uploads
+# Adicione aqui arquivos específicos de exemplo que você quer manter
+!uploads/example_*.pdf
+!uploads/example_*.png
+!uploads/example_*.jpg
+# Mas garantir que a pasta exista
 !uploads/.gitkeep
 
 # Database files
-*.db
-*.sqlite
+# Não ignorar arquivos de schema/migrations
 *.sqlite3
 
-# Docker
-.dockerignore
-
 # Logs
-logs/
-*.log
+logs/*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Coverage reports
-htmlcov/
+# Relatórios de cobertura
 .coverage
-.coverage.*
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
+coverage/
 
-# Temporary files
+# Arquivos temporários
 *.tmp
-*.temp
 temp/
 tmp/
 
-# Package files
-*.tar.gz
-*.zip
-*.rar
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
 # Celery
 celerybeat-schedule
-celerybeat.pid
-
-# Redis dump file
-dump.rdb
