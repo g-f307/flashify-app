@@ -41,13 +41,14 @@ dist/
 Thumbs.db
 
 # Uploads e conteúdo do usuário
-# Arquivos de exemplo podem ser incluídos, mas não todos os uploads
-# Adicione aqui arquivos específicos de exemplo que você quer manter
+# Ignorar todos os arquivos na pasta uploads
+uploads/*
+# Mas garantir que a pasta exista
+!uploads/.gitkeep
+# Arquivos de exemplo podem ser incluídos
 !uploads/example_*.pdf
 !uploads/example_*.png
 !uploads/example_*.jpg
-# Mas garantir que a pasta exista
-!uploads/.gitkeep
 
 # Database files
 # Não ignorar arquivos de schema/migrations
