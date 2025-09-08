@@ -1,0 +1,36 @@
+/**
+ * Este arquivo contém funções utilitárias para gerenciar o token de autenticação
+ * no localStorage do navegador.
+ */
+
+const TOKEN_KEY = 'access_token';
+
+/**
+ * Salva o token de acesso no localStorage.
+ * @param token O token JWT a ser salvo.
+ */
+export const setToken = (token: string): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+};
+
+/**
+ * Remove o token de acesso do localStorage.
+ */
+export const clearToken = (): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+};
+
+/**
+ * Recupera o token de acesso do localStorage.
+ * @returns O token salvo ou null se não existir.
+ */
+export const getToken = (): string | null => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem(TOKEN_KEY);
+  }
+  return null;
+};

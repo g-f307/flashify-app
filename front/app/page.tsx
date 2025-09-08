@@ -1,30 +1,27 @@
-"use client"
+"use client";
 
-import { useState, useRef } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { LoginForm } from "@/components/auth/login-form"
-import { FileUpload } from "@/components/upload/file-upload"
-import { TextInput } from "@/components/upload/text-input"
-import { DocumentList } from "@/components/documents/document-list"
-import { FlashcardStudy } from "@/components/study/flashcard-study"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { useState, useRef } from "react";
+import { useAuth } from "@/contexts/auth-context";
+// --- CORREÇÃO: Importando os formulários como 'default' e com a caixa correta ---
+import LoginForm from "@/components/auth/login-form";
+import RegisterForm from "@/components/auth/register-form";
+import { FileUpload } from "@/components/upload/file-upload";
+import { TextInput } from "@/components/upload/text-input";
+import { DocumentList } from "@/components/documents/document-list";
+import { FlashcardStudy } from "@/components/study/flashcard-study";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Upload,
   ImageIcon,
   FileText,
   Brain,
   Play,
-  RotateCcw,
-  Check,
-  X,
   Plus,
   Settings,
   User,
@@ -32,22 +29,22 @@ import {
   Library,
   TrendingUp,
   Menu,
-} from "lucide-react"
+} from "lucide-react";
 
 export default function FlashifyApp() {
-  const { isAuthenticated, isLoading, user, logout } = useAuth()
-  const [activeTab, setActiveTab] = useState("home")
-  const [currentCard, setCurrentCard] = useState(0)
-  const [showAnswer, setShowAnswer] = useState(false)
-  const [isFlipping, setIsFlipping] = useState(false)
-  const [studyProgress, setStudyProgress] = useState(65)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [studyingDocument, setStudyingDocument] = useState<any>(null)
+  const { user, loading, logout } = useAuth();
+  const isAuthenticated = !!user;
 
-  const flipAudioRef = useRef<HTMLAudioElement | null>(null)
+  const [activeTab, setActiveTab] = useState("home");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [studyingDocument, setStudyingDocument] = useState<any>(null);
+  const [showRegister, setShowRegister] = useState(false);
 
-  // Show loading spinner
-  if (isLoading) {
+  const flipAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const toggleForm = () => setShowRegister((prev) => !prev);
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -57,10 +54,9 @@ export default function FlashifyApp() {
           <p>Carregando...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  // Show login form if not authenticated
   if (!isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -72,29 +68,16 @@ export default function FlashifyApp() {
             <h1 className="text-2xl font-bold">Flashify</h1>
             <p className="text-muted-foreground">Acelere seu aprendizado</p>
           </div>
-          <LoginForm />
+          {/* --- CORREÇÃO: Passando a função 'onToggleForm' para os componentes --- */}
+          {showRegister ? (
+            <RegisterForm onToggleForm={toggleForm} />
+          ) : (
+            <LoginForm onToggleForm={toggleForm} />
+          )}
         </div>
       </div>
-    )
+    );
   }
-
-  // Sample flashcards data
-  const flashcards = [
-    {
-      id: 1,
-      question: "O que é fotossíntese?",
-      answer: "Processo pelo qual as plantas convertem luz solar, água e dióxido de carbono em glicose e oxigênio.",
-      difficulty: "Fácil",
-      subject: "Biologia",
-    },
-    {
-      id: 2,
-      question: "Qual é a fórmula da Lei de Ohm?",
-      answer: "V = I × R, onde V é voltagem, I é corrente e R é resistência.",
-      difficulty: "Médio",
-      subject: "Física",
-    },
-  ]
 
   const sidebarItems = [
     { id: "home", label: "Início", icon: Home },
@@ -102,34 +85,7 @@ export default function FlashifyApp() {
     { id: "create", label: "Criar", icon: Plus },
     { id: "progress", label: "Progresso", icon: TrendingUp },
     { id: "settings", label: "Configurações", icon: Settings },
-  ]
-
-  const handleCardFlip = () => {
-    if (flipAudioRef.current) {
-      flipAudioRef.current.currentTime = 0
-      flipAudioRef.current.play().catch(() => {
-        // Ignora erro se o usuário não interagiu ainda com a página
-      })
-    }
-
-    setIsFlipping(true)
-    setTimeout(() => {
-      setShowAnswer(!showAnswer)
-      setIsFlipping(false)
-    }, 300) // Aumentado para 300ms (metade da duração da animação de 600ms)
-  }
-
-  const handleNextCard = () => {
-    setCurrentCard((prev) => (prev + 1) % flashcards.length)
-    setShowAnswer(false)
-    setIsFlipping(false)
-  }
-
-  const handlePrevCard = () => {
-    setCurrentCard((prev) => (prev - 1 + flashcards.length) % flashcards.length)
-    setShowAnswer(false)
-    setIsFlipping(false)
-  }
+  ];
 
   return (
     <div className="flex h-screen bg-background">
@@ -150,7 +106,6 @@ export default function FlashifyApp() {
         transition-transform duration-300 ease-in-out lg:transition-none
       `}
       >
-        {/* Logo */}
         <div className="p-4 lg:p-6 border-b border-sidebar-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -159,22 +114,20 @@ export default function FlashifyApp() {
               </div>
               <h1 className="text-xl font-bold text-sidebar-foreground">Flashify</h1>
             </div>
-            {/* Theme Toggle */}
             <ThemeToggle />
           </div>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
-              const Icon = item.icon
+              const Icon = item.icon;
               return (
                 <li key={item.id}>
                   <button
                     onClick={() => {
-                      setActiveTab(item.id)
-                      setSidebarOpen(false)
+                      setActiveTab(item.id);
+                      setSidebarOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
                       activeTab === item.id
@@ -192,12 +145,11 @@ export default function FlashifyApp() {
                     {item.label}
                   </button>
                 </li>
-              )
+              );
             })}
           </ul>
         </nav>
 
-        {/* User Profile */}
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
@@ -205,9 +157,9 @@ export default function FlashifyApp() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {user?.username || 'Usuário'}
+                {user?.username || "Usuário"}
               </p>
-              <button 
+              <button
                 onClick={logout}
                 className="text-xs text-muted-foreground hover:text-red-600 transition-colors"
               >
@@ -218,7 +170,6 @@ export default function FlashifyApp() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-background">
           <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-accent rounded-lg">
@@ -230,14 +181,12 @@ export default function FlashifyApp() {
             </div>
             <span className="font-semibold">Flashify</span>
           </div>
-          {/* Theme Toggle */}
           <ThemeToggle />
         </div>
 
         {activeTab === "home" && (
           <div className="flex-1 p-4 lg:p-8 overflow-auto">
             <div className="max-w-4xl mx-auto space-y-6 lg:space-y-8">
-              {/* Header */}
               <div className="text-center space-y-3 lg:space-y-4">
                 <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Bem-vindo ao Flashify</h2>
                 <p className="text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
@@ -256,7 +205,7 @@ export default function FlashifyApp() {
                     </div>
                     <CardTitle className="text-base lg:text-lg">Upload PDF</CardTitle>
                     <CardDescription className="text-sm">
-                      Envie um arquivo PDF e gere flashcards automaticamente
+                      Envie um arquivo PDF e gere flashcards
                     </CardDescription>
                   </CardHeader>
                 </Card>
@@ -270,7 +219,7 @@ export default function FlashifyApp() {
                       <ImageIcon className="w-5 h-5 lg:w-6 lg:h-6 text-black dark:text-primary" />
                     </div>
                     <CardTitle className="text-base lg:text-lg">Upload Imagem</CardTitle>
-                    <CardDescription className="text-sm">Extraia texto de imagens e crie flashcards</CardDescription>
+                    <CardDescription className="text-sm">Extraia texto de imagens</CardDescription>
                   </CardHeader>
                 </Card>
 
@@ -283,71 +232,9 @@ export default function FlashifyApp() {
                       <FileText className="w-5 h-5 lg:w-6 lg:h-6 text-black dark:text-primary" />
                     </div>
                     <CardTitle className="text-base lg:text-lg">Texto Livre</CardTitle>
-                    <CardDescription className="text-sm">Digite ou cole texto para gerar flashcards</CardDescription>
+                    <CardDescription className="text-sm">Digite ou cole para gerar</CardDescription>
                   </CardHeader>
                 </Card>
-              </div>
-
-              {/* Recent Study Sets */}
-              <div className="space-y-4">
-                <h3 className="text-lg lg:text-xl font-semibold text-foreground">Conjuntos Recentes</h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-                  <Card className="border-card-border hover:border-lime-accent/50 dark:hover:border-primary/50 hover:shadow-lg transition-all">
-                    <CardHeader className="p-4 lg:p-6">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm lg:text-base">Biologia - Fotossíntese</CardTitle>
-                        <Badge
-                          variant="default"
-                          className="text-xs text-black dark:bg-primary dark:text-primary-foreground border-lime-accent/30 dark:border-primary/30 bg-lime-accent"
-                        >
-                          12 cards
-                        </Badge>
-                      </div>
-                      <CardDescription className="text-xs lg:text-sm">Criado há 2 dias</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-4 lg:p-6 pt-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs lg:text-sm text-muted-foreground">Progresso: 75%</span>
-                        <Button
-                          size="sm"
-                          onClick={() => setActiveTab("study")}
-                          className="bg-lime-accent hover:bg-lime-accent/90 text-black dark:bg-primary dark:hover:bg-primary/90 dark:text-primary-foreground border border-lime-accent/30 dark:border-primary/30 shadow-sm hover:shadow-md transition-all"
-                        >
-                          <Play className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
-                          <span className="hidden sm:inline">Estudar</span>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-card-border hover:border-lime-accent/50 dark:hover:border-primary/50 hover:shadow-lg transition-all">
-                    <CardHeader className="p-4 lg:p-6">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm lg:text-base">Física - Eletricidade</CardTitle>
-                        <Badge
-                          variant="default"
-                          className="text-xs text-black dark:bg-primary dark:text-primary-foreground border-lime-accent/30 dark:border-primary/30 bg-lime-accent"
-                        >
-                          8 cards
-                        </Badge>
-                      </div>
-                      <CardDescription className="text-xs lg:text-sm">Criado há 1 semana</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-4 lg:p-6 pt-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs lg:text-sm text-muted-foreground">Progresso: 45%</span>
-                        <Button
-                          size="sm"
-                          onClick={() => setActiveTab("study")}
-                          className="bg-lime-accent hover:bg-lime-accent/90 text-black dark:bg-primary dark:hover:bg-primary/90 dark:text-primary-foreground border border-lime-accent/30 dark:border-primary/30"
-                        >
-                          <Play className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
-                          <span className="hidden sm:inline">Estudar</span>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
               </div>
             </div>
           </div>
@@ -384,17 +271,14 @@ export default function FlashifyApp() {
                     Imagem
                   </TabsTrigger>
                 </TabsList>
-
                 <TabsContent value="text" className="space-y-4">
-                  <TextInput onSuccess={() => setActiveTab("library")} />
+                  <TextInput />
                 </TabsContent>
-
                 <TabsContent value="pdf" className="space-y-4">
-                  <FileUpload onSuccess={() => setActiveTab("library")} />
+                  <FileUpload />
                 </TabsContent>
-
                 <TabsContent value="image" className="space-y-4">
-                  <FileUpload onSuccess={() => setActiveTab("library")} />
+                  <FileUpload />
                 </TabsContent>
               </Tabs>
             </div>
@@ -404,8 +288,8 @@ export default function FlashifyApp() {
         {activeTab === "study" && (
           <div className="flex-1 p-4 lg:p-8 overflow-auto">
             {studyingDocument ? (
-              <FlashcardStudy 
-                documentId={studyingDocument.id}
+              <FlashcardStudy
+                document={studyingDocument}
                 onBack={() => setStudyingDocument(null)}
               />
             ) : (
@@ -413,11 +297,11 @@ export default function FlashifyApp() {
                 <div className="text-center mb-8">
                   <h2 className="text-xl lg:text-2xl font-bold text-foreground">Modo Estudo</h2>
                   <p className="text-sm lg:text-base text-muted-foreground">
-                    Selecione um conjunto de flashcards para começar a estudar
+                    Selecione um conjunto de flashcards para começar
                   </p>
                 </div>
-                <DocumentList 
-                  onStudyDocument={(doc) => setStudyingDocument(doc)}
+                <DocumentList
+                  onDocumentSelect={(doc) => setStudyingDocument(doc)}
                 />
               </div>
             )}
@@ -439,10 +323,10 @@ export default function FlashifyApp() {
                 </Button>
               </div>
 
-              <DocumentList 
-                onStudyDocument={(doc) => {
-                  setStudyingDocument(doc)
-                  setActiveTab("study")
+              <DocumentList
+                onDocumentSelect={(doc) => {
+                  setStudyingDocument(doc);
+                  setActiveTab("study");
                 }}
               />
             </div>
@@ -453,49 +337,20 @@ export default function FlashifyApp() {
           <div className="flex-1 p-4 lg:p-8 overflow-auto">
             <div className="max-w-4xl mx-auto space-y-6">
               <h2 className="text-xl lg:text-2xl font-bold text-foreground">Seu Progresso</h2>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                <Card className="border-card-border hover:border-lime-accent/50 dark:hover:border-primary/50 hover:shadow-lg transition-all">
-                  <CardHeader className="p-4 lg:p-6">
-                    <CardTitle className="text-sm lg:text-base">Cards Estudados</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 lg:p-6 pt-0">
-                    <div className="text-2xl lg:text-3xl font-bold text-lime-accent dark:text-primary">247</div>
-                    <p className="text-xs lg:text-sm text-muted-foreground">Esta semana</p>
-                  </CardContent>
+                <Card className="border-card-border">
+                  <CardHeader><CardTitle>Cards Estudados</CardTitle></CardHeader>
+                  <CardContent><div className="text-3xl font-bold text-lime-accent dark:text-primary">247</div></CardContent>
                 </Card>
-
-                <Card className="border-card-border hover:border-lime-accent/50 dark:hover:border-primary/50 hover:shadow-lg transition-all">
-                  <CardHeader className="p-4 lg:p-6">
-                    <CardTitle className="text-sm lg:text-base">Sequência</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 lg:p-6 pt-0">
-                    <div className="text-2xl lg:text-3xl font-bold text-lime-accent dark:text-primary">12</div>
-                    <p className="text-xs lg:text-sm text-muted-foreground">Dias consecutivos</p>
-                  </CardContent>
+                <Card className="border-card-border">
+                  <CardHeader><CardTitle>Sequência</CardTitle></CardHeader>
+                  <CardContent><div className="text-3xl font-bold text-lime-accent dark:text-primary">12 dias</div></CardContent>
                 </Card>
-
-                <Card className="sm:col-span-2 lg:col-span-1 border-card-border hover:border-lime-accent/50 dark:hover:border-primary/50 hover:shadow-lg transition-all">
-                  <CardHeader className="p-4 lg:p-6">
-                    <CardTitle className="text-sm lg:text-base">Precisão</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 lg:p-6 pt-0">
-                    <div className="text-2xl lg:text-3xl font-bold text-lime-accent dark:text-primary">87%</div>
-                    <p className="text-xs lg:text-sm text-muted-foreground">Média geral</p>
-                  </CardContent>
+                <Card className="border-card-border">
+                  <CardHeader><CardTitle>Precisão</CardTitle></CardHeader>
+                  <CardContent><div className="text-3xl font-bold text-lime-accent dark:text-primary">87%</div></CardContent>
                 </Card>
               </div>
-
-              <Card className="border-card-border">
-                <CardHeader className="p-4 lg:p-6">
-                  <CardTitle className="text-base lg:text-lg">Atividade Semanal</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 lg:p-6 pt-0">
-                  <div className="h-48 lg:h-64 flex items-center justify-center text-muted-foreground text-sm lg:text-base border border-lime-accent/20 dark:border-primary/20 rounded-lg bg-lime-accent/5 dark:bg-primary/5">
-                    Gráfico de atividade semanal
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         )}
@@ -506,34 +361,28 @@ export default function FlashifyApp() {
               <h2 className="text-xl lg:text-2xl font-bold text-foreground">Configurações</h2>
 
               <Card className="border-card-border">
-                <CardHeader className="p-4 lg:p-6">
-                  <CardTitle className="text-base lg:text-lg">Conta</CardTitle>
-                  <CardDescription className="text-sm">Gerencie suas informações de conta</CardDescription>
+                <CardHeader>
+                  <CardTitle>Conta</CardTitle>
+                  <CardDescription>Gerencie suas informações de conta</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4 p-4 lg:p-6 pt-0">
-                  <Button className="w-full bg-lime-accent hover:bg-lime-accent/90 text-black dark:bg-primary dark:hover:bg-primary/90 dark:text-primary-foreground border border-lime-accent/30 dark:border-primary/30 shadow-sm hover:shadow-md transition-all">
-                    Fazer Login com Google
-                  </Button>
+                <CardContent className="space-y-4">
+                  <Button className="w-full">Fazer Login com Google</Button>
                 </CardContent>
               </Card>
 
               <Card className="border-card-border">
-                <CardHeader className="p-4 lg:p-6">
-                  <CardTitle className="text-base lg:text-lg">Preferências de Estudo</CardTitle>
-                  <CardDescription className="text-sm">Personalize sua experiência de aprendizado</CardDescription>
+                <CardHeader>
+                  <CardTitle>Preferências de Estudo</CardTitle>
+                  <CardDescription>Personalize sua experiência</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4 p-4 lg:p-6 pt-0">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Cards por sessão</Label>
-                    <Input
-                      type="number"
-                      defaultValue="20"
-                      className="w-full p-2 border border-input rounded-md bg-background text-sm lg:text-base focus:border-lime-accent dark:focus:border-primary focus:ring-lime-accent/20 dark:focus:ring-primary/20 focus:outline-none"
-                    />
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Cards por sessão</Label>
+                    <Input type="number" defaultValue="20" />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Dificuldade padrão</Label>
-                    <select className="w-full p-2 border border-input rounded-md bg-background text-sm lg:text-base focus:border-lime-accent dark:focus:border-primary focus:ring-lime-accent/20 dark:focus:ring-primary/20 focus:outline-none">
+                  <div>
+                    <Label>Dificuldade padrão</Label>
+                    <select className="w-full p-2 border rounded-md">
                       <option>Fácil</option>
                       <option>Médio</option>
                       <option>Difícil</option>
@@ -546,5 +395,5 @@ export default function FlashifyApp() {
         )}
       </div>
     </div>
-  )
+  );
 }

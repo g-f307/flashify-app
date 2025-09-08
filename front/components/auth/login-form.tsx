@@ -4,57 +4,41 @@ import { useState } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 import { GoogleLoginButton } from './google-login-button'
-import Link from 'next/link'
 
-// 1. Schema de validação com Zod
+// --- CORREÇÃO: Definindo a interface para as props do componente ---
+interface LoginFormProps {
+  onToggleForm: () => void;
+}
+
 const formSchema = z.object({
   username: z.string().min(1, { message: 'Por favor, insira seu email ou usuário.' }),
   password: z.string().min(1, { message: 'Por favor, insira sua senha.' }),
 })
 
-export function LoginForm() {
+// --- CORREÇÃO: Aplicando a tipagem e desestruturando 'onToggleForm' ---
+export default function LoginForm({ onToggleForm }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>('')
   const { login } = useAuth()
 
-  // 2. Definição do formulário com React Hook Form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      username: '',
-      password: '',
-    },
+    defaultValues: { username: '', password: '' },
   })
 
-  // 3. Handler de submissão
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     setError('')
     try {
       await login({ username: values.username, password: values.password })
-      // O AuthContext cuidará do redirecionamento
     } catch (err: any) {
       setError(err.message || 'Falha no login. Verifique suas credenciais.')
     } finally {
@@ -80,12 +64,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Email ou Nome de Usuário</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="email@exemplo.com"
-                      {...field}
-                      disabled={isLoading}
-                      autoComplete="username"
-                    />
+                    <Input placeholder="email@exemplo.com" {...field} disabled={isLoading} autoComplete="username" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -98,13 +77,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Senha</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="********"
-                      {...field}
-                      disabled={isLoading}
-                      autoComplete="current-password"
-                    />
+                    <Input type="password" placeholder="********" {...field} disabled={isLoading} autoComplete="current-password" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -125,25 +98,20 @@ export function LoginForm() {
         )}
 
         <div className="relative mt-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
+          <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Ou continue com
-            </span>
+            <span className="bg-background px-2 text-muted-foreground">Ou continue com</span>
           </div>
         </div>
         
         <GoogleLoginButton />
-
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
           Não tem uma conta?{' '}
-          <Link href="/register" className="font-semibold text-primary hover:underline">
+          <Button variant="link" type="button" onClick={onToggleForm} className="font-semibold text-primary hover:underline p-0 h-auto">
             Cadastre-se
-          </Link>
+          </Button>
         </p>
       </CardFooter>
     </Card>

@@ -1,45 +1,46 @@
 "use client";
 
-import { useGoogleLogin } from '@react-oauth/google';
-import { Button } from '@/components/ui/button';
-import { apiClient } from '@/lib/api';
-import { useAuth } from '@/contexts/auth-context';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useGoogleLogin } from "@react-oauth/google";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/auth-context";
+import { useState } from "react";
+import Image from "next/image";
 
 export function GoogleLoginButton() {
-  const [isLoading, setIsLoading] = useState(false);
-  const { checkAuth } = useAuth();
-  const router = useRouter();
+  // --- CORREÇÃO: Usando a função 'googleLogin' do nosso contexto de autenticação ---
+  const { googleLogin } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
-  const handleGoogleLogin = useGoogleLogin({
-    flow: 'auth-code',
-    onSuccess: async (codeResponse) => {
-      setIsLoading(true);
+  const handleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
       try {
-        await apiClient.loginWithGoogle(codeResponse.code);
-        await checkAuth(); // Atualiza o estado de autenticação
-        router.push('/'); // Redireciona para o dashboard
-      } catch (error) {
-        console.error("Falha no login com Google:", error);
-        // Exibir um toast de erro aqui
-      } finally {
-        setIsLoading(false);
+        // --- CORREÇÃO: Chamando a função com o nome correto ---
+        await googleLogin(tokenResponse.code);
+        // O AuthContext cuidará de atualizar o estado e redirecionar
+      } catch (err: any) {
+        console.error("Falha no login com Google:", err);
+        setError(err.message || "Não foi possível fazer login com o Google.");
       }
     },
     onError: (errorResponse) => {
-      console.error('Erro no login com Google:', errorResponse);
+      console.error("Erro no fluxo do Google OAuth:", errorResponse);
+      setError("Ocorreu um erro durante a autenticação com o Google.");
     },
+    // O backend irá trocar o código por um token
+    flow: "auth-code", 
   });
 
   return (
-    <Button
-      variant="outline"
-      className="w-full"
-      onClick={() => handleGoogleLogin()}
-      disabled={isLoading}
-    >
-      {isLoading ? "Verificando..." : "Entrar com Google"}
-    </Button>
+    <div>
+      <Button
+        variant="outline"
+        className="w-full flex items-center justify-center gap-2"
+        onClick={() => handleLogin()}
+      >
+        <Image src="/google-logo.svg" alt="Google logo" width={18} height={18} />
+        Entrar com Google
+      </Button>
+      {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+    </div>
   );
 }

@@ -1,80 +1,81 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { apiClient, User, LoginRequest } from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { apiClient, User, LoginRequest, RegisterRequest } from "@/lib/api"; // Importando RegisterRequest
+import { setToken, clearToken, getToken } from "@/lib/auth"; // Assumindo lib/auth.ts
 
+// --- CORREÇÃO 1: Adicionando as funções que faltavam na interface ---
 interface AuthContextType {
   user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (data: LoginRequest) => Promise<void>;
+  loading: boolean;
+  login: (credentials: LoginRequest) => Promise<void>;
+  register: (userData: RegisterRequest) => Promise<void>;
   logout: () => void;
-  checkAuth: () => Promise<void>; // Adicionamos a função aqui
+  googleLogin: (code: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-
-  const isAuthenticated = user !== null;
-
-  const checkAuth = useCallback(async () => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      try {
-        // Se temos um token, tentamos buscar os dados do usuário
-        apiClient.setToken(token);
-        const userData = await apiClient.getMe();
-        setUser(userData);
-      } catch (error) {
-        // Se o token for inválido, limpa tudo
-        apiClient.clearToken();
-        setUser(null);
-      }
-    }
-    setIsLoading(false);
-  }, []);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    const initializeAuth = async () => {
+      const token = getToken();
+      if (token) {
+        try {
+          const userData = await apiClient.getCurrentUser();
+          setUser(userData);
+        } catch (error) {
+          console.error("Falha ao buscar usuário, limpando token", error);
+          clearToken();
+        }
+      }
+      setLoading(false);
+    };
 
-  const login = async (data: LoginRequest) => {
-    await apiClient.login(data);
-    await checkAuth(); // Após o login, busca os dados do usuário
-    router.push('/'); // Redireciona para o dashboard
+    initializeAuth();
+  }, []);
+
+  // --- CORREÇÃO 2: Implementando as funções que faltavam ---
+  const login = async (credentials: LoginRequest) => {
+    const tokenData = await apiClient.login(credentials);
+    setToken(tokenData.access_token);
+    const userData = await apiClient.getCurrentUser();
+    setUser(userData);
+  };
+  
+  const googleLogin = async (code: string) => {
+    const tokenData = await apiClient.googleLogin(code);
+    setToken(tokenData.access_token);
+    const userData = await apiClient.getCurrentUser();
+    setUser(userData);
+  };
+
+  const register = async (userData: RegisterRequest) => {
+    await apiClient.register(userData);
+    // Após o cadastro, faz o login automaticamente para criar a sessão
+    await login({ username: userData.email, password: userData.password });
   };
 
   const logout = () => {
-    apiClient.logout();
+    clearToken();
     setUser(null);
-    router.push('/'); // Redireciona para a home
-  };
-  
-  const value = {
-    user,
-    isAuthenticated,
-    isLoading,
-    login,
-    logout,
-    checkAuth, // Disponibiliza a função no contexto
   };
 
+  // --- CORREÇÃO 3: Passando as novas funções para o Provider ---
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, googleLogin }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
+};
