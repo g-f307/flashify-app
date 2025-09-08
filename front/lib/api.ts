@@ -90,15 +90,16 @@ class ApiClient {
     }
   }
 
-  private async request<T>(
+    private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
-    const headers: HeadersInit = {
+    // Ajuste a tipagem aqui para ser mais específica
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     }
 
     if (this.token) {
@@ -152,6 +153,28 @@ class ApiClient {
   async logout() {
     this.clearToken()
   }
+
+  async getMe(): Promise<User> {
+    return this.request<User>('/users/me');
+  }
+
+  async loginWithGoogle(code: string): Promise<TokenResponse> {
+    // Note que este método não precisa de 'Authorization' header
+    const response = await fetch(`${this.baseURL}/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
+        throw new Error(errorData.detail || `HTTP ${response.status}`)
+    }
+
+    const tokenResponse = await response.json();
+    this.setToken(tokenResponse.access_token);
+    return tokenResponse;
+}
 
   // Folders
   async getFolders(): Promise<Folder[]> {
