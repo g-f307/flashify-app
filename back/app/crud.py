@@ -145,3 +145,15 @@ def get_flashcard_conversations(session: Session, flashcard_id: int) -> list[mod
         models.FlashcardConversation.flashcard_id == flashcard_id
     ).order_by(models.FlashcardConversation.created_at)
     return session.exec(statement).all()
+
+def create_social_user(session: Session, email: str, username: str) -> models.User:
+    """Cria um novo usuário para login social (sem senha)."""
+    db_user = models.User(
+        username=username,
+        email=email,
+        provider=models.AuthProvider.GOOGLE,
+    )
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+    return db_user

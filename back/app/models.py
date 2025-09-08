@@ -3,6 +3,7 @@ from typing import Optional, List
 from sqlmodel import Field, SQLModel, Relationship
 from enum import Enum # Importe Enum
 from sqlalchemy import Column, Text
+from typing import Annotated
 
 # Crie uma Enum para o status do documento
 class DocumentStatus(str, Enum):
@@ -20,12 +21,17 @@ class FlashcardType(str, Enum):
     COMPARISON = "comparison"
 
 
+class AuthProvider(str, Enum):
+    LOCAL = "local"
+    GOOGLE = "google"
+
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)
     email: str = Field(unique=True, index=True)
-    hashed_password: str
+    hashed_password: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True)
+    provider: AuthProvider = Field(default=AuthProvider.LOCAL)
 
     # Adicione esta relação para que um usuário possa ter muitas pastas
     folders: List["Folder"] = Relationship(back_populates="user")
