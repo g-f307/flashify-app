@@ -31,7 +31,12 @@ export function TextInput({ onSuccess }: TextInputProps) {
     setError('')
 
     try {
-      const document = await apiClient.generateFlashcardsFromText(text, title || undefined)
+      const document = await apiClient.createDocumentFromText(
+        text,
+        title || '',
+        10, // default number of flashcards
+        'medium' // default difficulty
+      )
       onSuccess?.(document)
       setTitle('')
       setText('')
@@ -43,7 +48,7 @@ export function TextInput({ onSuccess }: TextInputProps) {
   }
 
   return (
-    <Card>
+    <Card className="glow-on-hover">
       <CardHeader>
         <CardTitle>Inserir Texto</CardTitle>
         <CardDescription>

@@ -47,7 +47,7 @@ export default function LoginForm({ onToggleForm }: LoginFormProps) {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm glow-on-hover">
       <CardHeader>
         <CardTitle className="text-2xl">Login</CardTitle>
         <CardDescription>

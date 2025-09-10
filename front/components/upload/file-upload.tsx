@@ -30,7 +30,12 @@ export function FileUpload({ folderId, onSuccess }: FileUploadProps) {
     setError('')
 
     try {
-      const document = await apiClient.uploadDocument(file, folderId)
+      // Provide default values for title, num_flashcards, and difficulty
+      const title = file.name
+      const num_flashcards = 10 // or any default number you prefer
+      const difficulty = 'medium' // or any default difficulty you prefer
+
+      const document = await apiClient.uploadDocument(file, title, num_flashcards, difficulty)
       onSuccess?.(document)
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Erro ao fazer upload')
@@ -40,7 +45,7 @@ export function FileUpload({ folderId, onSuccess }: FileUploadProps) {
   }
 
   return (
-    <Card>
+    <Card className="glow-on-hover">
       <CardHeader>
         <CardTitle>Upload de Arquivo</CardTitle>
         <CardDescription>

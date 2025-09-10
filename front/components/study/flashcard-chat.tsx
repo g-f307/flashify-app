@@ -118,7 +118,7 @@ export function FlashcardChat({ flashcard, onClose }: FlashcardChatProps) {
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto border-card-border shadow-lg">
+    <Card className="w-full max-w-2xl mx-auto shadow-lg glow-on-hover">
       <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
         <CardTitle className="text-lg flex items-center gap-2">
           <MessageCircle className="w-5 h-5 text-lime-accent dark:text-primary" />

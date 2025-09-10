@@ -151,7 +151,7 @@ export function EnhancedFlashcardRenderer({
       </div>
 
       {/* Content */}
-      <div ref={contentRef} className="text-left space-y-2">
+      <div ref={contentRef} className="text-left space-y-2 overflow-y-auto max-h-full">
         {renderContent(content)}
       </div>
     </div>

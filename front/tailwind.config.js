@@ -9,15 +9,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        border: "hsl(var(--border))",
         input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
+        
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         sidebar: "hsl(var(--sidebar))",
         "sidebar-foreground": "hsl(var(--sidebar-foreground))",
         "sidebar-border": "hsl(var(--sidebar-border))",
         "card-border": "hsl(var(--card-border))",
+        glow: "hsl(var(--glow))",
         "lime-accent": "hsl(var(--lime-accent))",
         "lime-accent-foreground": "hsl(var(--lime-accent-foreground))",
         primary: {

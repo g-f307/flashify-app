@@ -61,7 +61,7 @@ export default function RegisterForm({ onToggleForm }: RegisterFormProps) {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm glow-on-hover">
       <CardHeader>
         <CardTitle className="text-2xl">Criar Conta</CardTitle>
         <CardDescription>
