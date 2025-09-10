@@ -1,10 +1,10 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { apiClient, User, LoginRequest, RegisterRequest } from "@/lib/api"; // Importando RegisterRequest
-import { setToken, clearToken, getToken } from "@/lib/auth"; // Assumindo lib/auth.ts
+import { apiClient, User, LoginRequest, RegisterRequest } from "@/lib/api";
+import { setToken, clearToken, getToken } from "@/lib/auth";
+import { useRouter } from "next/navigation"; // Importa o useRouter
 
-// --- CORREÇÃO 1: Adicionando as funções que faltavam na interface ---
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -19,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter(); // Inicializa o router
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -28,22 +29,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userData = await apiClient.getCurrentUser();
           setUser(userData);
         } catch (error) {
-          console.error("Falha ao buscar usuário, limpando token", error);
+          console.error("Falha ao buscar utilizador, a limpar token", error);
           clearToken();
+          router.push('/login'); // Se o token for inválido, vai para o login
         }
       }
       setLoading(false);
     };
 
     initializeAuth();
-  }, []);
+  }, [router]);
 
-  // --- CORREÇÃO 2: Implementando as funções que faltavam ---
   const login = async (credentials: LoginRequest) => {
     const tokenData = await apiClient.login(credentials);
     setToken(tokenData.access_token);
     const userData = await apiClient.getCurrentUser();
     setUser(userData);
+    router.push('/'); // <-- **REDIRECIONAMENTO APÓS LOGIN**
   };
   
   const googleLogin = async (code: string) => {
@@ -51,20 +53,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(tokenData.access_token);
     const userData = await apiClient.getCurrentUser();
     setUser(userData);
+    router.push('/'); // <-- **REDIRECIONAMENTO APÓS GOOGLE LOGIN**
   };
 
   const register = async (userData: RegisterRequest) => {
     await apiClient.register(userData);
-    // Após o cadastro, faz o login automaticamente para criar a sessão
+    // Após o registo, faz o login para criar a sessão e redirecionar
     await login({ username: userData.email, password: userData.password });
   };
 
   const logout = () => {
     clearToken();
     setUser(null);
+    router.push('/login'); // <-- **REDIRECIONAMENTO APÓS LOGOUT**
   };
 
-  // --- CORREÇÃO 3: Passando as novas funções para o Provider ---
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, register, googleLogin }}>
       {children}
