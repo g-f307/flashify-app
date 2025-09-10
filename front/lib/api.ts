@@ -40,6 +40,9 @@ export interface Document {
   processing_progress?: number;
   current_step?: string;
   can_cancel?: boolean;
+  // --- NOVOS CAMPOS ADICIONADOS ---
+  created_at: string; // O backend enviará a data como uma string no formato ISO
+  studied_flashcard_ids: number[];
 }
 
 export interface Flashcard {
@@ -178,11 +181,19 @@ class ApiClient {
     });
   }
 
-  async uploadDocument(file: File, folderId?: number): Promise<Document> {
+  async uploadDocument(
+    file: File, 
+    title: string, 
+    num_flashcards: number, 
+    difficulty: string
+  ): Promise<Document> {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('title', title);
+    formData.append('num_flashcards', String(num_flashcards));
+    formData.append('difficulty', difficulty);
 
-    const url = folderId ? `/documents/upload?folder_id=${folderId}` : '/documents/upload';
+    const url = `/documents/upload`;
     
     const headers: HeadersInit = {};
     const token = this.getToken();
@@ -192,7 +203,7 @@ class ApiClient {
 
     const response = await fetch(`${this.baseURL}${url}`, {
       method: 'POST',
-      headers,
+      headers, // Não defina Content-Type, o navegador fará isso por você para multipart/form-data
       body: formData,
     });
 
@@ -204,10 +215,16 @@ class ApiClient {
     return response.json();
   }
 
-  async createDocumentFromText(text: string, title?: string): Promise<Document> {
+
+  async createDocumentFromText(
+    text: string, 
+    title: string, 
+    num_flashcards: number, 
+    difficulty: string
+  ): Promise<Document> {
     return this.request<Document>('/documents/text', {
       method: 'POST',
-      body: JSON.stringify({ text, title }),
+      body: JSON.stringify({ text, title, num_flashcards, difficulty }),
     });
   }
   
@@ -244,6 +261,12 @@ class ApiClient {
 
   async getFlashcardConversations(flashcardId: number): Promise<FlashcardConversation[]> {
     return this.request<FlashcardConversation[]>(`/flashcards/${flashcardId}/conversations`);
+  }
+
+  async markFlashcardAsStudied(flashcardId: number): Promise<void> {
+    await this.request<void>(`/flashcards/${flashcardId}/study`, {
+      method: 'POST',
+    });
   }
 }
 
