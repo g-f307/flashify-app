@@ -2,8 +2,10 @@
 from typing import Optional, List
 from sqlmodel import Field, SQLModel, Relationship
 from enum import Enum # Importe Enum
-from sqlalchemy import Column, Text
+from sqlalchemy import Column, Text, JSON,func, DateTime, Integer
+from sqlalchemy.dialects.postgresql import ARRAY
 from typing import Annotated
+from datetime import datetime, timezone
 
 # Crie uma Enum para o status do documento
 class DocumentStatus(str, Enum):
@@ -51,12 +53,31 @@ class Folder(SQLModel, table=True):
 
 class Document(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    file_path: str # Caminho para o arquivo salvo (S3 ou local)
+    file_path: str
     status: DocumentStatus = Field(default=DocumentStatus.PROCESSING)
     extracted_text: Optional[str] = Field(default=None, sa_column=Column(Text))
-    processing_progress: int = Field(default=0)  # Porcentagem de 0 a 100
-    current_step: Optional[str] = Field(default=None)  # Passo atual do processamento
-    can_cancel: bool = Field(default=True)  # Se pode ser cancelado
+    processing_progress: int = Field(default=0)
+    current_step: Optional[str] = Field(default=None)
+    can_cancel: bool = Field(default=True)
+    
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),        # <- CORREÇÃO: usar DateTime, não datetime
+            server_default=func.now(),
+            nullable=False
+        ),
+        default_factory=lambda: datetime.now(timezone.utc)  # timezone-aware local default
+    )
+
+    processing_progress: float = 0.0
+
+    # 🔹 novo campo: lista de flashcards já estudados
+    studied_flashcard_ids: list[int] = Field(
+        sa_column=Column(
+            ARRAY(Integer), server_default="{}", nullable=False
+        ),
+        default_factory=list
+    )
 
     user_id: int = Field(foreign_key="user.id")
     user: User = Relationship(back_populates="documents")

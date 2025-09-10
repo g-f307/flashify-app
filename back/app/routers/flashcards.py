@@ -110,3 +110,27 @@ def get_flashcard_details(
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     return flashcard
+
+@router.post("/{flashcard_id}/study", status_code=status.HTTP_204_NO_CONTENT)
+def mark_flashcard_as_studied(
+    flashcard_id: int,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session)
+):
+    """Marca um flashcard como estudado, atualizando o progresso do conjunto."""
+    flashcard = crud.get_flashcard(session, flashcard_id)
+    
+    # Validação de segurança para garantir que o flashcard pertence ao utilizador
+    if not flashcard or flashcard.document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Flashcard não encontrado")
+
+    document = flashcard.document
+    
+    # Adiciona o ID à lista apenas se ele ainda não estiver lá
+    if flashcard_id not in document.studied_flashcard_ids:
+        # Importante: O SQLAlchemy deteta a mudança ao reatribuir a lista.
+        document.studied_flashcard_ids = document.studied_flashcard_ids + [flashcard_id]
+        session.add(document)
+        session.commit()
+    
+    return

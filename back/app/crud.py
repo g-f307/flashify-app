@@ -111,8 +111,10 @@ def get_flashcards_by_document(session: Session, document_id: int) -> list[model
     return session.exec(select(models.Flashcard).where(models.Flashcard.document_id == document_id)).all()
 
 def get_documents_by_user(session: Session, user_id: int) -> list[models.Document]:
-    statement = select(models.Document).where(models.Document.user_id == user_id)
-    return session.exec(statement).all()
+    stmt = select(models.Document)\
+            .where(models.Document.user_id == user_id)\
+            .order_by(models.Document.created_at.desc())
+    return session.exec(stmt).all()
 
 # CRUD para flashcard conversations
 def get_flashcard(session: Session, flashcard_id: int) -> models.Flashcard | None:
