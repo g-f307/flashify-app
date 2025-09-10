@@ -4,7 +4,7 @@ import { apiClient } from '@/lib/api'
 interface Document {
   id: number
   file_path: string
-  status: 'PROCESSING' | 'COMPLETED' | 'FAILED'
+  status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
   extracted_text?: string
   user_id: number
   folder_id?: number
