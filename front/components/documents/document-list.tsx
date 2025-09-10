@@ -11,7 +11,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import FlashcardLoader from "@/components/flashcard-loader";
 
-// Esta interface partilhada garante consistência entre os componentes
 export interface DocumentWithCount extends Document {
   total_flashcards: number;
 }
@@ -50,8 +49,8 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
       );
       
       setDocuments(documentsWithDetails.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-      setCurrentPage(1); // Resetar para a primeira página ao buscar novos documentos
-
+      // Não resetamos a página aqui para a paginação funcionar corretamente entre as atualizações
+      
       const isProcessing = userDocuments.some(doc => doc.status === 'PROCESSING');
       if (!isProcessing && intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -66,7 +65,8 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
 
   useEffect(() => {
     fetchDocuments();
-    intervalRef.current = setInterval(() => fetchDocuments(false), 7000);
+    // A verificação periódica continua útil para atualizar o status dos processamentos
+    intervalRef.current = setInterval(() => fetchDocuments(false), 7000); 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -74,9 +74,14 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="ml-2">A carregar a sua biblioteca...</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i} className="flex flex-col h-full">
+                <CardContent className="p-4 flex flex-col h-full">
+                    {/* Skeleton Loader */}
+                </CardContent>
+            </Card>
+        ))}
       </div>
     );
   }
@@ -89,13 +94,11 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
     );
   }
 
-  const totalPages = useMemo(() => Math.ceil(documents.length / ITEMS_PER_PAGE), [documents.length, ITEMS_PER_PAGE]);
-
-  const currentDocuments = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return documents.slice(startIndex, endIndex);
-  }, [documents, currentPage, ITEMS_PER_PAGE]);
+  const totalPages = Math.ceil(documents.length / ITEMS_PER_PAGE);
+  const currentDocuments = documents.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const handleNextPage = () => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
@@ -106,10 +109,11 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {documents.length > 0 ? (
         <>
-          <div className="flex overflow-x-auto space-x-4 pb-4 custom-scrollbar">
+          {/* CORREÇÃO: Revertido para o layout em grade (grid) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {currentDocuments.map((doc) => {
               const studiedCount = doc.studied_flashcard_ids?.length || 0;
               const totalCount = doc.total_flashcards;
@@ -117,7 +121,7 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
               const displayName = doc.file_path.split("/").pop()?.replace(/_/g, " ") || "Conjunto de Estudo";
 
               return (
-                <Card key={doc.id} className="flex flex-col h-full glow-on-hover transition-all hover:-translate-y-1 min-w-[280px]">
+                <Card key={doc.id} className="flex flex-col h-full glow-on-hover transition-all hover:-translate-y-1">
                   <CardContent className="p-4 flex flex-col h-full">
                     <div className="flex items-center gap-2 mb-3">
                       <FileText className="w-5 h-5 text-secondary" />
@@ -163,12 +167,6 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
                 </Card>
               );
             })}
-            <div className="flex flex-col justify-center items-center p-4 min-w-[280px] bg-yellow-100 border-2 border-yellow-400 rounded-lg shadow-md">
-              <p className="text-yellow-800 text-center mb-4">Fim dos conjuntos recentes!</p>
-              <Button onClick={() => onNewUpload()} className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded">
-                Acessar Biblioteca Completa
-              </Button>
-            </div>
           </div>
           {totalPages > 1 && (
             <div className="flex justify-center items-center space-x-2 mt-8">
@@ -206,4 +204,3 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
     </div>
   );
 }
-

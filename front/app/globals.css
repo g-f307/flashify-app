@@ -97,3 +97,28 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+/* Estilos específicos para a barra de rolagem horizontal da seção de conjuntos recentes */
+.custom-scroll-horizontal::-webkit-scrollbar {
+  height: 8px; /* Altura da barra de rolagem horizontal */
+  width: 0; /* Remove a largura da barra de rolagem vertical para este elemento */
+}
+
+.custom-scroll-horizontal::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 10px;
+}
+
+.custom-scroll-horizontal::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border-radius: 10px;
+}
+
+.custom-scroll-horizontal::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.8);
+}
+
+/* Garante que a barra de rolagem vertical não apareça se o conteúdo se estender */
+.custom-scroll-horizontal {
+  overflow-y: hidden; /* Oculta a barra de rolagem vertical para este contêiner */
+}

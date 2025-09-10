@@ -8,7 +8,6 @@ import { Plus, Library, Loader2 } from "lucide-react";
 import { apiClient, Document } from "@/lib/api";
 import { RecentDocumentCard } from "@/components/documents/recent-document-card";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 
 // Interface para incluir a contagem total de flashcards
 export interface DocumentWithCount extends Document {
@@ -27,7 +26,6 @@ export default function HomePage() {
         setLoading(true);
         const allDocs = await apiClient.getDocuments();
         
-        // CORREÇÃO: Busca a contagem de flashcards e cria o objeto correto
         const docsWithDetails = await Promise.all(
           allDocs.map(async (doc) => {
             let count = 0;
@@ -101,20 +99,25 @@ export default function HomePage() {
           </div>
         ) : recentDocuments.length > 0 ? (
           <div className="relative">
-            <div className="flex gap-4 overflow-x-auto p-4 scrollbar-hide w-full">
+            {/* Adicione a classe 'custom-scroll-horizontal' aqui */}
+            <div className="flex gap-4 overflow-x-auto p-4 pb-6 w-full custom-scroll-horizontal">
               {recentDocuments.map((doc) => (
                 <div key={doc.id} className="flex-shrink-0">
                   <RecentDocumentCard document={doc} />
                 </div>
               ))}
-            </div>
-            <div className="text-center mt-4">
-              <Button
-                variant="outline"
-                onClick={() => router.push("/library")}
-              >
-                Acessar Biblioteca
-              </Button>
+              <div className="flex-shrink-0 flex items-stretch">
+                <Card
+                  className="flex flex-col items-center justify-center h-full w-64 cursor-pointer hover:shadow-lg transition-shadow group card-enhanced glow-on-hover"
+                  onClick={() => router.push("/library")}
+                >
+                  <CardHeader className="text-center p-6">
+                    <Library className="w-10 h-10 mx-auto text-primary mb-2" />
+                    <CardTitle>Acessar Biblioteca</CardTitle>
+                    <CardDescription>Ver todos os seus conjuntos</CardDescription>
+                  </CardHeader>
+                </Card>
+              </div>
             </div>
           </div>
         ) : (
