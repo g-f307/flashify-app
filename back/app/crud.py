@@ -1,6 +1,9 @@
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func, distinct
 from . import models, schemas, security
 from typing import Optional 
+from datetime import datetime, timedelta, timezone
+from .models import Document, Flashcard, Folder, User, StudyLog 
+from .schemas import UserCreate
 
 def get_user_by_email(session: Session, email: str) -> models.User | None:
     statement = select(models.User).where(models.User.email == email)
@@ -44,6 +47,20 @@ def create_folder_for_user(
 def get_folders_by_user(session: Session, user_id: int) -> list[models.Folder]:
     statement = select(models.Folder).where(models.Folder.user_id == user_id)
     return session.exec(statement).all()
+
+# NOVA FUNÇÃO PARA CRIAR REGISTO DE ESTUDO
+def create_study_log_entry(session: Session, user_id: int, flashcard_id: int) -> StudyLog:
+    """Cria uma nova entrada no log de estudos."""
+    db_study_log = StudyLog(user_id=user_id, flashcard_id=flashcard_id)
+    session.add(db_study_log)
+    session.commit()
+    session.refresh(db_study_log)
+    return db_study_log
+
+# NOVA FUNÇÃO PARA BUSCAR REGISTOS DE ESTUDO DE UM USUÁRIO
+def get_study_logs_for_user(session: Session, user_id: int) -> list[StudyLog]:
+    """Retorna todos os registos de estudo de um usuário."""
+    return session.query(StudyLog).filter(StudyLog.user_id == user_id).all()
 
 def get_document(session: Session, document_id: int) -> models.Document | None:
     """Busca um documento pelo seu ID."""
@@ -159,3 +176,32 @@ def create_social_user(session: Session, email: str, username: str) -> models.Us
     session.commit()
     session.refresh(db_user)
     return db_user
+
+def get_studied_flashcards_count(session: Session, document_id: int) -> int:
+    """Conta os flashcards únicos que foram estudados para um determinado documento."""
+    count = (
+        session.query(func.count(distinct(StudyLog.flashcard_id)))
+        .join(Flashcard)
+        .filter(Flashcard.document_id == document_id)
+        .scalar()
+    )
+    return count or 0
+
+def get_total_flashcards_count_for_user(session: Session, user_id: int) -> int:
+    """Conta o número total de flashcards que um usuário possui em todos os conjuntos."""
+    count = (
+        session.query(func.count(Flashcard.id))
+        .join(Document)
+        .filter(Document.user_id == user_id, Document.status == 'COMPLETED')
+        .scalar()
+    )
+    return count or 0
+
+def get_unique_studied_flashcards_count_for_user(session: Session, user_id: int) -> int:
+    """Conta o número de flashcards únicos que um usuário já estudou."""
+    count = (
+        session.query(func.count(distinct(StudyLog.flashcard_id)))
+        .filter(StudyLog.user_id == user_id)
+        .scalar()
+    )
+    return count or 0

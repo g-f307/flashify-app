@@ -117,20 +117,21 @@ def mark_flashcard_as_studied(
     current_user: CurrentUser,
     session: Session = Depends(get_session)
 ):
-    """Marca um flashcard como estudado, atualizando o progresso do conjunto."""
+    """Cria um registo de que o flashcard foi estudado pelo usuário."""
     flashcard = crud.get_flashcard(session, flashcard_id)
     
-    # Validação de segurança para garantir que o flashcard pertence ao utilizador
+    # Validação para garantir que o flashcard pertence ao usuário
     if not flashcard or flashcard.document.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Flashcard não encontrado")
 
-    document = flashcard.document
+    # --- LÓGICA ALTERADA ---
+    # Em vez de modificar o documento, criamos uma entrada no StudyLog
+    crud.create_study_log_entry(
+        session=session,
+        user_id=current_user.id,
+        flashcard_id=flashcard_id
+    )
     
-    # Adiciona o ID à lista apenas se ele ainda não estiver lá
-    if flashcard_id not in document.studied_flashcard_ids:
-        # Importante: O SQLAlchemy deteta a mudança ao reatribuir a lista.
-        document.studied_flashcard_ids = document.studied_flashcard_ids + [flashcard_id]
-        session.add(document)
-        session.commit()
+    # A antiga lógica de `document.studied_flashcard_ids` foi removida.
     
     return
