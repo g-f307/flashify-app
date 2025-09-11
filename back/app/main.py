@@ -8,6 +8,7 @@ from .routers import auth
 from .routers import folders
 from .routers import documents
 from .routers import flashcards
+from .routers import progress
 
 # Importe o modelo para que ele seja registrado pelo SQLModel
 from . import models
@@ -38,6 +39,7 @@ app.include_router(auth.router)
 app.include_router(folders.router)
 app.include_router(documents.router)
 app.include_router(flashcards.router)
+app.include_router(progress.router)
 
 @app.on_event("startup")
 def on_startup():

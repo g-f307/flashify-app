@@ -109,3 +109,17 @@ class FlashcardConversation(SQLModel, table=True):
     
     flashcard_id: int = Field(foreign_key="flashcard.id")
     flashcard: Flashcard = Relationship(back_populates="conversations")
+
+# NOVO MODELO PARA REGISTRO DE ESTUDO
+class StudyLog(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    studied_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    # Precisão/acerto (pode ser expandido no futuro)
+    accuracy: float = Field(default=1.0) # 1.0 = 100% (correto), 0.0 = 0% (incorreto)
+
+    # Chaves estrangeiras
+    user_id: int = Field(foreign_key="user.id")
+    flashcard_id: int = Field(foreign_key="flashcard.id")
