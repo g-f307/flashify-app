@@ -42,7 +42,8 @@ export interface Document {
   can_cancel?: boolean;
   // --- NOVOS CAMPOS ADICIONADOS ---
   created_at: string; // O backend enviará a data como uma string no formato ISO
-  studied_flashcard_ids: number[];
+  total_flashcards: number;
+  studied_flashcards: number;
 }
 
 export interface Flashcard {
@@ -64,6 +65,14 @@ export interface FlashcardConversation {
 export interface ChatResponse {
   response: string;
   conversation_id: number;
+}
+
+// NOVA INTERFACE PARA ESTATÍSTICAS
+export interface ProgressStats {
+  cards_studied_week: number;
+  streak_days: number;
+  general_accuracy: number;
+  weekly_activity: number[];
 }
 
 // --- CLASSE DO CLIENTE API ---
@@ -267,6 +276,13 @@ class ApiClient {
     await this.request<void>(`/flashcards/${flashcardId}/study`, {
       method: 'POST',
     });
+  }
+
+  // NOVO MÉTODO PARA BUSCAR ESTATÍSTICAS
+  async getProgressStats(): Promise<ProgressStats> {
+    // getTimezoneOffset() retorna a diferença em minutos (ex: 240 para UTC-4)
+    const timezoneOffset = new Date().getTimezoneOffset();
+    return this.request<ProgressStats>(`/progress/stats?utc_offset_minutes=${timezoneOffset}`);
   }
 }
 

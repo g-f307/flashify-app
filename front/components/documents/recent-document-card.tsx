@@ -1,3 +1,5 @@
+// g-f307/flashify-app/flashify-app-feature-integra-app/front/components/documents/recent-document-card.tsx
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,10 +9,10 @@ import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { FileText, Loader2 } from "lucide-react";
-import { DocumentWithCount } from "./document-list"; // Importa a interface partilhada
+import { Document } from "@/lib/api"; // Importamos a interface principal
 
 interface RecentDocumentCardProps {
-  document: DocumentWithCount;
+  document: Document; // Usamos a interface Document diretamente
 }
 
 export function RecentDocumentCard({ document }: RecentDocumentCardProps) {
@@ -24,9 +26,10 @@ export function RecentDocumentCard({ document }: RecentDocumentCardProps) {
 
   const displayName = document.file_path.split('/').pop()?.replace(/_/g, ' ') || "Conjunto de Estudo";
 
-  const studiedCount = document.studied_flashcard_ids?.length || 0;
-  const totalCount = document.total_flashcards;
-  const progressPercentage = totalCount > 0 ? Math.round((studiedCount / totalCount) * 100) : 0;
+  // --- CÁLCULO DO PROGRESSO CORRIGIDO ---
+  const progressPercentage = document.total_flashcards > 0 
+    ? Math.round((document.studied_flashcards / document.total_flashcards) * 100) 
+    : 0;
 
   return (
     <Card className="flex flex-col h-full w-64 card-enhanced transition-all hover:-translate-y-1 glow-on-hover">

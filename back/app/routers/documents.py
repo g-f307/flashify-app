@@ -8,7 +8,7 @@ from sqlmodel import Session
 from typing_extensions import Annotated
 from pydantic import BaseModel, Field
 
-from .. import crud, models, security
+from .. import crud, models, security, schemas
 from ..database import get_session
 from ..tasks import process_document 
 from ..ai_generator import generate_flashcards_from_text
@@ -71,13 +71,31 @@ def upload_document(
 
     return response_doc
 
-@router.get("/", response_model=list[models.Document])
+@router.get("/", response_model=list[schemas.DocumentCardData])
 def get_user_documents(
     current_user: CurrentUser,
     session: Session = Depends(get_session)
 ):
-    """Lista todos os documentos do usuário logado."""
-    return crud.get_documents_by_user(session, user_id=current_user.id)
+    """Lista todos os documentos do usuário logado com progresso."""
+    db_documents = crud.get_documents_by_user(session, user_id=current_user.id)
+    
+    docs_with_progress = []
+    for doc in db_documents:
+        total_flashcards = len(doc.flashcards)
+        studied_flashcards = crud.get_studied_flashcards_count(session, document_id=doc.id)
+        
+        # Monta o objeto de resposta usando o novo schema
+        doc_data = schemas.DocumentCardData(
+            id=doc.id,
+            file_path=doc.file_path,
+            status=doc.status,
+            created_at=doc.created_at,
+            total_flashcards=total_flashcards,
+            studied_flashcards=studied_flashcards
+        )
+        docs_with_progress.append(doc_data)
+            
+    return docs_with_progress
 
 @router.get("/{document_id}", response_model=models.Document)
 def get_document(

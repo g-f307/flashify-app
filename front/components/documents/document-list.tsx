@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef } from "react";
 import { apiClient, Document } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,13 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import FlashcardLoader from "@/components/flashcard-loader";
 
-export interface DocumentWithCount extends Document {
-  total_flashcards: number;
-}
-
 interface DocumentListProps {
   onDocumentSelect: (document: Document) => void;
   onNewUpload: () => void;
 }
 
 export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProps) {
-  const [documents, setDocuments] = useState<DocumentWithCount[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
   const [loading, setLoading] = useState(true);
@@ -32,24 +28,8 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
     if (showLoading) setLoading(true);
     try {
       const userDocuments = await apiClient.getDocuments();
-
-      const documentsWithDetails = await Promise.all(
-        userDocuments.map(async (doc) => {
-          let count = 0;
-          if (doc.status === 'COMPLETED') {
-            try {
-              const flashcards = await apiClient.getDocumentFlashcards(doc.id);
-              count = flashcards.length;
-            } catch (e) {
-              console.error(`Falha ao buscar flashcards para o doc ${doc.id}`);
-            }
-          }
-          return { ...doc, total_flashcards: count };
-        })
-      );
       
-      setDocuments(documentsWithDetails.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-      // Não resetamos a página aqui para a paginação funcionar corretamente entre as atualizações
+      setDocuments(userDocuments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
       
       const isProcessing = userDocuments.some(doc => doc.status === 'PROCESSING');
       if (!isProcessing && intervalRef.current) {
@@ -65,7 +45,6 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
 
   useEffect(() => {
     fetchDocuments();
-    // A verificação periódica continua útil para atualizar o status dos processamentos
     intervalRef.current = setInterval(() => fetchDocuments(false), 7000); 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -78,7 +57,7 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
         {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="flex flex-col h-full">
                 <CardContent className="p-4 flex flex-col h-full">
-                    {/* Skeleton Loader */}
+                    {/* Skeleton Loader - Pode adicionar um componente de skeleton aqui */}
                 </CardContent>
             </Card>
         ))}
@@ -112,12 +91,11 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
     <div className="space-y-6">
       {documents.length > 0 ? (
         <>
-          {/* CORREÇÃO: Revertido para o layout em grade (grid) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {currentDocuments.map((doc) => {
-              const studiedCount = doc.studied_flashcard_ids?.length || 0;
-              const totalCount = doc.total_flashcards;
-              const progressPercentage = totalCount > 0 ? Math.round((studiedCount / totalCount) * 100) : 0;
+              const progressPercentage = doc.total_flashcards > 0 
+                ? Math.round((doc.studied_flashcards / doc.total_flashcards) * 100) 
+                : 0;
               const displayName = doc.file_path.split("/").pop()?.replace(/_/g, " ") || "Conjunto de Estudo";
 
               return (

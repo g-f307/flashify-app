@@ -2,6 +2,7 @@
 from sqlmodel import SQLModel
 from .models import DocumentStatus
 from typing import Optional 
+from datetime import datetime
 
 # NOVOS SCHEMAS PARA DOCUMENT
 class DocumentRead(SQLModel):
@@ -37,3 +38,11 @@ class FolderCreate(FolderBase):
 
 class FolderRead(FolderBase):
     id: int
+
+class DocumentCardData(SQLModel):
+    id: int
+    file_path: str
+    status: DocumentStatus
+    created_at: datetime
+    total_flashcards: int
+    studied_flashcards: int
