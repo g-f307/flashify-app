@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { Document } from "@/lib/api";
 import { FileText, Loader2 } from "lucide-react";
 import TimeAgo from "../common/time-ago";
+// ▼▼▼ ALTERAÇÃO: Importar a função de formatação central ▼▼▼
+import { formatDocumentTitle } from "@/lib/utils";
 
 interface RecentDocumentCardProps {
   document: Document;
@@ -21,10 +23,8 @@ export function RecentDocumentCard({ document }: RecentDocumentCardProps) {
     }
   };
 
-  // Lógica aprimorada para extrair um nome de exibição limpo
-  const displayName = document.file_path.startsWith('uploads/')
-    ? document.file_path.split('/').pop()?.replace(/_/g, ' ').replace(/\.[^/.]+$/, "")
-    : document.file_path || "Deck de Estudo";
+  // ▼▼▼ ALTERAÇÃO: Utilizar a função de formatação para obter o nome de exibição ▼▼▼
+  const displayName = formatDocumentTitle(document.file_path);
 
   const progressPercentage = document.total_flashcards > 0 
     ? Math.round((document.studied_flashcards / document.total_flashcards) * 100) 
@@ -35,7 +35,6 @@ export function RecentDocumentCard({ document }: RecentDocumentCardProps) {
       <CardHeader>
         <div className="flex items-start gap-3">
             <FileText className="w-5 h-5 text-secondary mt-1 flex-shrink-0" />
-            {/* Wrapper que permite que o título seja cortado (truncate) se for muito longo */}
             <div className="flex-1 min-w-0">
                 <CardTitle className="text-lg truncate" title={displayName}>
                     {displayName}

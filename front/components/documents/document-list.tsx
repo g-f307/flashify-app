@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { Document } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertCircle, FileText, CheckCircle, Plus, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { useDocuments } from "@/hooks/use-documents"; // Importar o hook
-import TimeAgo from "../common/time-ago"; // Importar o TimeAgo
+import { useDocuments } from "@/hooks/use-documents";
+import TimeAgo from "../common/time-ago";
+// ▼▼▼ ALTERAÇÃO: Importar a função de formatação central ▼▼▼
+import { formatDocumentTitle } from "@/lib/utils";
 
 interface DocumentListProps {
   onDocumentSelect: (document: Document) => void;
@@ -16,13 +17,11 @@ interface DocumentListProps {
 }
 
 export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProps) {
-  // O componente agora consome o nosso hook centralizado
   const { documents, loading, error } = useDocuments();
 
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {/* Skeleton Loader para uma melhor experiência de carregamento inicial */}
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="h-60 animate-pulse bg-muted/50"></Card>
         ))}
@@ -55,7 +54,8 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {documents.map((doc) => {
-        const displayName = doc.file_path.split("/").pop()?.replace(/_/g, " ").replace(/\.[^/.]+$/, "") || "Conjunto de Estudo";
+        // ▼▼▼ ALTERAÇÃO: Utilizar a função de formatação para obter o nome de exibição ▼▼▼
+        const displayName = formatDocumentTitle(doc.file_path);
 
         return (
           <Card
@@ -63,7 +63,7 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
             className={`flex flex-col h-full transition-all duration-200 ${
               doc.status === "COMPLETED"
                 ? "cursor-pointer hover:shadow-lg hover:-translate-y-1"
-                : "" // Remove o fundo esbatido para consistência
+                : ""
             }`}
             onClick={() => doc.status === "COMPLETED" && onDocumentSelect(doc)}
           >
