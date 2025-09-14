@@ -1,5 +1,3 @@
-// g-f307/flashify-app/flashify-app-feature-integra-app/front/components/documents/recent-document-card.tsx
-
 "use client";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,10 +7,10 @@ import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { FileText, Loader2 } from "lucide-react";
-import { Document } from "@/lib/api"; // Importamos a interface principal
+import { Document } from "@/lib/api";
 
 interface RecentDocumentCardProps {
-  document: Document; // Usamos a interface Document diretamente
+  document: Document;
 }
 
 export function RecentDocumentCard({ document }: RecentDocumentCardProps) {
@@ -26,7 +24,6 @@ export function RecentDocumentCard({ document }: RecentDocumentCardProps) {
 
   const displayName = document.file_path.split('/').pop()?.replace(/_/g, ' ') || "Conjunto de Estudo";
 
-  // --- CÁLCULO DO PROGRESSO CORRIGIDO ---
   const progressPercentage = document.total_flashcards > 0 
     ? Math.round((document.studied_flashcards / document.total_flashcards) * 100) 
     : 0;
@@ -34,15 +31,18 @@ export function RecentDocumentCard({ document }: RecentDocumentCardProps) {
   return (
     <Card className="flex flex-col h-full w-64 card-enhanced transition-all hover:-translate-y-1 glow-on-hover">
       <CardHeader>
-        <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-secondary" />
-            <CardTitle className="text-lg truncate" title={displayName}>
-                {displayName}
-            </CardTitle>
+        {/* 🔽 ALTERAÇÃO AQUI: Wrapper com 'flex-1' e 'min-w-0' para o título 🔽 */}
+        <div className="flex items-start gap-3">
+            <FileText className="w-5 h-5 text-secondary mt-1 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+                <CardTitle className="text-lg truncate" title={displayName}>
+                    {displayName}
+                </CardTitle>
+                <CardDescription className="mt-1">
+                    Criado {formatDistanceToNow(new Date(document.created_at), { addSuffix: true, locale: ptBR })}
+                </CardDescription>
+            </div>
         </div>
-        <CardDescription>
-            Criado {formatDistanceToNow(new Date(document.created_at), { addSuffix: true, locale: ptBR })}
-        </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
         <div>

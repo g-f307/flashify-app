@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Library, Loader2 } from "lucide-react";
+import { Loader2, FileUp, MessageSquare, BrainCircuit, Library, ArrowRight } from "lucide-react";
 import { apiClient, Document } from "@/lib/api";
 import { RecentDocumentCard } from "@/components/documents/recent-document-card";
 import { Separator } from "@/components/ui/separator";
+import AnimatedGradientText from "@/components/ui/animated-gradient-text";
+import { InfoCard } from "@/components/info-card";
+import { Button } from "@/components/ui/button";
 
-// Interface para incluir a contagem total de flashcards
+// A interface DocumentWithCount permanece a mesma
 export interface DocumentWithCount extends Document {
   total_flashcards: number;
 }
@@ -55,78 +58,93 @@ export default function HomePage() {
   }, [user]);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      {/* Secção de Boas-Vindas e Ações Rápidas */}
+    <div className="space-y-12">
+      {/* 1. Secção de Boas-Vindas (Tamanho do texto reduzido) */}
       <section className="text-center">
-        <h2 className="text-2xl lg:text-3xl font-bold text-foreground">
-          Bem-vindo(a), {user?.username}!
-        </h2>
-        <p className="text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto px-4 mt-2">
-          Pronto para começar? Crie um novo conjunto ou continue de onde parou.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 max-w-2xl mx-auto">
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-shadow group card-enhanced glow-on-hover"
-            onClick={() => router.push("/create")}
-          >
-            <CardHeader className="text-center p-6">
-              <Plus className="w-10 h-10 mx-auto text-primary mb-2" />
-              <CardTitle>Criar Novo Conjunto</CardTitle>
-              <CardDescription>Use o nosso assistente para gerar flashcards personalizados.</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-shadow group card-enhanced glow-on-hover"
-            onClick={() => router.push("/library")}
-          >
-            <CardHeader className="text-center p-6">
-              <Library className="w-10 h-10 mx-auto text-primary mb-2" />
-              <CardTitle>Ver Biblioteca Completa</CardTitle>
-              <CardDescription>Revise todos os seus conjuntos de flashcards existentes.</CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
+        <h1 className="text-2xl lg:text-3xl font-bold text-foreground flex items-center justify-center gap-2 flex-wrap">
+          Bem-vindo(a),
+          <AnimatedGradientText className="text-2xl lg:text-3xl font-bold">
+            {user?.username}!
+          </AnimatedGradientText>
+        </h1>
       </section>
 
-      <Separator />
-
-      {/* Secção de Conjuntos Recentes */}
+      {/* 2. Secção "Como Funciona" com InfoCards */}
       <section>
-        <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-4">Conjuntos Recentes</h3>
-        {loading ? (
-          <div className="flex justify-center items-center h-40">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="text-center mb-8">
+          <h2 className="text-2xl lg:text-3xl font-bold">Como Funciona</h2>
+          <p className="text-muted-foreground mt-1">Em três simples passos, o seu estudo fica mais inteligente.</p>
+        </div>
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <InfoCard
+              illustration={<FileUp className="h-10 w-10 text-primary" />}
+              title="1. Envie o seu Conteúdo"
+              description="Faça o upload de um PDF, imagem ou simplesmente cole um texto que deseja estudar."
+            />
+            <InfoCard
+              illustration={<MessageSquare className="h-10 w-10 text-primary" />}
+              title="2. Geração com IA"
+              description="A nossa Inteligência Artificial analisa o seu material e cria flashcards relevantes automaticamente."
+            />
+            <InfoCard
+              illustration={<BrainCircuit className="h-10 w-10 text-primary" />}
+              title="3. Estude de Forma Eficaz"
+              description="Reveja os seus novos flashcards, acompanhe o seu progresso e memorize o conteúdo mais rapidamente."
+            />
           </div>
-        ) : recentDocuments.length > 0 ? (
-          <div className="relative">
-            {/* Adicione a classe 'custom-scroll-horizontal' aqui */}
-            <div className="flex gap-4 overflow-x-auto p-4 pb-6 w-full custom-scroll-horizontal">
-              {recentDocuments.map((doc) => (
-                <div key={doc.id} className="flex-shrink-0">
-                  <RecentDocumentCard document={doc} />
-                </div>
-              ))}
-              <div className="flex-shrink-0 flex items-stretch">
-                <Card
-                  className="flex flex-col items-center justify-center h-full w-64 cursor-pointer hover:shadow-lg transition-shadow group card-enhanced glow-on-hover"
-                  onClick={() => router.push("/library")}
-                >
-                  <CardHeader className="text-center p-6">
-                    <Library className="w-10 h-10 mx-auto text-primary mb-2" />
-                    <CardTitle>Acessar Biblioteca</CardTitle>
-                    <CardDescription>Ver todos os seus conjuntos</CardDescription>
-                  </CardHeader>
-                </Card>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-10 border-2 border-dashed rounded-lg">
-            <p className="text-muted-foreground">Nenhum conjunto recente encontrado.</p>
-            <p className="text-muted-foreground mt-1">Crie o seu primeiro conjunto para vê-lo aqui!</p>
+        </div>
+        {/* Botão Condicional */}
+        {!loading && recentDocuments.length === 0 && (
+          <div className="text-center mt-8">
+            <Button size="lg" onClick={() => router.push('/create')}>
+              Criar o seu primeiro conjunto
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
           </div>
         )}
       </section>
+      
+      {/* Apenas mostra o separador e a secção se existirem documentos recentes */}
+      {recentDocuments.length > 0 && (
+        <>
+          <Separator />
+          {/* 3. Secção de Conjuntos Recentes (Alinhamento corrigido) */}
+          <section>
+            {/* 🔽 ALTERAÇÃO AQUI: Wrapper para alinhar toda a secção 🔽 */}
+            <div className="max-w-5xl mx-auto">
+                <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-4">Continue de onde parou</h3>
+                {loading ? (
+                <div className="flex justify-center items-center h-40">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+                ) : (
+                <div className="relative">
+                    <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
+                        {recentDocuments.map((doc) => (
+                            <div key={doc.id} className="flex-shrink-0 py-4">
+                                <RecentDocumentCard document={doc} />
+                            </div>
+                        ))}
+                        <div className="flex-shrink-0 flex items-stretch py-4">
+                            <Card
+                            className="flex flex-col items-center justify-center h-full w-64 cursor-pointer hover:shadow-lg transition-shadow"
+                            onClick={() => router.push("/library")}
+                            >
+                            <CardHeader className="text-center p-6">
+                                <Library className="w-10 h-10 mx-auto text-primary mb-2" />
+                                <CardTitle>Aceder à Biblioteca</CardTitle>
+                                <CardDescription>Ver todos os seus conjuntos</CardDescription>
+                            </CardHeader>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+                )}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
