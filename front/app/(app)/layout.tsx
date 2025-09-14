@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle"; 
-import SplashScreen from "@/components/splash-screen";
+import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import {
   Brain,
@@ -17,15 +17,15 @@ import {
   Library,
   TrendingUp,
   Menu,
-  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+// 🔽 ALTERAÇÃO: Terminologia atualizada para "Deck" 🔽
 const sidebarItems = [
     { href: "/", label: "Início", icon: Home },
     { href: "/library", label: "Biblioteca", icon: Library },
-    { href: "/create", label: "Criar Conjunto", icon: Plus },
+    { href: "/create", label: "Criar Deck", icon: Plus },
     { href: "/progress", label: "Progresso", icon: TrendingUp },
     { href: "/settings", label: "Configurações", icon: Settings },
 ];
@@ -35,9 +35,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Removido o estado de showSplash para simplificar, assumindo que a lógica já não é necessária
-  // Se ainda for, pode ser readicionada.
 
   const getInitials = (name: string | undefined) => {
     if (!name) return "?";
@@ -66,10 +63,26 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Componente reutilizável para o logo
+  const AppLogo = () => (
+    <Link href="/" className="flex items-center justify-center gap-2">
+      <Image 
+        src="/flashify_logo.svg" 
+        alt="Flashify Logo" 
+        width={40}
+        height={40}
+        className="h-auto"
+      />
+      <span className="text-3xl font-bold bg-gradient-to-r from-[#FFC300] to-[#6BDEF3] bg-clip-text text-transparent">
+        Flashify
+      </span>
+    </Link>
+  );
+
   return (
     <div className="flex h-screen bg-background">
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg-hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       <aside
@@ -78,20 +91,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        {/* 🔽 CÓDIGO ATUALIZADO AQUI 🔽 */}
         <div className="p-4 lg:p-6 border-b border-border dark:border-zinc-800">
-          <Link href="/" className="flex items-center justify-center gap-2">
-            <Image 
-              src="/flashify_logo.svg" 
-              alt="Flashify Logo" 
-              width={40} // Aumentado de 32 para 40
-              height={40} // Aumentado de 32 para 40
-              className="h-auto"
-            />
-            <span className="text-3xl font-bold bg-gradient-to-r from-[#FFC300] to-[#6BDEF3] bg-clip-text text-transparent">
-              Flashify
-            </span>
-          </Link>
+          <AppLogo />
         </div>
 
         <nav className="flex-1 p-4">
@@ -108,7 +109,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors",
                       isActive
                         ? "bg-primary text-primary-foreground"
-                        : "text-sidebar-foreground hover:bg-primary/20" // Removido hover:text-primary-foreground para consistência
+                        : "text-sidebar-foreground hover:bg-primary/20"
                     )}
                   >
                     <Icon className="w-5 h-5" />
@@ -145,12 +146,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
+        {/* 🔽 ALTERAÇÃO: Logo no header mobile agora é idêntico ao da sidebar 🔽 */}
         <header className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-background">
           <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-accent rounded-lg">
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center justify-center gap-2">
-            <Image src="/flashify_logo.svg" alt="Flashify Logo" width={40} height={40} className="rounded" />
+          <div className="flex items-center justify-center">
+            {/* Usando o mesmo componente de Logo */}
+            <Link href="/" className="flex items-center justify-center gap-2">
+              <Image src="/flashify_logo.svg" alt="Flashify Logo" width={32} height={32} />
+            </Link>
           </div>
           <ThemeToggle />
         </header>

@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 
 export default function LibraryPage() {
   const router = useRouter();
-  // A lista de documentos não é mais necessária neste estado
   const [reviewCount, setReviewCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
@@ -20,7 +19,6 @@ export default function LibraryPage() {
     const fetchReviewData = async () => {
       try {
         setLoading(true);
-        // Agora buscamos apenas os dados da sessão de revisão
         const reviewFlashcards = await apiClient.getReviewFlashcards();
         setReviewCount(reviewFlashcards.length);
         
@@ -45,47 +43,48 @@ export default function LibraryPage() {
     router.push("/create");
   };
   
-  if (loading) {
-      return (
-          <div className="flex justify-center items-center h-full">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-      );
-  }
-
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    // 🔽 ALTERAÇÃO: Aumentado o max-width para melhor uso do espaço e centralizado 🔽
+    <div className="max-w-6xl mx-auto space-y-8">
        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-2xl lg:text-3xl font-bold text-foreground">
           Minha Biblioteca
         </h2>
         <Button onClick={handleNewUpload} size="sm">
           <Plus className="w-4 h-4 mr-2" />
-          Criar Novo Conjunto
+          {/* 🔽 ALTERAÇÃO: Terminologia para "Deck" 🔽 */}
+          Criar Novo Deck
         </Button>
       </div>
 
-      {/* Secção de Revisão Inteligente */}
-      {reviewCount > 0 && (
-         <section>
-          <h3 className="text-xl font-semibold tracking-tight mb-4">Sessões de Revisão</h3>
-          <div className="-mx-4 px-4">
-             <ReviewDeckCard reviewCount={reviewCount} onClick={handleStartReview} />
-          </div>
-        </section>
-      )}
-      
-      {reviewCount > 0 && <Separator />}
+      {loading ? (
+        <div className="flex justify-center items-center pt-16">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          {/* Secção de Revisão Inteligente */}
+          {reviewCount > 0 && (
+            <section>
+              <h3 className="text-xl font-semibold tracking-tight mb-2">Sessões de Revisão</h3>
+              <ReviewDeckCard reviewCount={reviewCount} onClick={handleStartReview} />
+            </section>
+          )}
+          
+          {reviewCount > 0 && <Separator />}
 
-      {/* Secção de Todos os Conjuntos */}
-      <section>
-         {reviewCount > 0 && <h3 className="text-xl font-semibold tracking-tight mb-4">Todos os Conjuntos</h3>}
-        {/* CORREÇÃO AQUI: O componente DocumentList busca os seus próprios dados */}
-        <DocumentList
-            onDocumentSelect={handleDocumentSelect}
-            onNewUpload={handleNewUpload}
-        />
-      </section>
+          {/* Secção de Todos os Decks */}
+          <section>
+            <h3 className="text-xl font-semibold tracking-tight mb-4">
+              {reviewCount > 0 ? "Todos os Decks" : ""}
+            </h3>
+            <DocumentList
+                onDocumentSelect={handleDocumentSelect}
+                onNewUpload={handleNewUpload}
+            />
+          </section>
+        </>
+      )}
     </div>
   );
 }
