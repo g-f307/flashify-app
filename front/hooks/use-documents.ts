@@ -1,144 +1,59 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiClient } from '@/lib/api'
+// front/hooks/use-documents.ts
+"use client";
 
-interface Document {
-  id: number
-  file_path: string
-  status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
-  extracted_text?: string
-  user_id: number
-  folder_id?: number
-}
+import { useState, useEffect, useCallback } from 'react';
+import { Document, apiClient } from '@/lib/api';
 
-interface DocumentWithFlashcards extends Document {
-  flashcard_count: number
-  is_ready: boolean
-}
+// A interface do hook agora utiliza a 'Document' diretamente da api.ts
+// que já inclui os campos 'current_step', 'total_flashcards', etc.
 
 export function useDocuments() {
-  const [documents, setDocuments] = useState<DocumentWithFlashcards[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const mountedRef = useRef(true)
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchDocuments = useCallback(async (showLoading = true) => {
+  // Usamos useCallback para garantir que a função não seja recriada a cada renderização,
+  // otimizando o seu uso nos hooks useEffect.
+  const fetchDocuments = useCallback(async () => {
     try {
-      if (showLoading) setIsLoading(true)
-      setError('')
-      
-      const docs = await apiClient.getDocuments()
-      
-      if (!mountedRef.current) return
-
-      // Para cada documento, buscar flashcards se estiver completo
-      const docsWithFlashcards = await Promise.all(
-        docs.map(async (doc) => {
-          let flashcard_count = 0
-          let is_ready = false
-
-          if (doc.status === 'COMPLETED') {
-            try {
-              const flashcards = await apiClient.getDocumentFlashcards(doc.id)
-              flashcard_count = flashcards.length
-              is_ready = flashcard_count > 0
-            } catch (error) {
-              console.warn(`Failed to fetch flashcards for document ${doc.id}:`, error)
-            }
-          }
-
-          return {
-            ...doc,
-            flashcard_count,
-            is_ready
-          }
-        })
-      )
-
-      if (mountedRef.current) {
-        setDocuments(docsWithFlashcards)
-      }
-    } catch (error) {
-      if (mountedRef.current) {
-        setError(error instanceof Error ? error.message : 'Erro ao carregar documentos')
-      }
+      const allDocs = await apiClient.getDocuments();
+      // Ordena os documentos pela data de criação, do mais recente para o mais antigo
+      const sortedDocs = allDocs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setDocuments(sortedDocs);
+    } catch (err: any) {
+      setError(err.message || 'Falha ao buscar documentos.');
     } finally {
-      if (mountedRef.current && showLoading) {
-        setIsLoading(false)
+      // O loading principal só é desativado na primeira busca.
+      // As atualizações de polling acontecem em segundo plano.
+      if (loading) {
+        setLoading(false);
       }
     }
-  }, [])
+  }, [loading]); // A dependência garante que a função se mantenha estável
 
-  const startPolling = useCallback(() => {
-    // Limpa polling anterior se existir
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-    }
-
-    // Inicia novo polling a cada 5 segundos
-    intervalRef.current = setInterval(() => {
-      // Só faz polling se houver documentos em processamento
-      const hasProcessing = documents.some(doc => doc.status === 'PROCESSING')
-      if (hasProcessing && mountedRef.current) {
-        fetchDocuments(false) // Não mostrar loading durante polling
-      }
-    }, 5000)
-  }, [documents, fetchDocuments])
-
-  const stopPolling = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-  }, [])
-
-  const refresh = useCallback(() => {
-    fetchDocuments(true)
-  }, [fetchDocuments])
-
-  // Effect principal
+  // Efeito para a busca inicial
   useEffect(() => {
-    mountedRef.current = true
-    fetchDocuments(true)
+    fetchDocuments();
+    // O array de dependências vazio garante que esta busca inicial só aconteça uma vez.
+  }, []);
 
-    return () => {
-      mountedRef.current = false
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [fetchDocuments])
-
-  // Effect para controlar polling baseado em documentos em processamento
+  // Efeito para a lógica de polling
   useEffect(() => {
-    const hasProcessing = documents.some(doc => doc.status === 'PROCESSING')
-    
-    if (hasProcessing) {
-      startPolling()
-    } else {
-      stopPolling()
+    // Verifica se existe algum documento em processamento na lista atual
+    const isProcessing = documents.some(doc => doc.status === 'PROCESSING');
+
+    if (isProcessing) {
+      // Se houver, configura um intervalo para verificar novamente a cada 5 segundos
+      const intervalId = setInterval(() => {
+        console.log("A verificar o estado dos documentos...");
+        fetchDocuments();
+      }, 5000); // 5 segundos
+
+      // A função de limpeza do useEffect é crucial para parar o polling
+      // quando o componente for desmontado ou quando a lista de documentos mudar e já não houver nada a processar.
+      return () => clearInterval(intervalId);
     }
+  }, [documents, fetchDocuments]); // Re-executa este efeito sempre que a lista de documentos mudar
 
-    return () => stopPolling()
-  }, [documents, startPolling, stopPolling])
-
-  const addDocument = useCallback((newDoc: Document) => {
-    setDocuments(prev => [
-      {
-        ...newDoc,
-        flashcard_count: 0,
-        is_ready: false
-      },
-      ...prev
-    ])
-  }, [])
-
-  return {
-    documents,
-    isLoading,
-    error,
-    refresh,
-    addDocument,
-    hasProcessingDocs: documents.some(doc => doc.status === 'PROCESSING')
-  }
+  return { documents, loading, error, refetchDocuments: fetchDocuments };
 }
