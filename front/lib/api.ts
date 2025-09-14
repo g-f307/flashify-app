@@ -7,6 +7,13 @@ export interface User {
   username: string;
   email: string;
   is_active: boolean;
+  profile_picture_url?: string; 
+  provider: 'local' | 'google';
+}
+
+export interface PasswordUpdateRequest {
+  current_password: string;
+  new_password: string;
 }
 
 export interface LoginRequest {
@@ -271,6 +278,13 @@ class ApiClient {
   async getFlashcardConversations(flashcardId: number): Promise<FlashcardConversation[]> {
     return this.request<FlashcardConversation[]>(`/flashcards/${flashcardId}/conversations`);
   }
+
+  async changePassword(data: PasswordUpdateRequest): Promise<void> {
+        return this.request<void>('/users/me/change-password', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
 
   async markFlashcardAsStudied(flashcardId: number): Promise<void> {
     await this.request<void>(`/flashcards/${flashcardId}/study`, {

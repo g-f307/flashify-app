@@ -11,6 +11,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
+    # 🔽 ADICIONADO: Healthcheck para verificar se o PostgreSQL está pronto 🔽
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flashify -d flashify"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -29,10 +35,14 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./back/app:/app/app
+    # 🔽 ALTERAÇÃO AQUI: Agora espera que o 'db' esteja saudável (healthy) 🔽
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: always
+
   celery-worker:
     build: ./back
     container_name: flashify-worker
@@ -42,9 +52,12 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./back/app:/app/app
+    # 🔽 ALTERAÇÃO AQUI: Agora espera que o 'db' esteja saudável (healthy) 🔽
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: always
 
   frontend:

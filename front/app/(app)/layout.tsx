@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle"; 
 import SplashScreen from "@/components/splash-screen";
 import Image from "next/image";
-import { Brain,
+import {
+  Brain,
   Plus,
   Settings,
   User,
@@ -19,6 +20,7 @@ import { Brain,
   Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const sidebarItems = [
     { href: "/", label: "Início", icon: Home },
@@ -33,34 +35,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+
+  // Removido o estado de showSplash para simplificar, assumindo que a lógica já não é necessária
+  // Se ainda for, pode ser readicionada.
+
+  const getInitials = (name: string | undefined) => {
+    if (!name) return "?";
+    return name.charAt(0).toUpperCase();
+  };
 
   useEffect(() => {
-    // Se a verificação de autenticação terminou e não há utilizador, força o redirecionamento para o login.
     if (!loading && !user) {
       router.replace('/login');
     }
   }, [user, loading, router]);
 
-  useEffect(() => {
-    // Verifica se é a primeira visita do usuário
-    const hasVisited = localStorage.getItem('flashify-visited');
-    if (hasVisited) {
-      setShowSplash(false);
-    }
-  }, []);
-
-  const handleSplashFinish = () => {
-    localStorage.setItem('flashify-visited', 'true');
-    setShowSplash(false);
-  };
-
-  // Mostra o splash screen na primeira visita
-  if (showSplash && user && !loading) {
-    return <SplashScreen onFinish={handleSplashFinish} />;
-  }
-
-  // Mostra um ecrã de carregamento em tela cheia enquanto a autenticação está a ser verificada.
   if (loading || !user) {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background">
@@ -77,7 +66,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Se o utilizador estiver autenticado, renderiza o layout completo da aplicação.
   return (
     <div className="flex h-screen bg-background">
       {sidebarOpen && (
@@ -90,21 +78,26 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="p-4 lg:p-6 shadow-sm">
-          <div className="flex justify-center items-center">
-            <Link href="/" className="flex flex-col items-center justify-center h-20 w-full">
-              {/* Substitua o src pela sua imagem de logo */}
-              <Image src="/flashify_logo.svg" alt="Flashify Logo" width={80} height={80} className="rounded-lg mx-auto" />
-            </Link>
-
-          </div>
+        {/* 🔽 CÓDIGO ATUALIZADO AQUI 🔽 */}
+        <div className="p-4 lg:p-6 border-b border-border dark:border-zinc-800">
+          <Link href="/" className="flex items-center justify-center gap-2">
+            <Image 
+              src="/flashify_logo.svg" 
+              alt="Flashify Logo" 
+              width={40} // Aumentado de 32 para 40
+              height={40} // Aumentado de 32 para 40
+              className="h-auto"
+            />
+            <span className="text-3xl font-bold bg-gradient-to-r from-[#FFC300] to-[#6BDEF3] bg-clip-text text-transparent">
+              Flashify
+            </span>
+          </Link>
         </div>
 
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
               const Icon = item.icon;
-              // A rota raiz '/' é a página de início, as outras verificam se o caminho começa com o href
               const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
               return (
                 <li key={item.href}>
@@ -115,7 +108,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors",
                       isActive
                         ? "bg-primary text-primary-foreground"
-                        : "text-sidebar-foreground hover:bg-primary/20 hover:text-primary-foreground"
+                        : "text-sidebar-foreground hover:bg-primary/20" // Removido hover:text-primary-foreground para consistência
                     )}
                   >
                     <Icon className="w-5 h-5" />
@@ -127,23 +120,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </ul>
         </nav>
 
-        <div className="p-4 shadow-sm">
+        <div className="p-4 mt-auto border-t border-border dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-muted-foreground" />
-            </div>
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={user?.profile_picture_url} alt={user?.username} />
+              <AvatarFallback>{getInitials(user?.username)}</AvatarFallback>
+            </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
+              <p className="text-sm font-medium text-foreground truncate">
                 {user?.username || "Utilizador"}
               </p>
-              <div className="flex items-center justify-between w-full">
+              <div className="flex items-center justify-between w-full mt-1">
                 <button
                   onClick={logout}
-                  className="text-xs text-muted-foreground hover:text-red-600 transition-colors"
+                  className="text-xs text-muted-foreground hover:text-red-500 transition-colors"
                 >
                   Sair
                 </button>
-                <ThemeToggle></ThemeToggle>
+                <ThemeToggle />
               </div>
             </div>
           </div>
@@ -156,9 +150,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center justify-center gap-2">
-            {/* Substitua o src pela sua imagem de logo */}
             <Image src="/flashify_logo.svg" alt="Flashify Logo" width={40} height={40} className="rounded" />
-
           </div>
           <ThemeToggle />
         </header>
