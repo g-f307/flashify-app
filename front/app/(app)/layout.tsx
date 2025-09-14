@@ -21,7 +21,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-// 🔽 ALTERAÇÃO: Terminologia atualizada para "Deck" 🔽
 const sidebarItems = [
     { href: "/", label: "Início", icon: Home },
     { href: "/library", label: "Biblioteca", icon: Library },
@@ -146,19 +145,37 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* 🔽 ALTERAÇÃO: Logo no header mobile agora é idêntico ao da sidebar 🔽 */}
-        <header className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-background">
-          <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-accent rounded-lg">
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="flex items-center justify-center">
-            {/* Usando o mesmo componente de Logo */}
-            <Link href="/" className="flex items-center justify-center gap-2">
-              <Image src="/flashify_logo.svg" alt="Flashify Logo" width={32} height={32} />
+        {/* ▼▼▼ ALTERAÇÕES AQUI ▼▼▼ */}
+        <header className="lg:hidden flex items-center p-4 border-b border-slate-200 dark:border-slate-800 bg-background">
+          {/* Esquerda: Botão de Menu */}
+          <div className="flex-1 flex justify-start">
+            <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-accent rounded-lg">
+              <Menu className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {/* Centro: Logo */}
+          <div className="flex-shrink-0">
+            <Link href="/" className="flex items-center gap-2">
+              <Image
+                  src="/flashify_logo.svg"
+                  alt="Flashify Logo"
+                  width={28}
+                  height={28}
+              />
+              <span className="text-xl font-bold bg-gradient-to-r from-[#FFC300] to-[#6BDEF3] bg-clip-text text-transparent">
+                  Flashify
+              </span>
             </Link>
           </div>
-          <ThemeToggle />
+
+          {/* Direita: Separador e Botão de Tema */}
+          <div className="flex-1 flex justify-end items-center gap-3">
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-800" />
+            <ThemeToggle />
+          </div>
         </header>
+        {/* ▲▲▲ FIM DAS ALTERAÇÕES ▲▲▲ */}
         <div className="flex-1 p-4 lg:p-8 overflow-auto">
             {children}
         </div>

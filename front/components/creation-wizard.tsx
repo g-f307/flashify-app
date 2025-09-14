@@ -24,6 +24,7 @@ import {
   Meh,
   CheckCircle
 } from "lucide-react";
+import Link from "next/link"; // Importar o Link
 
 type WizardData = {
   name: string;
@@ -72,37 +73,34 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
       setProcessingProgress(document.processing_progress || 0);
 
       if (document.status === 'COMPLETED') {
-        // Verifica se os flashcards realmente existem antes de redirecionar
         try {
           const flashcards = await apiClient.getDocumentFlashcards(documentId);
           
           if (flashcards && flashcards.length > 0) {
-            // Flashcards realmente existem - pode redirecionar
             if (intervalRef.current) {
               clearInterval(intervalRef.current);
               intervalRef.current = null;
             }
             setIsProcessing(false);
-            toast.success(`Conjunto "${data.name}" criado com sucesso!`, {
+            // ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼
+            toast.success(`Deck "${data.name}" criado com sucesso!`, {
               description: `${flashcards.length} flashcards foram gerados e estão prontos para estudo.`,
             });
             onCreationSuccess();
           } else {
-            // Status é COMPLETED mas não há flashcards - continua aguardando
             console.log('Documento marcado como COMPLETED mas sem flashcards. Continuando monitoramento...');
           }
         } catch (flashcardsError) {
-          // Erro ao buscar flashcards - continua aguardando
           console.log('Erro ao buscar flashcards, continuando monitoramento:', flashcardsError);
         }
       } else if (document.status === 'FAILED') {
-        // Processamento falhou
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
         setIsProcessing(false);
-        toast.error("Falha ao processar o conjunto", {
+        // ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼
+        toast.error("Falha ao processar o deck", {
           description: "Houve um erro durante o processamento. Tente novamente.",
         });
       }
@@ -111,7 +109,6 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
     }
   };
 
-  // Cleanup do interval quando o componente é desmontado
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
@@ -121,7 +118,8 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
   }, []);
 
   const handleSubmit = async () => {
-    if (!data.name.trim()) return toast.error("Por favor, dê um nome ao seu conjunto.");
+    // ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼
+    if (!data.name.trim()) return toast.error("Por favor, dê um nome ao seu deck.");
     if (data.inputType === 'text' && !data.text.trim()) return toast.error("O conteúdo de texto não pode estar vazio.");
     if (data.inputType === 'upload' && !data.file) return toast.error("Por favor, selecione um arquivo para upload.");
 
@@ -135,23 +133,21 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
         document = await apiClient.createDocumentFromText(data.text, data.name, data.num_flashcards, data.difficulty);
       }
 
-      // Inicia o monitoramento do processamento
       setIsSubmitting(false);
       setIsProcessing(true);
       setProcessingDocument(document);
       setProcessingProgress(document.processing_progress || 0);
 
-      // Inicia o polling para monitorar o progresso
       intervalRef.current = setInterval(() => {
         monitorProcessing(document.id);
-      }, 3000); // Verifica a cada 3 segundos
+      }, 3000); 
 
-      // Primeira verificação imediata
       monitorProcessing(document.id);
 
     } catch (error: any) {
       setIsSubmitting(false);
-      toast.error("Falha ao criar conjunto", { description: error.message || "Tente novamente mais tarde." });
+      // ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼
+      toast.error("Falha ao criar deck", { description: error.message || "Tente novamente mais tarde." });
     }
   };
   
@@ -219,7 +215,6 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
       );
     }
 
-    // Usar key={step} força o React a remontar o componente, permitindo animações simples de entrada
     return (
       <div key={step} className="animate-in fade-in-50 duration-500">
         {step > 1 && (
@@ -231,7 +226,8 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
           <CardContent className="text-center pt-12">
             <Sparkles className="w-12 h-12 mx-auto text-primary mb-4" />
             <CardTitle>Vamos começar!</CardTitle>
-            <CardDescription className="mt-2">Dê um nome para o seu novo conjunto de estudos.</CardDescription>
+            {/* ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼ */}
+            <CardDescription className="mt-2">Dê um nome para o seu novo deck de estudos.</CardDescription>
             <Input
               id="set-name"
               placeholder="Ex: Biologia - Fotossíntese"
@@ -308,7 +304,7 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
                     <Card onClick={() => setData({ ...data, difficulty: "Médio" })} className={cn("cursor-pointer transition-all", data.difficulty === "Médio" ? "border-primary ring-2 ring-primary" : "hover:border-primary/50")}>
                          <CardHeader><Meh className="mx-auto w-8 h-8 text-yellow-500 mb-2" /><CardTitle>Médio</CardTitle><CardDescription>Perguntas com exemplos e contexto.</CardDescription></CardHeader>
                     </Card>
-                    <Card onClick={() => setData({ ...data, difficulty: "Difícil" })} className={cn("cursor-pointer transition-all", data.difficulty === "Difícil" ? "border-primary ring-2 ring-primary" : "hover:border-primary/50")}>
+                    <Card onClick={() => setData({ ...data, difficulty: "Difícil" })} className={cn("cursor-pinter transition-all", data.difficulty === "Difícil" ? "border-primary ring-2 ring-primary" : "hover:border-primary/50")}>
                          <CardHeader><BrainCircuit className="mx-auto w-8 h-8 text-red-500 mb-2" /><CardTitle>Difícil</CardTitle><CardDescription>Questões complexas e cenários.</CardDescription></CardHeader>
                     </Card>
                 </div>
@@ -316,7 +312,8 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
                     {isSubmitting ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Criando conjunto...
+                        {/* ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼ */}
+                        Criando deck...
                       </div>
                     ) : (
                       "Gerar Flashcards!"
@@ -329,7 +326,15 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
   };
   
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="w-full max-w-3xl mx-auto p-4 sm:p-0">
+        {/* ▼▼▼ NOVO CABEÇALHO RESPONSIVO ▼▼▼ */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
+            <Link href="/library" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Voltar para a Biblioteca
+            </Link>
+        </div>
+        
         {!isProcessing && <WizardProgress/>}
         <Card className="relative overflow-hidden">
             {renderStepContent()}
