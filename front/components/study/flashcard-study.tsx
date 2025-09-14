@@ -160,11 +160,6 @@ export function FlashcardStudy({ document, initialFlashcards, onBack, flipAudioR
             )}
           </AnimatePresence>
         </div>
-
-        <Button onClick={() => setIsChatOpen(true)} variant="secondary" className="w-full mt-2">
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Aprofundar com IA
-        </Button>
       </div>
     </div>
   );
