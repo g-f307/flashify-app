@@ -34,6 +34,7 @@ class User(SQLModel, table=True):
     hashed_password: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True)
     provider: AuthProvider = Field(default=AuthProvider.LOCAL)
+    profile_picture_url: Optional[str] = Field(default=None)
 
     # Adicione esta relação para que um usuário possa ter muitas pastas
     folders: List["Folder"] = Relationship(back_populates="user")

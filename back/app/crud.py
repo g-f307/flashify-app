@@ -2,8 +2,43 @@ from sqlmodel import Session, select, func, distinct
 from . import models, schemas, security
 from typing import Optional 
 from datetime import datetime, timedelta, timezone
-from .models import Document, Flashcard, Folder, User, StudyLog 
+from .models import Document, Flashcard, Folder, User, StudyLog, AuthProvider
 from .schemas import UserCreate
+
+def get_or_create_google_user(
+    session: Session, 
+    email: str, 
+    username: str, 
+    profile_picture_url: Optional[str] = None
+) -> models.User:
+    """
+    Busca um usuário pelo e-mail. Se existir, atualiza a foto (se necessário).
+    Se não existir, cria um novo usuário de login social.
+    """
+    # 1. Tenta encontrar o usuário pelo e-mail
+    user = get_user_by_email(session, email=email)
+
+    if user:
+        # 2. Se o usuário existe e não tem foto, mas o Google forneceu uma agora, atualize.
+        if not user.profile_picture_url and profile_picture_url:
+            user.profile_picture_url = profile_picture_url
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+        return user
+    
+    # 3. Se o usuário não existe, cria um novo com os dados do Google
+    new_user = models.User(
+        username=username,
+        email=email,
+        provider=AuthProvider.GOOGLE,
+        is_active=True, # Garante que o usuário já comece ativo
+        profile_picture_url=profile_picture_url
+    )
+    session.add(new_user)
+    session.commit()
+    session.refresh(new_user)
+    return new_user
 
 def get_user_by_email(session: Session, email: str) -> models.User | None:
     statement = select(models.User).where(models.User.email == email)

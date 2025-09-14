@@ -1,20 +1,19 @@
-# app/routers/auth.py
+# back/app/routers/auth.py
 import httpx
-import os # Importe o 'os'
+import os
+from typing import Annotated
+from ..models import AuthProvider
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import Session, SQLModel 
-from typing import Annotated
+from sqlmodel import Session, SQLModel
 
 from .. import crud, models, schemas, security
 from ..database import get_session
 
-router = APIRouter(tags=["Authentication"]) # Mudei a tag para agrupar
+router = APIRouter(tags=["Authentication"])
 
-# Endpoint de Criação de Usuário (já existente)
 @router.post("/users", response_model=schemas.UserRead, status_code=status.HTTP_201_CREATED)
 def create_new_user(user: schemas.UserCreate, session: Session = Depends(get_session)):
-    # Check if email already exists
     db_user_email = crud.get_user_by_email(session=session, email=user.email)
     if db_user_email:
         raise HTTPException(
@@ -22,7 +21,6 @@ def create_new_user(user: schemas.UserCreate, session: Session = Depends(get_ses
             detail="Email já registrado."
         )
     
-    # Check if username already exists
     db_user_username = crud.get_user_by_username(session=session, username=user.username)
     if db_user_username:
         raise HTTPException(
@@ -32,31 +30,24 @@ def create_new_user(user: schemas.UserCreate, session: Session = Depends(get_ses
     
     return crud.create_user(session=session, user_create=user)
 
-
-# NOVO ENDPOINT DE LOGIN
 @router.post("/token", response_model=schemas.Token)
 def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: Session = Depends(get_session)
 ):
-    # 1. Busca o usuário pelo nome de usuário ou email
     user = crud.get_user_by_username_or_email(session=session, identifier=form_data.username)
     
-    # 2. Verifica se o usuário existe e se a senha está correta
-    if not user or not security.verify_password(form_data.password, user.hashed_password):
+    if not user or not user.hashed_password or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Nome de usuário/email ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
         
-    # 3. Cria o token de acesso (usando email como subject)
     access_token = security.create_access_token(subject=user.email)
     
-    # 4. Retorna o token
     return {"access_token": access_token, "token_type": "bearer"}
 
-# Crie um novo schema para receber o código do frontend
 class GoogleAuthCode(SQLModel):
     code: str
 
@@ -74,7 +65,6 @@ async def auth_google(
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
     redirect_uri = os.getenv("REDIRECT_URI")
 
-    # 1. Troca o código pelo token de acesso do Google
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
             token_url,
@@ -89,9 +79,9 @@ async def auth_google(
     if token_response.status_code != 200:
         raise HTTPException(status_code=400, detail="Falha ao trocar código com o Google")
     
-    access_token = token_response.json().get("access_token")
+    token_json = token_response.json()
+    access_token = token_json.get("access_token")
 
-    # 2. Obtém as informações do usuário do Google
     user_info_url = "https://www.googleapis.com/oauth2/v1/userinfo"
     async with httpx.AsyncClient() as client:
         user_info_response = await client.get(
@@ -101,23 +91,59 @@ async def auth_google(
         raise HTTPException(status_code=400, detail="Falha ao obter informações do usuário do Google")
 
     user_info = user_info_response.json()
-    user_email = user_info.get("email")
-    if not user_email:
+    email = user_info.get("email")
+
+    # 🔽 CORREÇÃO APLICADA AQUI 🔽
+    # Usamos a variável 'email' que foi definida acima.
+    username = user_info.get("name", email.split('@')[0] if email else "user")
+    
+    profile_picture_url = user_info.get("picture")
+
+    if not email:
         raise HTTPException(status_code=400, detail="Email do Google não encontrado")
 
-    # 3. Lógica "Get or Create" no nosso banco de dados
-    db_user = crud.get_user_by_email(session=session, email=user_email)
+    db_user = crud.get_or_create_google_user(
+        session=session, 
+        email=email,
+        username=username,
+        profile_picture_url=profile_picture_url
+    )
     
-    if not db_user:
-        db_user = crud.create_social_user(
-            session=session, 
-            email=user_email, 
-            username=user_info.get("name", user_email.split('@')[0])
-        )
-    
-    # 4. Gera e retorna o nosso token JWT
     jwt_token = security.create_access_token(subject=db_user.email)
     return {"access_token": jwt_token, "token_type": "bearer"}
+
+@router.post("/users/me/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_current_user_password(
+    password_update: schemas.UserPasswordUpdate,
+    current_user: Annotated[models.User, Depends(security.get_current_user)],
+    session: Session = Depends(get_session),
+):
+    """
+    Permite que o usuário autenticado altere sua própria senha.
+    """
+    # 1. Verifica se o usuário é um usuário "local"
+    if current_user.provider != AuthProvider.LOCAL or not current_user.hashed_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Não é possível alterar a senha para contas de login social.",
+        )
+
+    # 2. Verifica se a senha atual fornecida está correta
+    if not security.verify_password(password_update.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="A senha atual está incorreta."
+        )
+
+    # 3. Criptografa a nova senha
+    new_hashed_password = security.get_password_hash(password_update.new_password)
+    
+    # 4. Atualiza a senha no banco de dados
+    current_user.hashed_password = new_hashed_password
+    session.add(current_user)
+    session.commit()
+
+    return None
 
 @router.get("/users/me", response_model=schemas.UserRead)
 def read_users_me(current_user: Annotated[models.User, Depends(security.get_current_user)]):

@@ -1,6 +1,6 @@
 # app/schemas.py
 from sqlmodel import SQLModel
-from .models import DocumentStatus
+from .models import DocumentStatus, AuthProvider
 from typing import Optional 
 from datetime import datetime
 
@@ -25,6 +25,12 @@ class UserRead(SQLModel):
     username: str
     email: str
     is_active: bool
+    profile_picture_url: Optional[str] = None
+    provider: AuthProvider
+
+class UserPasswordUpdate(SQLModel):
+    current_password: str
+    new_password: str
 
 class Token(SQLModel):
     access_token: str
