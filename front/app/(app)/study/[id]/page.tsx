@@ -2,48 +2,80 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { apiClient, Document } from '@/lib/api';
+import { useRouter, useParams } from 'next/navigation';
+import { apiClient, Document, Flashcard } from '@/lib/api';
 import { FlashcardStudy } from '@/components/study/flashcard-study';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
-export default function StudyPage({ params }: { params: { id: string } }) {
+export default function StudyPage() {
   const router = useRouter();
+  const params = useParams();
+  const documentId = params.id as string; // Pode ser um número ou a string "review"
+
   const [document, setDocument] = useState<Document | null>(null);
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // O áudio e sua referência agora vivem nesta página
   const flipAudioRef = useRef<HTMLAudioElement | null>(null);
   
   useEffect(() => {
-    const documentId = Number(params.id);
-    if (isNaN(documentId)) {
-      setError("ID do documento inválido.");
-      setLoading(false);
-      return;
-    }
+    const fetchStudyData = async () => {
+      if (!documentId) return;
 
-    const fetchDocumentDetails = async () => {
       try {
-        const docDetails = await apiClient.getDocument(documentId);
-        setDocument(docDetails);
+        setLoading(true);
+        setError(null);
+
+        if (documentId === 'review') {
+          // Lógica para a Sessão de Revisão
+          const reviewFlashcards = await apiClient.getReviewFlashcards();
+          if (reviewFlashcards.length === 0) {
+             toast.info("Você não tem cards para rever no momento!");
+             router.push('/library');
+             return;
+          }
+          setFlashcards(reviewFlashcards);
+          // Cria um objeto "documento" virtual para a sessão de revisão
+          setDocument({
+            id: 0, // ID virtual
+            file_path: "Sessão de Revisão Inteligente",
+            status: 'COMPLETED',
+            user_id: 0,
+            created_at: new Date().toISOString(),
+            total_flashcards: reviewFlashcards.length,
+            studied_flashcards: 0,
+          });
+        } else {
+          // Lógica para um Documento normal
+          const docIdNumber = parseInt(documentId, 10);
+          if (isNaN(docIdNumber)) {
+            throw new Error("ID do documento inválido.");
+          }
+          const [docData, flashcardsData] = await Promise.all([
+            apiClient.getDocument(docIdNumber),
+            apiClient.getDocumentFlashcards(docIdNumber),
+          ]);
+          setDocument(docData);
+          setFlashcards(flashcardsData);
+        }
       } catch (err: any) {
-        setError(err.message || "Falha ao carregar os detalhes do conjunto.");
+        setError(err.message || "Falha ao carregar a sessão de estudo.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDocumentDetails();
-  }, [params.id]);
+    fetchStudyData();
+  }, [documentId, router]);
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Carregando sua sessão de estudo...</p>
+        <p className="mt-4 text-muted-foreground">A carregar a sua sessão de estudo...</p>
       </div>
     );
   }
@@ -62,13 +94,13 @@ export default function StudyPage({ params }: { params: { id: string } }) {
 
   return (
     <>
-      {/* O elemento de áudio agora está aqui, garantindo que ele exista quando necessário */}
       <audio ref={flipAudioRef} preload="auto">
         <source src="/card-flip.mp3" type="audio/mpeg" />
       </audio>
       {document && (
         <FlashcardStudy
           document={document}
+          initialFlashcards={flashcards} // Passa os flashcards como prop
           onBack={() => router.push('/library')}
           flipAudioRef={flipAudioRef}
         />

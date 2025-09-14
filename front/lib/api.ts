@@ -292,6 +292,24 @@ class ApiClient {
     });
   }
 
+  // 🔽 NOVA FUNÇÃO PARA ENVIAR O FEEDBACK DE ESTUDO 🔽
+  async logStudyForFlashcard(flashcardId: number, accuracy: number): Promise<void> {
+    try {
+      await this.request<void>(`/flashcards/${flashcardId}/log_study`, {
+        method: 'POST',
+        body: JSON.stringify({ accuracy }),
+      });
+    } catch (error) {
+      console.error("Falha ao registar o estudo do flashcard:", error);
+      // Lançar o erro permite que o componente que chamou saiba que falhou
+      throw error;
+    }
+  }
+
+  async getReviewFlashcards(): Promise<Flashcard[]> {
+    return this.request<Flashcard[]>('/progress/review-flashcards');
+  }
+
   // NOVO MÉTODO PARA BUSCAR ESTATÍSTICAS
   async getProgressStats(): Promise<ProgressStats> {
     // getTimezoneOffset() retorna a diferença em minutos (ex: 240 para UTC-4)
