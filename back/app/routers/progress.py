@@ -25,7 +25,7 @@ def get_progress_stats(
     utc_offset_minutes: int = Query(0)
 ):
     """
-    Retorna as estatísticas de progresso, ajustadas para o fuso horário do usuário.
+    Retorna as estatísticas de progresso, com a lógica de precisão corrigida.
     """
     study_logs = crud.get_study_logs_for_user(session, user_id=current_user.id)
     
@@ -33,11 +33,11 @@ def get_progress_stats(
     user_now = datetime.now(timezone.utc) + user_timezone_delta
     local_study_log_times = [(log.studied_at + user_timezone_delta) for log in study_logs]
 
-    # 1. CARDS ESTUDADOS NA SEMANA
+    # 1. CARDS ESTUDADOS NA SEMANA (sem alteração)
     one_week_ago_local = user_now.date() - timedelta(days=7)
     cards_studied_week = sum(1 for log_time in local_study_log_times if log_time.date() > one_week_ago_local)
 
-    # 2. ATIVIDADE SEMANAL (GRÁFICO)
+    # 2. ATIVIDADE SEMANAL (GRÁFICO) (sem alteração)
     weekly_activity = [0] * 7
     start_of_week = user_now.date() - timedelta(days=6)
     for day_offset in range(7):
@@ -46,16 +46,18 @@ def get_progress_stats(
         count = sum(1 for log_time in local_study_log_times if log_time.date() == current_day_local)
         weekly_activity[day_index] = count
 
-    # 3. CÁLCULO DE COBERTURA DE ESTUDO ("Precisão Geral")
-    total_flashcards = crud.get_total_flashcards_count_for_user(session, user_id=current_user.id)
-    unique_studied_count = crud.get_unique_studied_flashcards_count_for_user(session, user_id=current_user.id)
+    # 3. 🔽 CÁLCULO DE PRECISÃO GERAL (LÓGICA CORRIGIDA E SEGURA) 🔽
+    general_accuracy = 0.0
+    if study_logs:
+        # Soma todas as pontuações de 'accuracy' (0.0 para 'Errei', 0.5 para 'Quase', 1.0 para 'Acertei')
+        total_accuracy_score = sum(log.accuracy for log in study_logs)
+        # Calcula a média dividindo a soma total pelo número de vezes que estudou
+        average_accuracy_ratio = total_accuracy_score / len(study_logs)
+        # Converte o rácio (ex: 0.85) para uma percentagem e arredonda
+        general_accuracy = round(average_accuracy_ratio * 100, 2)
 
-    if total_flashcards == 0:
-        general_accuracy = 0.0
-    else:
-        general_accuracy = unique_studied_count / total_flashcards
 
-    # 4. CÁLCULO DE SEQUÊNCIA (STREAK)
+    # 4. CÁLCULO DE SEQUÊNCIA (STREAK) (sem alteração)
     streak_days = 0
     if local_study_log_times:
         study_dates = sorted(list(set(log_time.date() for log_time in local_study_log_times)), reverse=True)
@@ -68,9 +70,7 @@ def get_progress_stats(
                     streak_days += 1
                 else:
                     break
-        else:
-            streak_days = 0
-
+    
     return ProgressStats(
         cards_studied_week=cards_studied_week,
         streak_days=streak_days,
@@ -78,7 +78,6 @@ def get_progress_stats(
         weekly_activity=weekly_activity,
     )
 
-# 🔽 ROTA EM FALTA ADICIONADA AQUI 🔽
 @router.get("/review-flashcards", response_model=list[models.Flashcard])
 def get_flashcards_for_review(
     current_user: CurrentUser,
