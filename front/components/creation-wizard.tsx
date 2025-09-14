@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,13 +17,9 @@ import {
   UploadCloud, 
   FileText, 
   Sparkles, 
-  ListOrdered, 
-  BrainCircuit,
-  Smile,
-  Meh,
-  CheckCircle
+  ListOrdered
 } from "lucide-react";
-import Link from "next/link"; // Importar o Link
+import Link from "next/link";
 
 type WizardData = {
   name: string;
@@ -32,7 +27,6 @@ type WizardData = {
   text: string;
   file: File | null;
   num_flashcards: number;
-  difficulty: "Fácil" | "Médio" | "Difícil";
 };
 
 interface CreationWizardProps {
@@ -43,7 +37,6 @@ const steps = [
   { id: 1, name: "Nome", icon: Sparkles },
   { id: 2, name: "Conteúdo", icon: FileText },
   { id: 3, name: "Quantidade", icon: ListOrdered },
-  { id: 4, name: "Dificuldade", icon: BrainCircuit },
 ];
 
 export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
@@ -59,13 +52,11 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
     text: "",
     file: null,
     num_flashcards: 10,
-    difficulty: "Médio",
   });
 
-  const handleNext = () => setStep((s) => Math.min(s + 1, 4));
+  const handleNext = () => setStep((s) => Math.min(s + 1, 3));
   const handleBack = () => setStep((s) => Math.max(s - 1, 1));
 
-  // Função para monitorar o progresso do processamento
   const monitorProcessing = async (documentId: number) => {
     try {
       const document = await apiClient.getDocument(documentId);
@@ -82,13 +73,10 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
               intervalRef.current = null;
             }
             setIsProcessing(false);
-            // ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼
             toast.success(`Deck "${data.name}" criado com sucesso!`, {
               description: `${flashcards.length} flashcards foram gerados e estão prontos para estudo.`,
             });
             onCreationSuccess();
-          } else {
-            console.log('Documento marcado como COMPLETED mas sem flashcards. Continuando monitoramento...');
           }
         } catch (flashcardsError) {
           console.log('Erro ao buscar flashcards, continuando monitoramento:', flashcardsError);
@@ -99,7 +87,6 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
           intervalRef.current = null;
         }
         setIsProcessing(false);
-        // ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼
         toast.error("Falha ao processar o deck", {
           description: "Houve um erro durante o processamento. Tente novamente.",
         });
@@ -118,7 +105,6 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
   }, []);
 
   const handleSubmit = async () => {
-    // ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼
     if (!data.name.trim()) return toast.error("Por favor, dê um nome ao seu deck.");
     if (data.inputType === 'text' && !data.text.trim()) return toast.error("O conteúdo de texto não pode estar vazio.");
     if (data.inputType === 'upload' && !data.file) return toast.error("Por favor, selecione um arquivo para upload.");
@@ -128,9 +114,9 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
       let document: Document;
       
       if (data.inputType === 'upload' && data.file) {
-        document = await apiClient.uploadDocument(data.file, data.name, data.num_flashcards, data.difficulty);
+        document = await apiClient.uploadDocument(data.file, data.name, data.num_flashcards);
       } else {
-        document = await apiClient.createDocumentFromText(data.text, data.name, data.num_flashcards, data.difficulty);
+        document = await apiClient.createDocumentFromText(data.text, data.name, data.num_flashcards);
       }
 
       setIsSubmitting(false);
@@ -146,7 +132,6 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
 
     } catch (error: any) {
       setIsSubmitting(false);
-      // ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼
       toast.error("Falha ao criar deck", { description: error.message || "Tente novamente mais tarde." });
     }
   };
@@ -183,37 +168,18 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
   );
 
   const renderStepContent = () => {
+    // ▼▼▼ ALTERAÇÃO PRINCIPAL AQUI ▼▼▼
     if (isProcessing) {
       return (
         <div className="animate-in fade-in-50 duration-500">
-          <CardContent className="text-center py-16">
-            <div className="flex flex-col items-center space-y-6">
-              <FlashcardLoader progress={processingProgress} />
-              <div className="space-y-2">
-                <h3 className="text-xl font-semibold text-foreground">
-                  Criando seus flashcards...
-                </h3>
-                <p className="text-muted-foreground">
-                  {processingDocument?.status === 'COMPLETED' 
-                    ? "Finalizando criação dos flashcards..." 
-                    : (processingDocument?.current_step || "Processando conteúdo")
-                  }
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Isso pode levar alguns minutos. Não feche esta página.
-                </p>
-              </div>
-              {processingProgress === 100 && (
-                <div className="flex items-center gap-2 text-orange-600">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="font-medium">Gerando flashcards...</span>
-                </div>
-              )}
-            </div>
+          <CardContent className="flex justify-center items-center py-12">
+            {/* O novo componente de carregamento recebe o status real do documento */}
+            <FlashcardLoader currentStepMessage={processingDocument?.current_step} />
           </CardContent>
         </div>
       );
     }
+    // ▲▲▲ FIM DA ALTERAÇÃO PRINCIPAL ▲▲▲
 
     return (
       <div key={step} className="animate-in fade-in-50 duration-500">
@@ -226,7 +192,6 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
           <CardContent className="text-center pt-12">
             <Sparkles className="w-12 h-12 mx-auto text-primary mb-4" />
             <CardTitle>Vamos começar!</CardTitle>
-            {/* ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼ */}
             <CardDescription className="mt-2">Dê um nome para o seu novo deck de estudos.</CardDescription>
             <Input
               id="set-name"
@@ -241,11 +206,11 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
         {step === 2 && (
           <CardContent>
             <CardTitle className="text-center">Forneça o Conteúdo</CardTitle>
-            <CardDescription className="text-center mt-2">Escolha como inserir seu material de estudo.</CardDescription>
+            <CardDescription className="text-center mt-2">Escolha como inserir o seu material de estudo.</CardDescription>
              <Tabs value={data.inputType} onValueChange={(value) => setData({...data, inputType: value as 'text' | 'upload'})} className="w-full mt-6">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="text">Digitar Texto</TabsTrigger>
-                  <TabsTrigger value="upload">Upload de Arquivo</TabsTrigger>
+                  <TabsTrigger value="upload">Upload de Ficheiro</TabsTrigger>
                 </TabsList>
                 <TabsContent value="text" className="mt-4">
                     <Textarea
@@ -277,7 +242,7 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
             <CardContent className="text-center pt-12">
                 <ListOrdered className="w-12 h-12 mx-auto text-primary mb-4" />
                 <CardTitle>Quantidade de Flashcards</CardTitle>
-                <CardDescription className="mt-2">Escolha quantos flashcards você quer gerar.</CardDescription>
+                <CardDescription className="mt-2">Escolha quantos flashcards quer gerar.</CardDescription>
                 <div className="my-8">
                     <span className="font-bold text-5xl text-primary">{data.num_flashcards}</span>
                 </div>
@@ -289,30 +254,10 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
                     onValueChange={(value) => setData({ ...data, num_flashcards: value[0] })}
                     className="max-w-sm mx-auto"
                 />
-                <Button onClick={handleNext} className="w-full max-w-sm mt-8">Próximo</Button>
-            </CardContent>
-        )}
-         {step === 4 && (
-            <CardContent className="text-center pt-12">
-                 <BrainCircuit className="w-12 h-12 mx-auto text-primary mb-4" />
-                <CardTitle>Nível de Dificuldade</CardTitle>
-                <CardDescription className="mt-2">Selecione a complexidade dos flashcards que serão gerados.</CardDescription>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-                    <Card onClick={() => setData({ ...data, difficulty: "Fácil" })} className={cn("cursor-pointer transition-all", data.difficulty === "Fácil" ? "border-primary ring-2 ring-primary" : "hover:border-primary/50")}>
-                        <CardHeader><Smile className="mx-auto w-8 h-8 text-green-500 mb-2" /><CardTitle>Fácil</CardTitle><CardDescription>Conceitos chave e definições.</CardDescription></CardHeader>
-                    </Card>
-                    <Card onClick={() => setData({ ...data, difficulty: "Médio" })} className={cn("cursor-pointer transition-all", data.difficulty === "Médio" ? "border-primary ring-2 ring-primary" : "hover:border-primary/50")}>
-                         <CardHeader><Meh className="mx-auto w-8 h-8 text-yellow-500 mb-2" /><CardTitle>Médio</CardTitle><CardDescription>Perguntas com exemplos e contexto.</CardDescription></CardHeader>
-                    </Card>
-                    <Card onClick={() => setData({ ...data, difficulty: "Difícil" })} className={cn("cursor-pinter transition-all", data.difficulty === "Difícil" ? "border-primary ring-2 ring-primary" : "hover:border-primary/50")}>
-                         <CardHeader><BrainCircuit className="mx-auto w-8 h-8 text-red-500 mb-2" /><CardTitle>Difícil</CardTitle><CardDescription>Questões complexas e cenários.</CardDescription></CardHeader>
-                    </Card>
-                </div>
                 <Button onClick={handleSubmit} className="w-full max-w-sm mt-8" disabled={isSubmitting || isProcessing}>
                     {isSubmitting ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        {/* ▼▼▼ ALTERAÇÃO DE TEXTO ▼▼▼ */}
                         Criando deck...
                       </div>
                     ) : (
@@ -327,7 +272,6 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
   
   return (
     <div className="w-full max-w-3xl mx-auto p-4 sm:p-0">
-        {/* ▼▼▼ NOVO CABEÇALHO RESPONSIVO ▼▼▼ */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
             <Link href="/library" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <ArrowLeft className="w-4 h-4 mr-2" />

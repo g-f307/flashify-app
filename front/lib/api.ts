@@ -200,14 +200,12 @@ class ApiClient {
   async uploadDocument(
     file: File, 
     title: string, 
-    num_flashcards: number, 
-    difficulty: string
+    num_flashcards: number
   ): Promise<Document> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     formData.append('num_flashcards', String(num_flashcards));
-    formData.append('difficulty', difficulty);
 
     const url = `/documents/upload`;
     
@@ -236,11 +234,10 @@ class ApiClient {
     text: string, 
     title: string, 
     num_flashcards: number, 
-    difficulty: string
   ): Promise<Document> {
     return this.request<Document>('/documents/text', {
       method: 'POST',
-      body: JSON.stringify({ text, title, num_flashcards, difficulty }),
+      body: JSON.stringify({ text, title, num_flashcards}),
     });
   }
   
