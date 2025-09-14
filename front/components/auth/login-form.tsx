@@ -4,30 +4,24 @@ import { useState } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { GoogleLoginButton } from './google-login-button'
-
-// --- CORREÇÃO: Definindo a interface para as props do componente ---
-interface LoginFormProps {
-  onToggleForm: () => void;
-}
+import { toast } from "sonner";
+import { useRouter } from 'next/navigation'
 
 const formSchema = z.object({
-  username: z.string().min(1, { message: 'Por favor, insira seu email ou usuário.' }),
-  password: z.string().min(1, { message: 'Por favor, insira sua senha.' }),
+  username: z.string().min(1, { message: 'Por favor, insira o seu email ou utilizador.' }),
+  password: z.string().min(1, { message: 'Por favor, insira a sua senha.' }),
 })
 
-// --- CORREÇÃO: Aplicando a tipagem e desestruturando 'onToggleForm' ---
-export default function LoginForm({ onToggleForm }: LoginFormProps) {
+export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>('')
   const { login } = useAuth()
+  const router = useRouter()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -36,84 +30,65 @@ export default function LoginForm({ onToggleForm }: LoginFormProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    setError('')
     try {
       await login({ username: values.username, password: values.password })
+      toast.success("Login bem-sucedido!", {
+        description: "A redirecionar para a aplicação...",
+      });
+      router.push('/')
     } catch (err: any) {
-      setError(err.message || 'Falha no login. Verifique suas credenciais.')
+      toast.error("Falha no login", {
+        description: err.message || 'Falha no login. Verifique as suas credenciais.',
+      });
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <Card className="w-full max-w-sm glow-on-hover">
-      <CardHeader>
-        <CardTitle className="text-2xl">Login</CardTitle>
-        <CardDescription>
-          Insira seu email e senha para acessar sua conta.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email ou Nome de Usuário</FormLabel>
-                  <FormControl>
-                    <Input placeholder="email@exemplo.com" {...field} disabled={isLoading} autoComplete="username" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Senha</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="********" {...field} disabled={isLoading} autoComplete="current-password" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Entrando...' : 'Entrar'}
-            </Button>
-          </form>
-        </Form>
-
-        {error && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Erro de Autenticação</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="relative mt-4">
-          <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">Ou continue com</span>
-          </div>
-        </div>
-        
-        <GoogleLoginButton />
-      </CardContent>
-      <CardFooter className="justify-center">
-        <p className="text-sm text-muted-foreground">
-          Não tem uma conta?{' '}
-          <Button variant="link" type="button" onClick={onToggleForm} className="font-semibold text-primary hover:underline p-0 h-auto">
-            Cadastre-se
+    <div className="grid gap-4">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="username"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email ou Nome de Utilizador</FormLabel>
+                <FormControl>
+                  <Input placeholder="email@exemplo.com" {...field} disabled={isLoading} autoComplete="username" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Senha</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="********" {...field} disabled={isLoading} autoComplete="current-password" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Entrar'}
           </Button>
-        </p>
-      </CardFooter>
-    </Card>
+        </form>
+      </Form>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">Ou continue com</span>
+        </div>
+      </div>
+      
+      <GoogleLoginButton />
+    </div>
   )
 }

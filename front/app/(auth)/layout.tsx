@@ -1,12 +1,8 @@
-// front/app/(auth)/layout.tsx
-import React from "react";
-
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  // Este layout simples garante que as páginas dentro dele
-  // não terão a sidebar da aplicação principal.
-  return <>{children}</>;
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  return (
+    // 🔽 CÓDIGO RESTAURADO AQUI 🔽
+    <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
+      {children}
+    </main>
+  );
 }
