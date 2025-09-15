@@ -31,15 +31,15 @@ export function RecentDocumentCard({ document }: RecentDocumentCardProps) {
     : 0;
 
   return (
-    <Card className="flex flex-col h-full w-64 card-enhanced transition-all hover:-translate-y-1 glow-on-hover">
-      <CardHeader>
+    <Card className="flex flex-col h-full w-64 card-enhanced transition-all hover:-translate-y-1 glow-on-hover overflow-hidden">
+      <CardHeader className="pb-3">
         <div className="flex items-start gap-3">
             <FileText className="w-5 h-5 text-secondary mt-1 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-                <CardTitle className="text-lg truncate" title={displayName}>
+            <div className="flex-1 min-w-0 overflow-hidden">
+                <CardTitle className="text-lg leading-tight break-words line-clamp-2" title={displayName}>
                     {displayName}
                 </CardTitle>
-                <CardDescription className="mt-1">
+                <CardDescription className="mt-1 text-sm">
                     Criado <TimeAgo date={document.created_at} />
                 </CardDescription>
             </div>

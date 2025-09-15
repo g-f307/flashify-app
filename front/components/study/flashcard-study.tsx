@@ -83,17 +83,16 @@ export function FlashcardStudy({ document, initialFlashcards, onBack, flipAudioR
   }
 
   return (
-    // 🔽 ALTERAÇÃO: Adicionado 'w-full' para ocupar todo o espaço disponível 🔽
     <div className="flex flex-col h-full items-center w-full">
        <Button onClick={onBack} variant="ghost" className="mb-4 self-start">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para a Biblioteca
         </Button>
 
-      {/* 🔽 ALTERAÇÃO: Ajustado o tamanho do card para ser mais flexível 🔽 */}
       <div className="w-full max-w-2xl flex-grow flex flex-col items-center justify-center perspective-1000">
+        {/* ▼▼▼ ALTERAÇÃO AQUI ▼▼▼ */}
         <div
-          className="relative w-full h-[350px] sm:h-[400px] transform-style-preserve-3d transition-transform duration-600 cursor-pointer"
+          className="relative w-full h-[350px] sm:h-[400px] transform-style-preserve-3d transition-transform duration-600 cursor-pointer glow-on-hover"
           style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
           onClick={handleFlip}
         >
@@ -111,7 +110,6 @@ export function FlashcardStudy({ document, initialFlashcards, onBack, flipAudioR
             {currentCardIndex + 1} / {flashcards.length}
         </div>
         
-        {/* 🔽 ALTERAÇÃO: Wrapper de botões agora tem altura flexível 🔽 */}
         <div className="min-h-[6rem] sm:min-h-[3.5rem] flex items-center">
           <AnimatePresence mode="wait">
             {!isFlipped ? (
@@ -121,7 +119,6 @@ export function FlashcardStudy({ document, initialFlashcards, onBack, flipAudioR
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                // 🔽 ALTERAÇÃO: Botões empilham-se em telas pequenas (flex-col) e ficam lado a lado em telas maiores (sm:flex-row) 🔽
                 className="flex flex-col sm:flex-row w-full justify-between items-center gap-2"
               >
                   <div className="flex w-full sm:w-auto justify-between gap-2">
@@ -144,7 +141,6 @@ export function FlashcardStudy({ document, initialFlashcards, onBack, flipAudioR
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                 // 🔽 ALTERAÇÃO: Botões de feedback também empilham-se em telas pequenas 🔽
                 className="flex flex-col sm:flex-row w-full justify-center items-center gap-2"
               >
                 <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-red-100 text-red-700 hover:bg-red-200" onClick={() => handleFeedback(0.0)} disabled={isLogging}>

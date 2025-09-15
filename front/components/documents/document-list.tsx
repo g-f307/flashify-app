@@ -8,7 +8,6 @@ import { Loader2, AlertCircle, FileText, CheckCircle, Plus, AlertTriangle } from
 import { Progress } from "@/components/ui/progress";
 import { useDocuments } from "@/hooks/use-documents";
 import TimeAgo from "../common/time-ago";
-// ▼▼▼ ALTERAÇÃO: Importar a função de formatação central ▼▼▼
 import { formatDocumentTitle } from "@/lib/utils";
 
 interface DocumentListProps {
@@ -54,16 +53,16 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {documents.map((doc) => {
-        // ▼▼▼ ALTERAÇÃO: Utilizar a função de formatação para obter o nome de exibição ▼▼▼
         const displayName = formatDocumentTitle(doc.file_path);
 
         return (
+          // ▼▼▼ ALTERAÇÃO AQUI ▼▼▼
           <Card
             key={doc.id}
-            className={`flex flex-col h-full transition-all duration-200 ${
+            className={`flex flex-col h-full transition-all duration-200 glow-on-hover card-enhanced ${
               doc.status === "COMPLETED"
-                ? "cursor-pointer hover:shadow-lg hover:-translate-y-1"
-                : ""
+                ? "cursor-pointer"
+                : "opacity-80"
             }`}
             onClick={() => doc.status === "COMPLETED" && onDocumentSelect(doc)}
           >
