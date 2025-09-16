@@ -1,4 +1,4 @@
-# render.yaml - Versão Corrigida com Referências Explícitas
+# render.yaml - Versão Final com Solução de Contorno
 
 databases:
   - name: flashify-db
@@ -8,6 +8,7 @@ services:
   # Serviço do Redis
   - name: flashify-redis
     type: redis
+    plan: free
     ipAllowList: []
 
   # Backend (FastAPI)
@@ -21,12 +22,12 @@ services:
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL
-        fromDatabase: # <-- 'fromDatabase' está correto aqui
+        fromDatabase:
           name: flashify-db
           property: connectionString
       - key: REDIS_URL
         fromService:
-          type: redis # <-- CORREÇÃO: Adicionar o tipo do serviço referenciado
+          type: redis
           name: flashify-redis
           property: connectionString
       - key: GOOGLE_API_KEY
@@ -47,19 +48,19 @@ services:
     dockerCommand: "celery -A app.worker worker --loglevel=info"
     envVars:
       - key: DATABASE_URL
-        fromDatabase: # <-- 'fromDatabase' está correto aqui
+        fromDatabase:
           name: flashify-db
           property: connectionString
       - key: REDIS_URL
         fromService:
-          type: redis # <-- CORREÇÃO: Adicionar o tipo do serviço referenciado
+          type: redis
           name: flashify-redis
           property: connectionString
       - key: GOOGLE_API_KEY
         sync: false
       - key: SECRET_KEY
         fromService:
-          type: web # <-- CORREÇÃO: Adicionar o tipo do serviço referenciado
+          type: web
           name: flashify-backend
           envVarKey: SECRET_KEY
       - key: ALGORITHM
@@ -74,8 +75,7 @@ services:
     dockerContext: ./front
     dockerfilePath: ./front/Dockerfile
     envVars:
+      # --- A GRANDE ALTERAÇÃO ESTÁ AQUI ---
+      # Em vez de uma referência dinâmica, usamos um valor temporário.
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web # <-- CORREÇÃO: Adicionar o tipo do serviço referenciado
-          name: flashify-backend
-          property: url
+        value: https://temp-url-will-be-replaced.com
