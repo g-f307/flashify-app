@@ -1,16 +1,19 @@
-# render.yaml - Versão Corrigida
+# render.yaml - Versão Corrigida Final
 
 # Define os serviços da aplicação
 services:
   # 1. Serviço do Banco de Dados PostgreSQL
   - name: flashify-db
     type: pserv
-    # Adicionado ipAllowList para permitir conexões de dentro da sua conta Render
-    ipAllowList: [] 
+    # CORREÇÃO: A propriedade 'ipAllowList' não se aplica a 'pserv'.
+    # Apenas o tipo e nome são necessários para o plano básico.
 
   # 2. Serviço do Redis
   - name: flashify-redis
     type: redis
+    # CORREÇÃO: O Redis SIM precisa da lista de IPs. '[]' permite acesso
+    # de outros serviços dentro da sua conta Render.
+    ipAllowList: []
 
   # 3. Serviço do Backend (API FastAPI)
   - name: flashify-backend
@@ -25,14 +28,14 @@ services:
         fromService:
           type: pserv
           name: flashify-db
-          # CORREÇÃO: Usar 'internalConnectionString' para a comunicação interna
-          property: internalConnectionString
+          # CORREÇÃO: Voltando para 'connectionString' como o erro sugere.
+          property: connectionString
       - key: REDIS_URL
         fromService:
           type: redis
           name: flashify-redis
-          # CORREÇÃO: Usar 'internalConnectionString' para a comunicação interna
-          property: internalConnectionString
+          # CORREÇÃO: Voltando para 'connectionString' para o Redis também.
+          property: connectionString
       - key: GOOGLE_API_KEY
         sync: false
       - key: SECRET_KEY
@@ -47,19 +50,18 @@ services:
     repo: https://github.com/g-f307/flashify-app # <-- IMPORTANTE: ALTERE AQUI!
     dockerContext: ./back
     dockerfilePath: ./back/Dockerfile
-    # CORREÇÃO: A propriedade para o comando do Docker é 'dockerCommand'
     dockerCommand: "celery -A app.worker worker --loglevel=info"
     envVars:
       - key: DATABASE_URL
         fromService:
           type: pserv
           name: flashify-db
-          property: internalConnectionString
+          property: connectionString
       - key: REDIS_URL
         fromService:
           type: redis
           name: flashify-redis
-          property: internalConnectionString
+          property: connectionString
       - key: GOOGLE_API_KEY
         sync: false
       - key: SECRET_KEY
@@ -82,6 +84,6 @@ services:
         fromService:
           type: web
           name: flashify-backend
-          # CORREÇÃO: A propriedade correta para a URL pública é 'url' (a sua estava certa,
-          # mas o erro anterior provavelmente causou uma falha em cascata)
+          # CORREÇÃO: O erro anterior foi um falso negativo. 'url' é de facto a 
+          # propriedade correta. Com os outros serviços corrigidos, esta deve ser validada.
           property: url
