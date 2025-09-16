@@ -1,40 +1,31 @@
 # render.yaml - Versão Corrigida Final
 
-# Define os serviços da aplicação
-services:
-  # 1. Serviço do Banco de Dados PostgreSQL
+databases:
   - name: flashify-db
-    type: pserv
-    # CORREÇÃO: A propriedade 'ipAllowList' não se aplica a 'pserv'.
-    # Apenas o tipo e nome são necessários para o plano básico.
+    plan: free
 
-  # 2. Serviço do Redis
+services:
+  # 1. Serviço do Redis
   - name: flashify-redis
     type: redis
-    # CORREÇÃO: O Redis SIM precisa da lista de IPs. '[]' permite acesso
-    # de outros serviços dentro da sua conta Render.
     ipAllowList: []
 
-  # 3. Serviço do Backend (API FastAPI)
+  # 2. Serviço do Backend (API FastAPI)
   - name: flashify-backend
     type: web
     env: docker
-    repo: https://github.com/g-f307/flashify-app # <-- IMPORTANTE: ALTERE AQUI!
+    repo: https://github.com/g-f307/flashify-app # <-- ajuste se for fork
     dockerContext: ./back
     dockerfilePath: ./back/Dockerfile
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL
         fromService:
-          type: pserv
           name: flashify-db
-          # CORREÇÃO: Voltando para 'connectionString' como o erro sugere.
           property: connectionString
       - key: REDIS_URL
         fromService:
-          type: redis
           name: flashify-redis
-          # CORREÇÃO: Voltando para 'connectionString' para o Redis também.
           property: connectionString
       - key: GOOGLE_API_KEY
         sync: false
@@ -43,47 +34,41 @@ services:
       - key: ALGORITHM
         value: HS256
 
-  # 4. Serviço do Worker (Celery)
+  # 3. Serviço do Worker (Celery)
   - name: flashify-worker
     type: worker
     env: docker
-    repo: https://github.com/g-f307/flashify-app # <-- IMPORTANTE: ALTERE AQUI!
+    repo: https://github.com/g-f307/flashify-app
     dockerContext: ./back
     dockerfilePath: ./back/Dockerfile
     dockerCommand: "celery -A app.worker worker --loglevel=info"
     envVars:
       - key: DATABASE_URL
         fromService:
-          type: pserv
           name: flashify-db
           property: connectionString
       - key: REDIS_URL
         fromService:
-          type: redis
           name: flashify-redis
           property: connectionString
       - key: GOOGLE_API_KEY
         sync: false
       - key: SECRET_KEY
         fromService:
-          type: web
           name: flashify-backend
           envVarKey: SECRET_KEY
       - key: ALGORITHM
         value: HS256
 
-  # 5. Serviço do Frontend (Next.js)
+  # 4. Serviço do Frontend (Next.js)
   - name: flashify-frontend
     type: web
     env: docker
-    repo: https://github.com/g-f307/flashify-app # <-- IMPORTANTE: ALTERE AQUI!
+    repo: https://github.com/g-f307/flashify-app
     dockerContext: ./front
     dockerfilePath: ./front/Dockerfile
     envVars:
       - key: NEXT_PUBLIC_API_URL
         fromService:
-          type: web
           name: flashify-backend
-          # CORREÇÃO: O erro anterior foi um falso negativo. 'url' é de facto a 
-          # propriedade correta. Com os outros serviços corrigidos, esta deve ser validada.
           property: url
