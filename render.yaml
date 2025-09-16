@@ -1,19 +1,16 @@
-# render.yaml - Versão Corrigida com Referências Corretas
+# render.yaml - Versão Corrigida com Referências Explícitas
 
-# Primeiro, definimos os serviços de base de dados.
 databases:
   - name: flashify-db
-    plan: free # 'free' é uma boa opção para começar.
+    plan: free
 
-# Em seguida, definimos os serviços da aplicação.
 services:
-  # 1. Serviço do Redis
+  # Serviço do Redis
   - name: flashify-redis
     type: redis
-    plan: free
-    ipAllowList: [] # Necessário para permitir o acesso de outros serviços seus.
+    ipAllowList: []
 
-  # 2. Backend (FastAPI)
+  # Backend (FastAPI)
   - name: flashify-backend
     type: web
     env: docker
@@ -24,12 +21,12 @@ services:
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL
-        fromDatabase: # <-- CORREÇÃO: Usar 'fromDatabase' para o PostgreSQL
+        fromDatabase: # <-- 'fromDatabase' está correto aqui
           name: flashify-db
           property: connectionString
       - key: REDIS_URL
-        fromService: # <-- 'fromService' está correto aqui, pois Redis foi definido como um serviço
-          type: redis # Adicionar o tipo para ser mais explícito
+        fromService:
+          type: redis # <-- CORREÇÃO: Adicionar o tipo do serviço referenciado
           name: flashify-redis
           property: connectionString
       - key: GOOGLE_API_KEY
@@ -39,7 +36,7 @@ services:
       - key: ALGORITHM
         value: HS256
 
-  # 3. Worker (Celery)
+  # Worker (Celery)
   - name: flashify-worker
     type: worker
     env: docker
@@ -50,25 +47,25 @@ services:
     dockerCommand: "celery -A app.worker worker --loglevel=info"
     envVars:
       - key: DATABASE_URL
-        fromDatabase: # <-- CORREÇÃO: Usar 'fromDatabase' para o PostgreSQL
+        fromDatabase: # <-- 'fromDatabase' está correto aqui
           name: flashify-db
           property: connectionString
       - key: REDIS_URL
-        fromService: # <-- 'fromService' está correto aqui
-          type: redis
+        fromService:
+          type: redis # <-- CORREÇÃO: Adicionar o tipo do serviço referenciado
           name: flashify-redis
           property: connectionString
       - key: GOOGLE_API_KEY
         sync: false
       - key: SECRET_KEY
-        fromService: # <-- 'fromService' está correto para referenciar outro serviço
-          type: web
+        fromService:
+          type: web # <-- CORREÇÃO: Adicionar o tipo do serviço referenciado
           name: flashify-backend
           envVarKey: SECRET_KEY
       - key: ALGORITHM
         value: HS256
 
-  # 4. Frontend (Next.js)
+  # Frontend (Next.js)
   - name: flashify-frontend
     type: web
     env: docker
@@ -78,7 +75,7 @@ services:
     dockerfilePath: ./front/Dockerfile
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        fromService: # <-- 'fromService' está correto aqui
-          type: web
+        fromService:
+          type: web # <-- CORREÇÃO: Adicionar o tipo do serviço referenciado
           name: flashify-backend
           property: url
