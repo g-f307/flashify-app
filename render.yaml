@@ -1,0 +1,84 @@
+# render.yaml - Configuração de Infraestrutura como Código para o Flashify App
+
+services:
+  # 1. Serviço do Banco de Dados PostgreSQL
+  # O Render irá gerir isto automaticamente, substituindo o serviço 'db' do seu docker-compose.
+  - name: flashify-db
+    type: pserv 
+    
+  # 2. Serviço do Redis
+  # O Render também irá gerir o Redis, substituindo o serviço 'redis' do docker-compose.
+  - name: flashify-redis
+    type: redis
+
+  # 3. Serviço do Backend (API FastAPI)
+  # Este serviço será construído a partir do Dockerfile na pasta 'back'.
+  - name: flashify-backend
+    type: web
+    env: docker
+    repo: https://github.com/g-f307/flashify-app # <-- IMPORTANTE: ALTERE AQUI!
+    dockerContext: ./back
+    dockerfilePath: ./back/Dockerfile
+    healthCheckPath: / # Rota para verificar se a API está online
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: pserv
+          name: flashify-db
+          property: connectionString # Conecta-se automaticamente ao banco de dados
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: flashify-redis
+          property: connectionString # Conecta-se automaticamente ao Redis
+      - key: GOOGLE_API_KEY
+        sync: false # Para colar o valor manualmente no painel do Render
+      - key: SECRET_KEY
+        generateValue: true # O Render gera uma chave secreta segura
+      - key: ALGORITHM
+        value: HS256
+
+  # 4. Serviço do Worker (Celery)
+  # Este serviço também usa a imagem Docker da pasta 'back', mas executa o comando do Celery.
+  - name: flashify-worker
+    type: worker
+    env: docker
+    repo: https://github.com/g-f307/flashify-app # <-- IMPORTANTE: ALTERE AQUI!
+    dockerContext: ./back
+    dockerfilePath: ./back/Dockerfile
+    startCommand: "celery -A app.worker worker --loglevel=info"
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: pserv
+          name: flashify-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: flashify-redis
+          property: connectionString
+      - key: GOOGLE_API_KEY
+        sync: false 
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: flashify-backend
+          envVarKey: SECRET_KEY # Reutiliza a mesma chave secreta do backend
+      - key: ALGORITHM
+        value: HS256
+
+  # 5. Serviço do Frontend (Next.js)
+  # Este serviço será construído a partir do Dockerfile na pasta 'front'.
+  - name: flashify-frontend
+    type: web
+    env: docker
+    repo: https://github.com/g-f307/flashify-app # <-- IMPORTANTE: ALTERE AQUI!
+    dockerContext: ./front
+    dockerfilePath: ./front/Dockerfile
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: flashify-backend
+          property: url # Conecta-se automaticamente à URL pública do backend
