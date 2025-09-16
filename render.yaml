@@ -1,20 +1,21 @@
-# render.yaml - Versão Corrigida Final
+# render.yaml - Configuração para Deploy no Render
 
 databases:
   - name: flashify-db
     plan: free
 
 services:
-  # 1. Serviço do Redis
+  # Serviço do Redis
   - name: flashify-redis
     type: redis
-    ipAllowList: []
+    ipAllowList: [] # permite acesso interno entre serviços
 
-  # 2. Serviço do Backend (API FastAPI)
+  # Backend (FastAPI)
   - name: flashify-backend
     type: web
     env: docker
-    repo: https://github.com/g-f307/flashify-app # <-- ajuste se for fork
+    repo: https://github.com/g-f307/flashify-app # ajuste para o seu fork se necessário
+    branch: dev
     dockerContext: ./back
     dockerfilePath: ./back/Dockerfile
     healthCheckPath: /
@@ -34,11 +35,12 @@ services:
       - key: ALGORITHM
         value: HS256
 
-  # 3. Serviço do Worker (Celery)
+  # Worker (Celery)
   - name: flashify-worker
     type: worker
     env: docker
     repo: https://github.com/g-f307/flashify-app
+    branch: dev
     dockerContext: ./back
     dockerfilePath: ./back/Dockerfile
     dockerCommand: "celery -A app.worker worker --loglevel=info"
@@ -60,11 +62,12 @@ services:
       - key: ALGORITHM
         value: HS256
 
-  # 4. Serviço do Frontend (Next.js)
+  # Frontend (Next.js)
   - name: flashify-frontend
     type: web
     env: docker
     repo: https://github.com/g-f307/flashify-app
+    branch: dev
     dockerContext: ./front
     dockerfilePath: ./front/Dockerfile
     envVars:
