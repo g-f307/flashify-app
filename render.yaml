@@ -1,4 +1,4 @@
-# render.yaml - Versão Final com Solução de Contorno
+# render.yaml - Versão Final com Planos Gratuitos Explícitos
 
 databases:
   - name: flashify-db
@@ -8,12 +8,13 @@ services:
   # Serviço do Redis
   - name: flashify-redis
     type: redis
-    plan: free
+    plan: free # <-- ADICIONADO: Define o plano gratuito para o Redis
     ipAllowList: []
 
   # Backend (FastAPI)
   - name: flashify-backend
     type: web
+    plan: free # <-- ADICIONADO: Define o plano gratuito para o serviço web
     env: docker
     repo: https://github.com/g-f307/flashify-app
     branch: dev
@@ -40,6 +41,7 @@ services:
   # Worker (Celery)
   - name: flashify-worker
     type: worker
+    plan: free # <-- ADICIONADO: Define o plano gratuito para o worker
     env: docker
     repo: https://github.com/g-f307/flashify-app
     branch: dev
@@ -69,13 +71,12 @@ services:
   # Frontend (Next.js)
   - name: flashify-frontend
     type: web
+    plan: free # <-- ADICIONADO: Define o plano gratuito para o serviço web
     env: docker
     repo: https://github.com/g-f307/flashify-app
     branch: dev
     dockerContext: ./front
     dockerfilePath: ./front/Dockerfile
     envVars:
-      # --- A GRANDE ALTERAÇÃO ESTÁ AQUI ---
-      # Em vez de uma referência dinâmica, usamos um valor temporário.
       - key: NEXT_PUBLIC_API_URL
         value: https://temp-url-will-be-replaced.com
