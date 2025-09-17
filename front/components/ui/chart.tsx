@@ -113,7 +113,6 @@ function ChartTooltipContent({
   hideIndicator = false,
   label,
   labelFormatter,
-  labelClassName,
   formatter,
   color,
   nameKey,
@@ -143,7 +142,8 @@ function ChartTooltipContent({
 
     if (labelFormatter) {
       return (
-        <div className={cn("font-medium", labelClassName)}>
+        <div className={cn("font-medium")}>
+          {/* @ts-expect-error - The payload type is not correct */}
           {labelFormatter(value, payload)}
         </div>
       )
@@ -153,13 +153,12 @@ function ChartTooltipContent({
       return null
     }
 
-    return <div className={cn("font-medium", labelClassName)}>{value}</div>
+    return <div className={cn("font-medium")}>{value}</div>
   }, [
     label,
     labelFormatter,
     payload,
     hideLabel,
-    labelClassName,
     config,
     labelKey,
   ])
@@ -186,14 +185,19 @@ function ChartTooltipContent({
 
           return (
             <div
-              key={item.dataKey}
+              key={
+                Array.isArray(item.dataKey)
+                  ? item.dataKey.join("-")
+                  : String(item.dataKey ?? index)
+              }
               className={cn(
                 "[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5",
                 indicator === "dot" && "items-center"
               )}
             >
               {formatter && item?.value !== undefined && item.name ? (
-                formatter(item.value, item.name, item, index, item.payload)
+                // @ts-ignore
+                formatter(item.value, item.name, item, index)
               ) : (
                 <>
                   {itemConfig?.icon ? (
@@ -234,7 +238,9 @@ function ChartTooltipContent({
                     </div>
                     {item.value && (
                       <span className="text-foreground font-mono font-medium tabular-nums">
-                        {item.value.toLocaleString()}
+                        {Array.isArray(item.value)
+                          ? item.value.join(", ")
+                          : item.value.toLocaleString()}
                       </span>
                     )}
                   </div>
@@ -275,13 +281,17 @@ function ChartLegendContent({
         className
       )}
     >
-      {payload.map((item) => {
-        const key = `${nameKey || item.dataKey || "value"}`
+      {payload.map((item, index) => {
+        const key = `${nameKey || (item as any).dataKey || item.value || "value"}`
         const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
         return (
           <div
-            key={item.value}
+            key={
+              Array.isArray(item.value)
+                ? item.value.join("-")
+                : String(item.value ?? index)
+            }
             className={cn(
               "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3"
             )}
@@ -315,27 +325,25 @@ function getPayloadConfigFromPayload(
   }
 
   const payloadPayload =
-    "payload" in payload &&
-    typeof payload.payload === "object" &&
-    payload.payload !== null
-      ? payload.payload
+    "payload" in (payload as any) &&
+    typeof (payload as any).payload === "object" &&
+    (payload as any).payload !== null
+      ? (payload as any).payload
       : undefined
 
   let configLabelKey: string = key
 
   if (
-    key in payload &&
-    typeof payload[key as keyof typeof payload] === "string"
+    key in (payload as any) &&
+    typeof (payload as any)[key] === "string"
   ) {
-    configLabelKey = payload[key as keyof typeof payload] as string
+    configLabelKey = (payload as any)[key] as string
   } else if (
     payloadPayload &&
     key in payloadPayload &&
-    typeof payloadPayload[key as keyof typeof payloadPayload] === "string"
+    typeof payloadPayload[key] === "string"
   ) {
-    configLabelKey = payloadPayload[
-      key as keyof typeof payloadPayload
-    ] as string
+    configLabelKey = payloadPayload[key] as string
   }
 
   return configLabelKey in config
