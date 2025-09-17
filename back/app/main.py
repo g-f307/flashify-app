@@ -1,5 +1,6 @@
 # app/main.py
 # app/main.py
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
@@ -16,6 +17,8 @@ from . import models
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:4000")
+
 app = FastAPI(title="Flashify API")
 
 # Configure CORS
@@ -25,6 +28,7 @@ origins = [
     "http://frontend:3000",   # Docker internal
     "http://127.0.0.1:3000",
     "http://127.0.0.1:4000",
+    "https://flashify-app.vercel.app"
 ]
 
 app.add_middleware(
@@ -35,7 +39,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
+app.include_router(
+    auth.router,
+    prefix="/auth",
+    tags=["authentication"]
+)
 app.include_router(folders.router)
 app.include_router(documents.router)
 app.include_router(flashcards.router)
