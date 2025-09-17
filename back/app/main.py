@@ -35,7 +35,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
+app.include_router(
+    auth.router,
+    prefix="/auth",
+    tags=["authentication"]
+)
 app.include_router(folders.router)
 app.include_router(documents.router)
 app.include_router(flashcards.router)
