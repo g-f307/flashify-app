@@ -28,7 +28,7 @@ origins = [
     "http://frontend:3000",   # Docker internal
     "http://127.0.0.1:3000",
     "http://127.0.0.1:4000",
-    "https://flashify-app.vercel.app"
+    "frontend_url"
 ]
 
 app.add_middleware(
@@ -39,11 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(
-    auth.router,
-    prefix="/auth",
-    tags=["authentication"]
-)
+app.include_router(auth.router)
 app.include_router(folders.router)
 app.include_router(documents.router)
 app.include_router(flashcards.router)
