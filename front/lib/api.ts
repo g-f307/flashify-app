@@ -198,10 +198,7 @@ class ApiClient {
   }
 
   async uploadDocument(
-    file: File, 
-    title: string, 
-    num_flashcards: number
-  ): Promise<Document> {
+file: File, title: string, num_flashcards: number, difficulty?: string  ): Promise<Document> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
@@ -231,9 +228,7 @@ class ApiClient {
 
 
   async createDocumentFromText(
-    text: string, 
-    title: string, 
-    num_flashcards: number, 
+text: string, title: string, num_flashcards: number, p0?: string, 
   ): Promise<Document> {
     return this.request<Document>('/documents/text', {
       method: 'POST',
