@@ -1,0 +1,79 @@
+# Versão final e corrigida do docker-compose.prod.yml
+
+services:
+  db:
+    image: postgres:15
+    container_name: flashify-db
+    env_file:
+      - ./postgres.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flashify -d flashify"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: flashify-redis
+    restart: always
+    networks:
+      - internal-net
+
+  backend:
+    build: ./back
+    container_name: flashify-backend
+    env_file:
+      - ./back/.env
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: always
+    networks:
+      - proxy-net
+      - internal-net
+
+  celery-worker:
+    build: ./back
+    container_name: flashify-worker
+    command: celery -A app.worker worker --loglevel=info
+    env_file:
+      - ./back/.env
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: always
+    networks:
+      - internal-net
+
+  frontend:
+    build: ./front
+    container_name: flashify-frontend
+    env_file:
+      - ./front/.env
+    depends_on:
+      - backend
+    restart: always
+    networks:
+      - proxy-net
+
+volumes:
+  postgres_data: {}
+
+networks:
+  proxy-net:
+    external: true
+  internal-net:
+    internal: true
