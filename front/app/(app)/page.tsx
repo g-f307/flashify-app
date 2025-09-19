@@ -28,8 +28,6 @@ export default function HomePage() {
         setLoading(true);
         const allDocs = await apiClient.getDocuments();
         
-        // A lógica de buscar a contagem de flashcards foi movida para o backend, simplificando o frontend.
-        // O endpoint /documents/ agora retorna 'total_flashcards'.
         const sortedDocs = allDocs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setRecentDocuments(sortedDocs.slice(0, 5));
 
@@ -45,9 +43,20 @@ export default function HomePage() {
     }
   }, [user]);
 
+  // ▼▼▼ ADIÇÃO PONTUAL: Criar a função para navegar ao selecionar um card ▼▼▼
+  const handleDocumentSelect = (doc: Document) => {
+    router.push(`/study/${doc.id}`);
+  };
+
+    const handleDeleteSuccess = (deletedId: number) => {
+    // Filtra a lista, removendo o deck excluído, e atualiza o estado
+    setRecentDocuments(currentDocs => 
+      currentDocs.filter(doc => doc.id !== deletedId)
+    );
+  };
+
   return (
     <div className="space-y-12">
-      {/* 1. Secção de Boas-Vindas */}
       <section className="text-center">
         <h1 className="text-2xl lg:text-3xl font-bold text-foreground flex items-center justify-center gap-2 flex-wrap">
           Bem-vindo(a),
@@ -57,7 +66,6 @@ export default function HomePage() {
         </h1>
       </section>
 
-      {/* 2. Secção "Como Funciona" com InfoCards */}
       <section>
         <div className="text-center mb-8">
           <h2 className="text-2xl lg:text-3xl font-bold">Como Funciona</h2>
@@ -83,7 +91,6 @@ export default function HomePage() {
           </div>
         </div>
         
-        {/* 🔽 ALTERAÇÃO: Botão sempre visível e com novo texto 🔽 */}
         <div className="text-center mt-8">
           <Button size="lg" onClick={() => router.push('/create')}>
             Criar Novo Deck
@@ -92,13 +99,10 @@ export default function HomePage() {
         </div>
       </section>
       
-      {/* Apenas mostra o separador e a secção se existirem decks recentes */}
       {recentDocuments.length > 0 && (
         <>
-          {/* 🔽 ALTERAÇÃO: Separador com cor ajustada (bg-border) 🔽 */}
           <Separator className="bg-border" />
           
-          {/* 3. Secção de Decks Recentes */}
           <section>
             <div className="max-w-5xl mx-auto">
                 <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-4">Continue de onde parou</h3>
@@ -111,7 +115,12 @@ export default function HomePage() {
                     <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
                         {recentDocuments.map((doc) => (
                             <div key={doc.id} className="flex-shrink-0 py-4">
-                                <RecentDocumentCard document={doc} />
+                                {/* ▼▼▼ ADIÇÃO PONTUAL: Passar as props necessárias para corrigir o erro ▼▼▼ */}
+                                <RecentDocumentCard
+                                  document={doc}
+                                  onDocumentSelect={handleDocumentSelect}
+                                  onDeleteSuccess={handleDeleteSuccess} // Passar a nova função
+                                />
                             </div>
                         ))}
                         <div className="flex-shrink-0 flex items-stretch py-4">
@@ -122,7 +131,6 @@ export default function HomePage() {
                             <CardHeader className="text-center p-6">
                                 <Library className="w-10 h-10 mx-auto text-primary mb-2" />
                                 <CardTitle>Aceder à Biblioteca</CardTitle>
-                                {/* 🔽 ALTERAÇÃO: Terminologia para "decks" 🔽 */}
                                 <CardDescription>Ver todos os seus decks</CardDescription>
                             </CardHeader>
                             </Card>

@@ -1,4 +1,3 @@
-// front/app/(app)/library/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -44,7 +43,6 @@ export default function LibraryPage() {
   };
   
   return (
-    // 🔽 ALTERAÇÃO: Aumentado o max-width para melhor uso do espaço e centralizado 🔽
     <div className="max-w-6xl mx-auto space-y-8">
        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-2xl lg:text-3xl font-bold text-foreground">
@@ -52,7 +50,6 @@ export default function LibraryPage() {
         </h2>
         <Button onClick={handleNewUpload} size="sm">
           <Plus className="w-4 h-4 mr-2" />
-          {/* 🔽 ALTERAÇÃO: Terminologia para "Deck" 🔽 */}
           Criar Novo Deck
         </Button>
       </div>
@@ -63,7 +60,6 @@ export default function LibraryPage() {
         </div>
       ) : (
         <>
-          {/* Secção de Revisão Inteligente */}
           {reviewCount > 0 && (
             <section>
               <h3 className="text-xl font-semibold tracking-tight mb-2">Sessões de Revisão</h3>
@@ -73,7 +69,6 @@ export default function LibraryPage() {
           
           {reviewCount > 0 && <Separator />}
 
-          {/* Secção de Todos os Decks */}
           <section>
             <h3 className="text-xl font-semibold tracking-tight mb-4">
               {reviewCount > 0 ? "Todos os Decks" : ""}

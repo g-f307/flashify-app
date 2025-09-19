@@ -64,23 +64,20 @@ export function CreationWizard({ onCreationSuccess }: CreationWizardProps) {
       setProcessingProgress(document.processing_progress || 0);
 
       if (document.status === 'COMPLETED') {
-        try {
-          const flashcards = await apiClient.getDocumentFlashcards(documentId);
-          
-          if (flashcards && flashcards.length > 0) {
-            if (intervalRef.current) {
-              clearInterval(intervalRef.current);
-              intervalRef.current = null;
-            }
-            setIsProcessing(false);
-            toast.success(`Deck "${data.name}" criado com sucesso!`, {
-              description: `${flashcards.length} flashcards foram gerados e estão prontos para estudo.`,
-            });
-            onCreationSuccess();
+          // Limpa o intervalo imediatamente
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
           }
-        } catch (flashcardsError) {
-          console.log('Erro ao buscar flashcards, continuando monitoramento:', flashcardsError);
-        }
+          setIsProcessing(false);
+
+          // Mostra a notificação
+          toast.success(`Deck "${data.name}" criado com sucesso!`, {
+            description: `${document.total_flashcards || 'Os seus'} flashcards estão prontos para estudo.`,
+          });
+          
+          // Redireciona o utilizador SEM ESPERAR por mais nada
+          onCreationSuccess(); 
       } else if (document.status === 'FAILED') {
         if (intervalRef.current) {
           clearInterval(intervalRef.current);

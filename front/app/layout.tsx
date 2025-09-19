@@ -7,8 +7,10 @@ import { Suspense } from "react";
 import "./globals.css"; // Importe o globals.css da pasta app
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
+import { LoadingProvider } from "@/components/providers/loading-provider";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from "@/components/ui/sonner"; // Importe o Toaster
+import { AppLoadingScreen } from "@/components/ui/loading-screen";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -36,12 +38,14 @@ export default function RootLayout({
             enableSystem 
             disableTransitionOnChange
           >
-            <AuthProvider>
-              <Suspense fallback={<div>Loading...</div>}>
-                {children}
-              </Suspense>
-              <Toaster /> {/* Adicione o Toaster para notificações globais */}
-            </AuthProvider>
+            <LoadingProvider>
+              <AuthProvider>
+                <Suspense fallback={<AppLoadingScreen />}>
+                  {children}
+                </Suspense>
+                <Toaster /> {/* Adicione o Toaster para notificações globais */}
+              </AuthProvider>
+            </LoadingProvider>
           </ThemeProvider>
         </GoogleOAuthProvider>
       </body>

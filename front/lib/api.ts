@@ -276,11 +276,24 @@ text: string, title: string, num_flashcards: number, p0?: string,
             method: 'POST',
             body: JSON.stringify(data),
         });
-    }
+  }
 
   async markFlashcardAsStudied(flashcardId: number): Promise<void> {
     await this.request<void>(`/flashcards/${flashcardId}/study`, {
       method: 'POST',
+    });
+  }
+
+  async updateFlashcard(flashcardId: number, data: { front?: string, back?: string }): Promise<Flashcard> {
+    return this.request<Flashcard>(`/flashcards/${flashcardId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDocument(documentId: number): Promise<void> {
+    return this.request<void>(`/documents/${documentId}`, {
+      method: 'DELETE',
     });
   }
 

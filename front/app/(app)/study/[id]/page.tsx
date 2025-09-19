@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { apiClient, Document, Flashcard } from '@/lib/api';
-import { FlashcardStudy } from '@/components/study/flashcard-study';
+import { FlashcardStudyFinal } from '@/components/study/flashcard-study';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -98,7 +98,7 @@ export default function StudyPage() {
         <source src="/card-flip.mp3" type="audio/mpeg" />
       </audio>
       {document && (
-        <FlashcardStudy
+        <FlashcardStudyFinal
           document={document}
           initialFlashcards={flashcards} // Passa os flashcards como prop
           onBack={() => router.push('/library')}

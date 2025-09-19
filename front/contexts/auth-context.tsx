@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { apiClient, User, LoginRequest, RegisterRequest } from "@/lib/api";
 import { setToken, clearToken, getToken } from "@/lib/auth";
 import { useRouter } from "next/navigation"; // Importa o useRouter
+import { useLoading } from "@/components/providers/loading-provider";
 
 interface AuthContextType {
   user: User | null;
@@ -20,6 +21,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter(); // Inicializa o router
+  const { setAuthLoading } = useLoading();
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -41,31 +43,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [router]);
 
   const login = async (credentials: LoginRequest) => {
-    const tokenData = await apiClient.login(credentials);
-    setToken(tokenData.access_token);
-    const userData = await apiClient.getCurrentUser();
-    setUser(userData);
-    router.push('/'); // <-- **REDIRECIONAMENTO APÓS LOGIN**
+    setAuthLoading(true, "Fazendo login...");
+    try {
+      const tokenData = await apiClient.login(credentials);
+      setToken(tokenData.access_token);
+      const userData = await apiClient.getCurrentUser();
+      setUser(userData);
+      
+      // Simula um pequeno delay para mostrar o loading
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setAuthLoading(false);
+      router.push('/'); // <-- **REDIRECIONAMENTO APÓS LOGIN**
+    } catch (error) {
+      setAuthLoading(false);
+      throw error; // Re-throw para que o componente de login possa tratar o erro
+    }
   };
   
   const googleLogin = async (code: string) => {
-    const tokenData = await apiClient.googleLogin(code);
-    setToken(tokenData.access_token);
-    const userData = await apiClient.getCurrentUser();
-    setUser(userData);
-    router.push('/'); // <-- **REDIRECIONAMENTO APÓS GOOGLE LOGIN**
+    setAuthLoading(true, "Conectando com Google...");
+    try {
+      const tokenData = await apiClient.googleLogin(code);
+      setToken(tokenData.access_token);
+      const userData = await apiClient.getCurrentUser();
+      setUser(userData);
+      
+      // Simula um pequeno delay para mostrar o loading
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setAuthLoading(false);
+      router.push('/'); // <-- **REDIRECIONAMENTO APÓS GOOGLE LOGIN**
+    } catch (error) {
+      setAuthLoading(false);
+      throw error; // Re-throw para que o componente possa tratar o erro
+    }
   };
 
   const register = async (userData: RegisterRequest) => {
-    await apiClient.register(userData);
-    // Após o registo, faz o login para criar a sessão e redirecionar
-    await login({ username: userData.email, password: userData.password });
+    setAuthLoading(true, "Criando sua conta...");
+    try {
+      await apiClient.register(userData);
+      // Após o registo, faz o login para criar a sessão e redirecionar
+      await login({ username: userData.email, password: userData.password });
+    } catch (error) {
+      setAuthLoading(false);
+      throw error; // Re-throw para que o componente possa tratar o erro
+    }
   };
 
   const logout = () => {
-    clearToken();
-    setUser(null);
-    router.push('/login'); // <-- **REDIRECIONAMENTO APÓS LOGOUT**
+    setAuthLoading(true, "Fazendo logout...");
+    
+    // Simula um pequeno delay para mostrar o loading
+    setTimeout(() => {
+      clearToken();
+      setUser(null);
+      setAuthLoading(false);
+      router.push('/login'); // <-- **REDIRECIONAMENTO APÓS LOGOUT**
+    }, 800);
   };
 
   return (

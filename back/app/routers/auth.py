@@ -151,3 +151,27 @@ def read_users_me(current_user: Annotated[models.User, Depends(security.get_curr
     Retorna os dados do usuário atualmente autenticado.
     """
     return current_user
+
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_session),
+    current_user: models.User = Depends(security.get_current_user),
+):
+    """
+    Endpoint para excluir um documento (deck) e todos os seus dados associados.
+    """
+    db_document = crud.get_document(db, document_id=document_id)
+    if db_document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Verifica se o documento pertence ao utilizador atual
+    if db_document.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this document")
+
+    success = crud.delete_document_and_related_data(db=db, document_id=document_id)
+    if not success:
+        # Este caso é uma salvaguarda, a verificação anterior já deve ter coberto
+        raise HTTPException(status_code=404, detail="Document not found during deletion")
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
