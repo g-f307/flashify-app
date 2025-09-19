@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 import re
 from typing import Optional
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, Response
 from sqlmodel import Session
 from typing_extensions import Annotated
 from pydantic import BaseModel, Field
@@ -198,3 +198,26 @@ def cancel_document_processing(
     session.commit()
     
     return {"message": "Document processing cancelled successfully"}
+
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_session),
+    current_user: models.User = Depends(security.get_current_user),
+):
+    """
+    Endpoint para excluir um documento (deck) e todos os seus dados associados.
+    """
+    db_document = crud.get_document(db, document_id=document_id)
+    if db_document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if db_document.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this document")
+
+    success = crud.delete_document_and_related_data(db=db, document_id=document_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found during deletion")
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+# ▲▲▲ FIM DA ADIÇÃO ▲▲▲

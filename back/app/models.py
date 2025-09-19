@@ -85,8 +85,10 @@ class Document(SQLModel, table=True):
 
     folder_id: Optional[int] = Field(default=None, foreign_key="folder.id")
     folder: Optional[Folder] = Relationship(back_populates="documents")
-
-    flashcards: List["Flashcard"] = Relationship(back_populates="document")
+    flashcards: List["Flashcard"] = Relationship(
+        back_populates="document",
+        sa_relationship_kwargs={"cascade": "all, delete"}
+    )
 
 # NOVO MODELO FLASHCARD
 class Flashcard(SQLModel, table=True):

@@ -233,3 +233,53 @@ def get_flashcards_for_review(session: Session, user_id: int) -> list[models.Fla
     ).all()
 
     return flashcards_to_review
+
+# ▼▼▼ ADICIONE ESTA FUNÇÃO NO FINAL DO FICHEIRO ▼▼▼
+def update_flashcard(db: Session, flashcard_id: int, front: Optional[str] = None, back: Optional[str] = None) -> Optional[models.Flashcard]:
+    """
+    Atualiza o conteúdo de um flashcard específico.
+    """
+    db_flashcard = db.get(models.Flashcard, flashcard_id)
+    if db_flashcard:
+        if front is not None:
+            db_flashcard.front = front
+        if back is not None:
+            db_flashcard.back = back
+        db.add(db_flashcard)
+        db.commit()
+        db.refresh(db_flashcard)
+    return db_flashcard
+
+# ▼▼▼ ADICIONE ESTA FUNÇÃO TAMBÉM ▼▼▼
+def delete_document_and_related_data(db: Session, document_id: int) -> bool:
+    """
+    Exclui um documento e todos os dados associados (flashcards, logs de estudo).
+    Retorna True se a exclusão for bem-sucedida, False caso contrário.
+    """
+    db_document = db.get(models.Document, document_id)
+    if not db_document:
+        return False
+    
+    # 1. Buscar todos os flashcards associados ao documento
+    flashcard_ids = [flashcard.id for flashcard in db_document.flashcards]
+
+    if flashcard_ids:
+        # 2. Excluir todos os StudyLogs que referenciam esses flashcards
+        # Esta é a etapa que estava em falta e que resolve o erro
+        study_logs_to_delete = db.exec(
+            select(models.StudyLog).where(models.StudyLog.flashcard_id.in_(flashcard_ids))
+        ).all()
+        for log in study_logs_to_delete:
+            db.delete(log)
+        
+        # Opcional, mas bom para consistência: excluir conversas do chat
+        conversations_to_delete = db.exec(
+            select(models.FlashcardConversation).where(models.FlashcardConversation.flashcard_id.in_(flashcard_ids))
+        ).all()
+        for conv in conversations_to_delete:
+            db.delete(conv)
+
+    # 3. Agora, excluir o documento. O SQLAlchemy/DB tratará de excluir os flashcards em cascata.
+    db.delete(db_document)
+    db.commit()
+    return True

@@ -4,7 +4,7 @@ from sqlmodel import Session
 from typing_extensions import Annotated
 from pydantic import BaseModel, Field
 
-from .. import crud, models, security
+from .. import crud, models, security, schemas 
 from ..database import get_session
 from ..ai_generator import chat_about_flashcard
 
@@ -116,3 +116,27 @@ def log_study_session(
         accuracy=study_input.accuracy
     )
     return study_log
+
+# ▼▼▼ SUBSTITUA A FUNÇÃO INTEIRA POR ESTA ▼▼▼
+@router.put("/{flashcard_id}", response_model=models.Flashcard)
+def update_flashcard_content(
+    flashcard_id: int,
+    flashcard_data: schemas.FlashcardUpdate,
+    db: Session = Depends(get_session),
+    current_user: models.User = Depends(security.get_current_user),
+):
+    """
+    Endpoint para atualizar o conteúdo (frente e/ou verso) de um flashcard.
+    """
+    # A chamada a get_flashcard agora inclui o user_id para validação
+    db_flashcard = crud.get_flashcard(db, flashcard_id=flashcard_id, user_id=current_user.id)
+    if db_flashcard is None:
+        raise HTTPException(status_code=404, detail="Flashcard not found or access denied")
+    
+    # A verificação de dono explícita abaixo já não é necessária,
+    # pois a linha acima já a faz.
+
+    updated_flashcard = crud.update_flashcard(
+        db=db, flashcard_id=flashcard_id, front=flashcard_data.front, back=flashcard_data.back
+    )
+    return updated_flashcard

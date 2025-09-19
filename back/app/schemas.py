@@ -3,6 +3,8 @@ from sqlmodel import SQLModel
 from .models import DocumentStatus, AuthProvider
 from typing import Optional 
 from datetime import datetime
+from pydantic import BaseModel 
+
 
 # NOVOS SCHEMAS PARA DOCUMENT
 class DocumentRead(SQLModel):
@@ -52,3 +54,12 @@ class DocumentCardData(SQLModel):
     created_at: datetime
     total_flashcards: int
     studied_flashcards: int
+
+# ▼▼▼ ADICIONE ESTE NOVO SCHEMA NO FINAL DO FICHEIRO ▼▼▼
+class FlashcardUpdate(BaseModel):
+    """
+    Schema para a atualização de um flashcard.
+    Ambos os campos são opcionais, permitindo atualizações parciais.
+    """
+    front: Optional[str] = None
+    back: Optional[str] = None
