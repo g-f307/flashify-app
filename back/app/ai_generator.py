@@ -1,6 +1,7 @@
 # back/app/ai_generator.py
 import os
 import json
+import time
 from typing import List, Dict, Any
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -147,28 +148,24 @@ def generate_flashcards_from_text(
 
     try:
         print(f"Enviando texto para o Gemini. Qtd: {num_flashcards}, Dificuldade: {difficulty}")
-        # 🔽 ALTERAÇÃO AQUI: Adicionamos 'request_options' com um timeout 🔽
+        start = time.time()
         response = model.generate_content(
             prompt_parts,
-            request_options={"timeout": 15.0} # Timeout de 15 segundos
+            request_options={"timeout": 60.0}  # Timeout de 60s
         )
+        elapsed = time.time() - start
+        print(f"⏱️ Tempo de resposta Gemini: {elapsed:.2f}s")
 
-        # Limpeza básica da resposta para garantir que seja um JSON válido
         cleaned_response_text = response.text.strip().replace("```json", "").replace("```", "")
         data = json.loads(cleaned_response_text)
 
-        # Validação extra para garantir que a estrutura está correta
         if "flashcards" in data and isinstance(data["flashcards"], list):
-            print("Flashcards gerados com sucesso pelo Gemini.")
+            print("✅ Flashcards gerados com sucesso pelo Gemini.")
             return data["flashcards"]
         else:
-            print("Erro: A resposta da IA não continha a estrutura esperada ('flashcards' list).")
-            # Relança o erro para o Celery capturar
+            print("❌ Erro: resposta da IA não continha a estrutura esperada ('flashcards').")
             raise ValueError("Resposta da IA malformada.")
 
     except Exception as e:
-        # Se ocorrer um erro (como timeout ou resposta malformada), registramos e relançamos.
-        # A tarefa Celery que chama esta função será responsável por tratar o erro.
-        print(f"Erro ao gerar flashcards: {e}")
-        # Relança a exceção para que o Celery possa capturá-la e tentar novamente.
+        print(f"🚨 Erro ao gerar flashcards: {type(e).__name__} - {e}")
         raise e
