@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTransition } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,7 @@ export default function HomePage() {
   const router = useRouter();
   const [recentDocuments, setRecentDocuments] = useState<DocumentWithCount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const fetchRecent = async () => {
@@ -92,9 +94,13 @@ export default function HomePage() {
         </div>
         
         <div className="text-center mt-8">
-          <Button size="lg" onClick={() => router.push('/create')}>
+          <Button size="lg" onClick={() => startTransition(() => router.push("/create"))}>
+            {isPending ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <ArrowRight className="ml-2 h-5 w-5" />
+            )}
             Criar Novo Deck
-            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </section>

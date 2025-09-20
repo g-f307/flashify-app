@@ -319,11 +319,15 @@ export function FlashcardStudyFinal({
             </Button>
           </div>
 
-          <Card className="absolute w-full h-full backface-hidden flex items-center justify-center p-4 sm:p-6 flashcard-enhanced">
-            <EnhancedFlashcardRenderer content={currentFlashcard.front} type={currentFlashcard.type} />
+          <Card className="absolute w-full h-full backface-hidden flex items-center justify-center p-4 sm:p-6 flashcard-enhanced text-center">
+            <div className="w-full flex flex-col items-center justify-center">
+              <EnhancedFlashcardRenderer content={currentFlashcard.front} type={currentFlashcard.type} />
+            </div>
           </Card>
-          <Card className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center p-4 sm:p-6 flashcard-enhanced">
-            <EnhancedFlashcardRenderer content={currentFlashcard.back} type={currentFlashcard.type} isAnswer />
+          <Card className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center p-4 sm:p-6 flashcard-enhanced text-center">
+            <div className="w-full flex flex-col items-center justify-center">
+              <EnhancedFlashcardRenderer content={currentFlashcard.back} type={currentFlashcard.type} isAnswer />
+            </div>
           </Card>
         </div>
       </div>
