@@ -169,7 +169,7 @@ export function getActionRecommendations(stats: PerformanceStats): {
     case 'good':
       return {
         primaryAction: "Praticar com questões",
-        secondaryAction: `Continue revisando ${incorrectCards + partialCards} termos`,
+        secondaryAction: `Revisar ${incorrectCards + partialCards} flashcards`,
         showReviewOption: true
       };
     

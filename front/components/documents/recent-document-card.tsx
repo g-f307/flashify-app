@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useLoading } from "@/components/providers/loading-provider";
 
 // ▼▼▼ ALTERAÇÃO PONTUAL AQUI ▼▼▼
 interface RecentDocumentCardProps {
@@ -36,6 +37,7 @@ interface RecentDocumentCardProps {
 export function RecentDocumentCard({ document, onDeleteSuccess, onDocumentSelect }: RecentDocumentCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { showLoading } = useLoading();
 
   const displayName = formatDocumentTitle(document.file_path);
 
@@ -55,6 +57,11 @@ export function RecentDocumentCard({ document, onDeleteSuccess, onDocumentSelect
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
     }
+  };
+
+  const handleStartStudy = () => {
+    showLoading("Preparando sessão de estudo...", false);
+    onDocumentSelect(document);
   };
   // ▲▲▲ FIM DA ALTERAÇÃO ▲▲▲
 
@@ -106,7 +113,7 @@ export function RecentDocumentCard({ document, onDeleteSuccess, onDocumentSelect
           <Button
             className="w-full"
             variant="secondary"
-            onClick={() => onDocumentSelect(document)}
+            onClick={handleStartStudy}
             disabled={document.status !== 'COMPLETED'}
           >
             {document.status === 'PROCESSING' 

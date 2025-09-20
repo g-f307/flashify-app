@@ -1,108 +1,122 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { AppLoadingScreen, PageLoadingScreen, AuthLoadingScreen } from '@/components/ui/loading-screen';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 
 interface LoadingContextType {
   isLoading: boolean;
-  setLoading: (loading: boolean) => void;
-  isPageLoading: boolean;
-  setPageLoading: (loading: boolean) => void;
-  isAuthLoading: boolean;
-  setAuthLoading: (loading: boolean, message?: string) => void;
-  authLoadingMessage: string;
+  message: string;
+  showLoading: (message?: string, fullScreen?: boolean) => void;
+  hideLoading: () => void;
+  showAuthLoading: (message: string) => void;
 }
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
 
 export function useLoading() {
   const context = useContext(LoadingContext);
-  if (!context) {
-    throw new Error('useLoading deve ser usado dentro de LoadingProvider');
+  if (context === undefined) {
+    throw new Error('useLoading must be used within a LoadingProvider');
   }
   return context;
 }
 
 interface LoadingProviderProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
 export function LoadingProvider({ children }: LoadingProviderProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPageLoading, setIsPageLoading] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
-  const [authLoadingMessage, setAuthLoadingMessage] = useState("Processando...");
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState('Carregando...');
+  const [fullScreen, setFullScreen] = useState(true);
+  const router = useRouter();
   const pathname = usePathname();
 
-  // Gerencia o carregamento inicial da aplicação
+  // Verificar se estamos na zona de autenticação
+  const isAuthZone = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
+
+  const showLoading = useCallback((newMessage?: string, isFullScreen?: boolean) => {
+    setMessage(newMessage || 'Carregando...');
+    // Se estamos na zona de autenticação, sempre tela cheia
+    setFullScreen(isFullScreen ?? (isAuthZone ? true : false));
+    setIsLoading(true);
+  }, [isAuthZone]);
+
+  const hideLoading = useCallback(() => {
+    setIsLoading(false);
+  }, []);
+
+  const showAuthLoading = useCallback((newMessage: string) => {
+    setMessage(newMessage);
+    setFullScreen(true); // Sempre tela cheia para autenticação
+    setIsLoading(true);
+  }, []);
+
+  // Interceptar navegação para mostrar loading instantâneo
   useEffect(() => {
-    if (isInitialLoad) {
-      // Simula o tempo de compilação inicial do Next.js
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-        setIsInitialLoad(false);
-      }, 2000); // 2 segundos para dar tempo da compilação
+    const handleStart = () => {
+      // Se estamos na zona de autenticação, sempre tela cheia
+      const shouldBeFullScreen = isAuthZone;
+      showLoading('Navegando...', shouldBeFullScreen);
+    };
 
-      return () => clearTimeout(timer);
-    }
-  }, [isInitialLoad]);
+    const handleComplete = () => {
+      // Pequeno delay para suavizar a transição
+      setTimeout(() => {
+        hideLoading();
+      }, 200);
+    };
 
-  // Gerencia o carregamento entre páginas
+    // Interceptar cliques em elementos de navegação
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('a[href], button[data-navigate]');
+      
+      if (link) {
+        const href = link.getAttribute('href');
+        const navigate = link.getAttribute('data-navigate');
+        
+        // Verificar se é navegação interna
+        if ((href && !href.startsWith('http') && !href.startsWith('#')) || navigate) {
+          handleStart();
+        }
+      }
+    };
+
+    document.addEventListener('click', handleClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleClick, true);
+    };
+  }, [showLoading, hideLoading, isAuthZone]);
+
+  // Limpar loading quando a rota muda
   useEffect(() => {
-    if (!isInitialLoad && !isAuthLoading) {
-      setIsPageLoading(true);
-      const timer = setTimeout(() => {
-        setIsPageLoading(false);
-      }, 500); // Loading mais rápido para navegação entre páginas
+    const timer = setTimeout(() => {
+      hideLoading();
+    }, 100);
 
-      return () => clearTimeout(timer);
-    }
-  }, [pathname, isInitialLoad, isAuthLoading]);
-
-  const setLoading = (loading: boolean) => {
-    setIsLoading(loading);
-  };
-
-  const setPageLoading = (loading: boolean) => {
-    setIsPageLoading(loading);
-  };
-
-  const setAuthLoadingWithMessage = (loading: boolean, message?: string) => {
-    setIsAuthLoading(loading);
-    if (message) {
-      setAuthLoadingMessage(message);
-    }
-  };
+    return () => clearTimeout(timer);
+  }, [pathname, hideLoading]);
 
   const contextValue: LoadingContextType = {
     isLoading,
-    setLoading,
-    isPageLoading,
-    setPageLoading,
-    isAuthLoading,
-    setAuthLoading: setAuthLoadingWithMessage,
-    authLoadingMessage,
+    message,
+    showLoading,
+    hideLoading,
+    showAuthLoading,
   };
-
-  // Mostra tela de carregamento inicial
-  if (isLoading && isInitialLoad) {
-    return <AppLoadingScreen />;
-  }
-
-  // Mostra tela de carregamento de autenticação (tela toda)
-  if (isAuthLoading) {
-    return <AuthLoadingScreen message={authLoadingMessage} />;
-  }
 
   return (
     <LoadingContext.Provider value={contextValue}>
-      {/* Tela de carregamento de página (considera sidebar) */}
-      {isPageLoading && !isInitialLoad && !isAuthLoading && (
-        <PageLoadingScreen message="Navegando..." />
-      )}
       {children}
+      {isLoading && (
+        <LoadingScreen 
+          message={message} 
+          fullScreen={fullScreen}
+        />
+      )}
     </LoadingContext.Provider>
   );
 }

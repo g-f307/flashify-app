@@ -36,6 +36,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useLoading } from "@/components/providers/loading-provider";
 
 interface DocumentListProps {
   onDocumentSelect: (document: Document) => void;
@@ -46,17 +47,17 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
   const { documents, loading, error, refetchDocuments } = useDocuments();
   const [docToDelete, setDocToDelete] = useState<Document | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { showLoading } = useLoading();
 
   // 2. Adicionar o estado para a paginação
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 8;
-
   const handleDelete = async () => {
     if (!docToDelete) return;
+    
     setIsDeleting(true);
     try {
       await apiClient.deleteDocument(docToDelete.id);
-      toast.success("Deck excluído com sucesso!");
+      toast.success(`Deck "${formatDocumentTitle(docToDelete.file_path)}" excluído com sucesso!`);
       refetchDocuments();
     } catch (error: any) {
       toast.error("Falha ao excluir o deck", { description: error.message });
@@ -66,7 +67,13 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
     }
   };
 
-  // 3. Adicionar a lógica para calcular os itens da página atual
+  const handleStartStudy = (doc: Document) => {
+    showLoading("Preparando sessão de estudo...", false);
+    onDocumentSelect(doc);
+  };
+
+  // 3. Definir quantos itens por página e lógica para calcular os itens da página atual
+  const ITEMS_PER_PAGE = 12;
   const totalPages = Math.ceil(documents.length / ITEMS_PER_PAGE);
   const paginatedDocuments = documents.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
@@ -160,7 +167,7 @@ export function DocumentList({ onDocumentSelect, onNewUpload }: DocumentListProp
                   <div className="mt-auto">
                     {doc.status === 'PROCESSING' && ( <div className="flex items-center text-sm text-blue-500 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md"><Loader2 className="w-4 h-4 mr-2 animate-spin" /><span className="truncate">{doc.current_step || 'A processar...'}</span></div> )}
                     {doc.status === 'FAILED' && ( <div className="flex items-center text-sm text-red-500 p-2 bg-red-50 dark:bg-red-900/20 rounded-md"><AlertTriangle className="w-4 h-4 mr-2" /><span className="truncate" title={doc.current_step}>Falhou: {doc.current_step?.replace('Erro: ', '').split('.')[0] || 'Erro desconhecido'}</span></div> )}
-                    {doc.status === 'COMPLETED' && ( <> <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Progresso de Estudo</span><span>{`${doc.total_flashcards > 0 ? Math.round((doc.studied_flashcards / doc.total_flashcards) * 100) : 0}%`}</span></div> <Progress value={doc.total_flashcards > 0 ? (doc.studied_flashcards / doc.total_flashcards) * 100 : 0} className="h-2 mb-4" /> <Button className="w-full" variant="secondary" disabled={doc.status !== "COMPLETED"}>Iniciar</Button> </> )}
+                    {doc.status === 'COMPLETED' && ( <> <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Progresso de Estudo</span><span>{`${doc.total_flashcards > 0 ? Math.round((doc.studied_flashcards / doc.total_flashcards) * 100) : 0}%`}</span></div> <Progress value={doc.total_flashcards > 0 ? (doc.studied_flashcards / doc.total_flashcards) * 100 : 0} className="h-2 mb-4" /> <Button className="w-full" variant="secondary" onClick={() => handleStartStudy(doc)} disabled={doc.status !== "COMPLETED"}>Iniciar</Button> </> )}
                   </div>
                 </CardContent>
               </Card>

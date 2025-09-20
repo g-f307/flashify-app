@@ -3,14 +3,13 @@
 import type React from "react";
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
-import { Suspense } from "react";
 import "./globals.css"; // Importe o globals.css da pasta app
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { LoadingProvider } from "@/components/providers/loading-provider";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from "@/components/ui/sonner"; // Importe o Toaster
-import { AppLoadingScreen } from "@/components/ui/loading-screen";
+import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -31,6 +30,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`font-sans ${dmSans.variable} antialiased`}>
+        <GoogleAnalytics />
         <GoogleOAuthProvider clientId={clientId}>
           <ThemeProvider 
             attribute="class" 
@@ -40,9 +40,7 @@ export default function RootLayout({
           >
             <LoadingProvider>
               <AuthProvider>
-                <Suspense fallback={<AppLoadingScreen />}>
-                  {children}
-                </Suspense>
+                {children}
                 <Toaster /> {/* Adicione o Toaster para notificações globais */}
               </AuthProvider>
             </LoadingProvider>

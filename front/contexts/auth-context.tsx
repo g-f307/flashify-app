@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter(); // Inicializa o router
-  const { setAuthLoading } = useLoading();
+  const { showAuthLoading, hideLoading } = useLoading();
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -43,65 +43,112 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [router]);
 
   const login = async (credentials: LoginRequest) => {
-    setAuthLoading(true, "Fazendo login...");
+    showAuthLoading("Fazendo login...");
     try {
       const tokenData = await apiClient.login(credentials);
       setToken(tokenData.access_token);
       const userData = await apiClient.getCurrentUser();
       setUser(userData);
       
-      // Simula um pequeno delay para mostrar o loading
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Mostrar sucesso antes de redirecionar
+      showAuthLoading("Login realizado com sucesso!");
       
-      setAuthLoading(false);
-      router.push('/'); // <-- **REDIRECIONAMENTO APÓS LOGIN**
+      // Aguardar um pouco para mostrar a mensagem de sucesso
+      setTimeout(() => {
+        // Redirecionar para a página inicial
+        router.push('/');
+        
+        // Manter loading até a página inicial estar carregada
+        setTimeout(() => {
+          hideLoading();
+        }, 1500); // Tempo suficiente para a página inicial carregar
+      }, 1000);
+      
     } catch (error) {
-      setAuthLoading(false);
+      hideLoading();
       throw error; // Re-throw para que o componente de login possa tratar o erro
     }
   };
   
   const googleLogin = async (code: string) => {
-    setAuthLoading(true, "Conectando com Google...");
+    showAuthLoading("Conectando com Google...");
     try {
       const tokenData = await apiClient.googleLogin(code);
       setToken(tokenData.access_token);
       const userData = await apiClient.getCurrentUser();
       setUser(userData);
       
-      // Simula um pequeno delay para mostrar o loading
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Mostrar sucesso antes de redirecionar
+      showAuthLoading("Login realizado com sucesso!");
       
-      setAuthLoading(false);
-      router.push('/'); // <-- **REDIRECIONAMENTO APÓS GOOGLE LOGIN**
+      setTimeout(() => {
+        // Redirecionar para a página inicial
+        router.push('/');
+        
+        // Manter loading até a página inicial estar carregada
+        setTimeout(() => {
+          hideLoading();
+        }, 1500); // Tempo suficiente para a página inicial carregar
+      }, 1000);
+      
     } catch (error) {
-      setAuthLoading(false);
+      hideLoading();
       throw error; // Re-throw para que o componente possa tratar o erro
     }
   };
 
   const register = async (userData: RegisterRequest) => {
-    setAuthLoading(true, "Criando sua conta...");
+    showAuthLoading("Criando sua conta...");
     try {
       await apiClient.register(userData);
-      // Após o registo, faz o login para criar a sessão e redirecionar
-      await login({ username: userData.email, password: userData.password });
+      
+      // Mostrar progresso
+      showAuthLoading("Conta criada! Fazendo login...");
+      
+      // Fazer login automaticamente após registro
+      const tokenData = await apiClient.login({ 
+        username: userData.email, 
+        password: userData.password 
+      });
+      setToken(tokenData.access_token);
+      const userDataResponse = await apiClient.getCurrentUser();
+      setUser(userDataResponse);
+      
+      // Mostrar sucesso antes de redirecionar
+      showAuthLoading("Bem-vindo ao Flashify!");
+      
+      setTimeout(() => {
+        // Redirecionar para a página inicial
+        router.push('/');
+        
+        // Manter loading até a página inicial estar carregada
+        setTimeout(() => {
+          hideLoading();
+        }, 1500); // Tempo suficiente para a página inicial carregar
+      }, 1200);
+      
     } catch (error) {
-      setAuthLoading(false);
+      hideLoading();
       throw error; // Re-throw para que o componente possa tratar o erro
     }
   };
 
   const logout = () => {
-    setAuthLoading(true, "Fazendo logout...");
+    showAuthLoading("Fazendo logout...");
     
-    // Simula um pequeno delay para mostrar o loading
+    // Limpar dados imediatamente para evitar estados inconsistentes
+    clearToken();
+    setUser(null);
+    
+    // Mostrar sucesso antes de redirecionar
     setTimeout(() => {
-      clearToken();
-      setUser(null);
-      setAuthLoading(false);
-      router.push('/login'); // <-- **REDIRECIONAMENTO APÓS LOGOUT**
-    }, 800);
+      showAuthLoading("Logout realizado com sucesso!");
+      
+      setTimeout(() => {
+        hideLoading();
+        router.push('/login'); // Redirecionar para login
+      }, 800);
+    }, 500);
   };
 
   return (

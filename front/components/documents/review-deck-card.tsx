@@ -4,6 +4,7 @@
 
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Brain, Sparkles } from "lucide-react";
+import { useLoading } from "@/components/providers/loading-provider";
 
 interface ReviewDeckCardProps {
   reviewCount: number;
@@ -11,15 +12,22 @@ interface ReviewDeckCardProps {
 }
 
 export function ReviewDeckCard({ reviewCount, onClick }: ReviewDeckCardProps) {
+  const { showLoading } = useLoading();
+
   if (reviewCount === 0) {
     return null; // Não mostra o cartão se não houver nada para rever
   }
+
+  const handleStartReview = () => {
+    showLoading("Preparando sessão de revisão...", false);
+    onClick();
+  };
 
   return (
     <div className="flex-shrink-0 py-4">
       <Card
         className="flex flex-col items-center justify-center h-full w-64 cursor-pointer transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 border-2 border-primary/50 bg-primary/5"
-        onClick={onClick}
+        onClick={handleStartReview}
       >
         <CardHeader className="text-center p-6">
           <div className="relative mx-auto w-fit mb-2">
