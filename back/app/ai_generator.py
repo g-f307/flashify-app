@@ -68,7 +68,7 @@ def chat_about_flashcard(
     Responda como um professor dedicado que quer genuinamente ajudar o aluno a compreender e aprofundar o conhecimento:"""
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
@@ -103,7 +103,7 @@ def generate_flashcards_from_text(
     ]
 
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash-latest",
+        model_name="gemini-2.0-flash",
         generation_config=generation_config,
         safety_settings=safety_settings,
     )
