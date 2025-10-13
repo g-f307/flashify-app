@@ -1,27 +1,16 @@
-# app/schemas.py
+# back/app/schemas.py
 from sqlmodel import SQLModel
 from .models import DocumentStatus, AuthProvider
-from typing import Optional 
+from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel 
+from pydantic import BaseModel, Field
 
-
-# NOVOS SCHEMAS PARA DOCUMENT
-class DocumentRead(SQLModel):
-    id: int
-    status: DocumentStatus
-
-class DocumentDetail(DocumentRead):
-    file_path: str
-    extracted_text: Optional[str] = None
-
-# Schema para criar um novo usuário
+# --- Schemas de Usuário e Autenticação ---
 class UserCreate(SQLModel):
     username: str
     email: str
     password: str
 
-# Schema para ler/retornar dados de um usuário (sem a senha!)
 class UserRead(SQLModel):
     id: int
     username: str
@@ -38,14 +27,14 @@ class Token(SQLModel):
     access_token: str
     token_type: str
 
-class FolderBase(SQLModel):
-    name: str
-
-class FolderCreate(FolderBase):
-    pass
-
-class FolderRead(FolderBase):
+# --- Schemas de Documento (Deck) ---
+class DocumentRead(SQLModel):
     id: int
+    status: DocumentStatus
+
+class DocumentDetail(DocumentRead):
+    file_path: str
+    extracted_text: Optional[str] = None
 
 class DocumentCardData(SQLModel):
     id: int
@@ -54,12 +43,32 @@ class DocumentCardData(SQLModel):
     created_at: datetime
     total_flashcards: int
     studied_flashcards: int
+    folder_id: Optional[int] = None
 
-# ▼▼▼ ADICIONE ESTE NOVO SCHEMA NO FINAL DO FICHEIRO ▼▼▼
+class DocumentUpdateFolder(BaseModel):
+    folder_id: Optional[int] = None
+
+# --- Schemas de Flashcard ---
 class FlashcardUpdate(BaseModel):
-    """
-    Schema para a atualização de um flashcard.
-    Ambos os campos são opcionais, permitindo atualizações parciais.
-    """
     front: Optional[str] = None
     back: Optional[str] = None
+
+# --- Schemas de Pasta (Folder) ---
+class FolderBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
+
+class FolderCreate(FolderBase):
+    pass
+
+class FolderUpdate(FolderBase):
+    pass
+
+class FolderRead(FolderBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+# ▼▼▼ ESTA É A VERSÃO CORRIGIDA E FINAL ▼▼▼
+# Garante que os decks dentro das pastas usam o schema completo DocumentCardData.
+class FolderReadWithDocuments(FolderRead):
+    documents: List[DocumentCardData] = []

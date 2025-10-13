@@ -45,6 +45,7 @@ app.include_router(folders.router)
 app.include_router(documents.router)
 app.include_router(flashcards.router)
 app.include_router(progress.router)
+app.include_router(folders.router)
 
 @app.on_event("startup")
 def on_startup():
