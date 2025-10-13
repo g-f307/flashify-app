@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,49 +11,49 @@ import { Separator } from "@/components/ui/separator";
 import AnimatedGradientText from "@/components/ui/animated-gradient-text";
 import { InfoCard } from "@/components/info-card";
 import { Button } from "@/components/ui/button";
-
-export interface DocumentWithCount extends Document {
-  total_flashcards: number;
-}
+import { toast } from "sonner";
 
 export default function HomePage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [recentDocuments, setRecentDocuments] = useState<DocumentWithCount[]>([]);
+  const [recentDocuments, setRecentDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
+  const fetchRecent = async () => {
+    try {
+      const allDocs = await apiClient.getDocuments(); // Supondo que este método existe no seu api.ts
+      const sortedDocs = allDocs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setRecentDocuments(sortedDocs.slice(0, 5));
+    } catch (error) {
+      console.error("Falha ao buscar decks recentes:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchRecent = async () => {
-      try {
-        setLoading(true);
-        const allDocs = await apiClient.getDocuments();
-        
-        const sortedDocs = allDocs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setRecentDocuments(sortedDocs.slice(0, 5));
-
-      } catch (error) {
-        console.error("Falha ao buscar decks recentes:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (user) {
-        fetchRecent();
+      setLoading(true);
+      fetchRecent();
     }
   }, [user]);
 
-  // ▼▼▼ ADIÇÃO PONTUAL: Criar a função para navegar ao selecionar um card ▼▼▼
   const handleDocumentSelect = (doc: Document) => {
     router.push(`/study/${doc.id}`);
   };
 
-    const handleDeleteSuccess = (deletedId: number) => {
-    // Filtra a lista, removendo o deck excluído, e atualiza o estado
-    setRecentDocuments(currentDocs => 
-      currentDocs.filter(doc => doc.id !== deletedId)
-    );
+  // Esta função agora trata do delete e atualiza a UI
+  const handleDelete = async (deletedId: number) => {
+    try {
+      await apiClient.deleteDocument(deletedId);
+      toast.success("Deck excluído com sucesso!");
+      setRecentDocuments(currentDocs => 
+        currentDocs.filter(doc => doc.id !== deletedId)
+      );
+    } catch (error: any) {
+      toast.error("Falha ao excluir o deck", { description: error.message });
+    }
   };
 
   return (
@@ -95,12 +94,8 @@ export default function HomePage() {
         
         <div className="text-center mt-8">
           <Button size="lg" onClick={() => startTransition(() => router.push("/create"))}>
-            {isPending ? (
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            ) : (
-              <ArrowRight className="ml-2 h-5 w-5" />
-            )}
-            Criar Novo Deck
+            {isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 'Criar Novo Deck'}
+            {!isPending && <ArrowRight className="ml-2 h-5 w-5" />}
           </Button>
         </div>
       </section>
@@ -113,36 +108,38 @@ export default function HomePage() {
             <div className="max-w-5xl mx-auto">
                 <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-4">Continue de onde parou</h3>
                 {loading ? (
-                <div className="flex justify-center items-center h-40">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
+                  <div className="flex justify-center items-center h-40">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
                 ) : (
-                <div className="relative">
-                    <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
-                        {recentDocuments.map((doc) => (
-                            <div key={doc.id} className="flex-shrink-0 py-4">
-                                {/* ▼▼▼ ADIÇÃO PONTUAL: Passar as props necessárias para corrigir o erro ▼▼▼ */}
-                                <RecentDocumentCard
-                                  document={doc}
-                                  onDocumentSelect={handleDocumentSelect}
-                                  onDeleteSuccess={handleDeleteSuccess} // Passar a nova função
-                                />
-                            </div>
-                        ))}
-                        <div className="flex-shrink-0 flex items-stretch py-4">
-                            <Card
-                            className="flex flex-col items-center justify-center h-full w-64 cursor-pointer hover:shadow-lg transition-shadow"
-                            onClick={() => router.push("/library")}
-                            >
-                            <CardHeader className="text-center p-6">
-                                <Library className="w-10 h-10 mx-auto text-primary mb-2" />
-                                <CardTitle>Aceder à Biblioteca</CardTitle>
-                                <CardDescription>Ver todos os seus decks</CardDescription>
-                            </CardHeader>
-                            </Card>
-                        </div>
-                    </div>
-                </div>
+                  <div className="relative">
+                      <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
+                          {recentDocuments.map((doc) => (
+                              <div key={doc.id} className="flex-shrink-0 py-4">
+                                  <RecentDocumentCard
+                                    document={doc}
+                                    onSelect={() => handleDocumentSelect(doc)}
+                                    // onDelete agora abre uma confirmação no próprio card
+                                    onDelete={() => handleDelete(doc.id)} 
+                                    onUpdate={fetchRecent} // Passa a função para recarregar a lista
+                                  />
+                              </div>
+                          ))}
+
+                          <div className="flex-shrink-0 flex items-stretch py-4">
+                              <Card
+                              className="flex flex-col items-center justify-center h-full w-64 cursor-pointer hover:shadow-lg transition-shadow"
+                              onClick={() => router.push("/library")}
+                              >
+                              <CardHeader className="text-center p-6">
+                                  <Library className="w-10 h-10 mx-auto text-primary mb-2" />
+                                  <CardTitle>Acessar à Biblioteca</CardTitle>
+                                  <CardDescription>Ver todos os seus decks</CardDescription>
+                              </CardHeader>
+                              </Card>
+                          </div>
+                      </div>
+                  </div>
                 )}
             </div>
           </section>

@@ -6,7 +6,7 @@ import { setToken, clearToken, getToken } from "@/lib/auth";
 import { useRouter } from "next/navigation"; // Importa o useRouter
 import { useLoading } from "@/components/providers/loading-provider";
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (credentials: LoginRequest) => Promise<void>;

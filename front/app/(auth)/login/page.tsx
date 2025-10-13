@@ -26,7 +26,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold tracking-tight">Bem-vindo de volta!</CardTitle>
           <CardDescription>
-            Inicie sessão para aceder aos seus flashcards.
+            Inicie sessão para acessar os seus flashcards.
           </CardDescription>
         </CardHeader>
         <CardContent>

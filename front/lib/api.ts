@@ -1,4 +1,5 @@
 // --- CONFIGURAÇÃO E INTERFACES ---
+import { AuthContextType } from "@/contexts/auth-context"; 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:9000';
 
@@ -82,13 +83,29 @@ export interface ProgressStats {
   weekly_activity: number[];
 }
 
+export interface FolderWithDocuments extends Folder {
+  documents: Document[];
+}
+
+// Atualize a interface LibraryData para usar o novo tipo
+export interface LibraryData {
+  folders: FolderWithDocuments[]; // <-- MUDANÇA AQUI
+  root_documents: Document[];
+}
+
 // --- CLASSE DO CLIENTE API ---
 
 class ApiClient {
+  
   private baseURL: string;
+  private auth: AuthContextType | null = null;
 
   constructor() {
     this.baseURL = API_BASE_URL;
+  }
+
+  setAuth(auth: AuthContextType) {
+    this.auth = auth;
   }
 
   private getToken(): string | null {
@@ -99,41 +116,48 @@ class ApiClient {
   }
 
   // --- CORREÇÃO: Método request ajustado para usar a classe Headers ---
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
+  private async request<T>(
+    endpoint: string,
+    // Define um tipo de opções customizado que inclui a nossa flag
+    options: RequestInit & { useJsonContentType?: boolean } = {}
+  ): Promise<T> {
+    // Separa a nossa flag customizada do resto das opções que irão para o fetch
+    const { useJsonContentType = true, ...fetchOptions } = options;
+
     const token = this.getToken();
-
-    // Usamos a classe Headers para construir os cabeçalhos de forma segura
-    const headers = new Headers(options.headers);
-
-    // Definimos um Content-Type padrão se nenhum for fornecido
-    if (!headers.has('Content-Type')) {
-      headers.set('Content-Type', 'application/json');
-    }
+    const headers: HeadersInit = { ...fetchOptions.headers };
 
     if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers, // Passamos o objeto Headers construído
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Erro desconhecido na resposta da API.' }));
-        throw new Error(errorData.detail || `Erro HTTP: ${response.status}`);
-      }
-      
-      if (response.status === 204) {
-        return {} as T;
-      }
-
-      return response.json();
-    } catch (error) {
-        throw error;
+    // Adiciona o Content-Type apenas se for JSON e o corpo não for FormData
+    if (useJsonContentType && !(fetchOptions.body instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
     }
+
+    const config: RequestInit = {
+      ...fetchOptions,
+      headers,
+    };
+
+    const res = await fetch(`${this.baseURL}${endpoint}`, config);
+
+    if (res.status === 401) {
+      this.auth?.logout();
+      throw new Error("Sessão expirada. Por favor, faça login novamente.");
+    }
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(errorData.detail || "Ocorreu um erro desconhecido.");
+    }
+
+    if (res.headers.get("Content-Length") === "0" || res.status === 204) {
+      return {} as T;
+    }
+
+    return res.json();
   }
 
   // --- MÉTODOS DE AUTENTICAÇÃO (sem alteração) ---
@@ -190,49 +214,36 @@ class ApiClient {
     return this.request<Folder[]>('/folders/');
   }
 
-  async createFolder(name: string): Promise<Folder> {
-    return this.request<Folder>('/folders/', {
-      method: 'POST',
-      body: JSON.stringify({ name }),
-    });
-  }
-
   async uploadDocument(
-file: File, title: string, num_flashcards: number, difficulty?: string  ): Promise<Document> {
+    file: File,
+    title: string,
+    num_flashcards: number,
+    difficulty: string,
+    folderId?: number // <-- Adicione o parâmetro opcional
+  ): Promise<Document> {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('title', title);
-    formData.append('num_flashcards', String(num_flashcards));
-
-    const url = `/documents/upload`;
-    
-    const headers: HeadersInit = {};
-    const token = this.getToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    formData.append("file", file);
+    formData.append("title", title);
+    formData.append("num_flashcards", String(num_flashcards));
+    formData.append("difficulty", difficulty);
+    if (folderId) { // <-- Adicione o folderId se ele existir
+      formData.append("folder_id", String(folderId));
     }
 
-    const response = await fetch(`${this.baseURL}${url}`, {
-      method: 'POST',
-      headers, // Não defina Content-Type, o navegador fará isso por você para multipart/form-data
+    return this.request<Document>("/documents/upload", {
+      method: "POST",
       body: formData,
+      useJsonContentType: false,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Erro ao fazer upload do arquivo.' }));
-      throw new Error(errorData.detail);
-    }
-
-    return response.json();
   }
 
 
   async createDocumentFromText(
-text: string, title: string, num_flashcards: number, p0?: string, 
+text: string, title: string, num_flashcards: number, p0?: string, folderId?: number
   ): Promise<Document> {
     return this.request<Document>('/documents/text', {
       method: 'POST',
-      body: JSON.stringify({ text, title, num_flashcards}),
+      body: JSON.stringify({ text, title, num_flashcards, folder_id: folderId}),
     });
   }
   
@@ -321,6 +332,51 @@ text: string, title: string, num_flashcards: number, p0?: string,
     const timezoneOffset = new Date().getTimezoneOffset();
     return this.request<ProgressStats>(`/progress/stats?utc_offset_minutes=${timezoneOffset}`);
   }
+
+  // Busca todas as pastas e os decks na raiz
+  async getLibraryData(): Promise<LibraryData> {
+    return this.request<LibraryData>('/folders/library');
+  }
+
+  async getFolder(folderId: number): Promise<FolderWithDocuments> {
+    return this.request<FolderWithDocuments>(`/folders/${folderId}`);
+  }
+
+  async createFolder(name: string): Promise<Folder> {
+    return this.request<Folder>('/folders/', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  // Renomeia uma pasta
+  async updateFolder(folderId: number, name: string): Promise<Folder> {
+    return this.request<Folder>(`/folders/${folderId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  // Deleta uma pasta
+  async deleteFolder(folderId: number, deleteDecks: boolean): Promise<void> {
+    let endpoint = `/folders/${folderId}`;
+    if (deleteDecks) {
+      endpoint += `?delete_decks=true`;
+    }
+
+    await this.request<void>(endpoint, {
+      method: 'DELETE',
+    });
+  }
+
+  // Move um deck para uma pasta (ou para a raiz, se folderId for null)
+  async moveDocumentToFolder(documentId: number, folderId: number | null): Promise<Document> {
+    return this.request<Document>(`/documents/${documentId}/move`, {
+      method: 'PATCH',
+      body: JSON.stringify({ folder_id: folderId }),
+    });
+  }
+  
 }
 
 export const apiClient = new ApiClient();
