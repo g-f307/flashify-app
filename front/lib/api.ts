@@ -48,8 +48,7 @@ export interface Document {
   processing_progress?: number;
   current_step?: string;
   can_cancel?: boolean;
-  // --- NOVOS CAMPOS ADICIONADOS ---
-  created_at: string; // O backend enviará a data como uma string no formato ISO
+  created_at: string; 
   total_flashcards: number;
   studied_flashcards: number;
 }
