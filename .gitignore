@@ -4,6 +4,7 @@
 .env.local
 .env.production
 .env.test
+postgres.env 
 *.key
 *.pem
 

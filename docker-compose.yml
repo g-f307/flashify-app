@@ -11,7 +11,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
-    # 🔽 ADICIONADO: Healthcheck para verificar se o PostgreSQL está pronto 🔽
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U flashify -d flashify"]
       interval: 5s
@@ -36,7 +35,6 @@ services:
       - ./uploads:/app/uploads
       - ./back/app:/app/app
       - ./back/gcp-credentials.json:/app/gcp-credentials.json
-    # 🔽 ALTERAÇÃO AQUI: Agora espera que o 'db' esteja saudável (healthy) 🔽
     depends_on:
       db:
         condition: service_healthy
@@ -54,7 +52,6 @@ services:
       - ./uploads:/app/uploads
       - ./back/app:/app/app
       - ./back/gcp-credentials.json:/app/gcp-credentials.json
-    # 🔽 ALTERAÇÃO AQUI: Agora espera que o 'db' esteja saudável (healthy) 🔽
     depends_on:
       db:
         condition: service_healthy
@@ -65,6 +62,7 @@ services:
   frontend:
     build: ./front
     container_name: flashify-frontend
+    command: pnpm dev
     env_file:
       - ./front/.env
     ports:
