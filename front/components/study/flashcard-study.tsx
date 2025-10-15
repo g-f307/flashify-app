@@ -1,3 +1,5 @@
+// front/components/study/flashcard-study.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -26,6 +28,7 @@ interface FlashcardStudyFinalProps {
   document: Document;
   initialFlashcards: Flashcard[];
   onBack: () => void;
+  backButton?: React.ReactNode; // Propriedade adicionada
   flipAudioRef: React.RefObject<HTMLAudioElement>;
 }
 
@@ -33,6 +36,7 @@ export function FlashcardStudyFinal({
   document, 
   initialFlashcards, 
   onBack, 
+  backButton, // Propriedade recebida
   flipAudioRef 
 }: FlashcardStudyFinalProps) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>(initialFlashcards);
@@ -43,20 +47,16 @@ export function FlashcardStudyFinal({
   const [showReport, setShowReport] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   
-  // Estados para tracking de desempenho
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [sessionStartTime] = useState(new Date());
   
-  // Estados para edição
   const [editingFlashcard, setEditingFlashcard] = useState<Flashcard | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // Estados para progresso
   const [savedProgress, setSavedProgress] = useState<StudyProgress | null>(null);
 
-  // Verifica se há progresso salvo ao inicializar
   useEffect(() => {
-    if (document.id !== 0) { // Não aplica para sessão de revisão
+    if (document.id !== 0) {
       const progress = studyProgressManager.getProgress(document.id);
       if (progress && progress.currentCardIndex > 0) {
         setSavedProgress(progress);
@@ -65,7 +65,6 @@ export function FlashcardStudyFinal({
     }
   }, [document.id]);
 
-  // Salva o progresso sempre que o índice do card muda
   useEffect(() => {
     if (document.id !== 0 && currentCardIndex > 0) {
       studyProgressManager.saveProgress(document.id, {
@@ -84,7 +83,6 @@ export function FlashcardStudyFinal({
   const handleResumeFromSaved = () => {
     if (savedProgress) {
       setCurrentCardIndex(savedProgress.currentCardIndex);
-      // Restaura as sessões de estudo se existirem
       if (savedProgress.sessionData) {
         const restoredSessions: StudySession[] = savedProgress.sessionData.map(data => ({
           flashcardId: data.flashcardId,
@@ -115,20 +113,16 @@ export function FlashcardStudyFinal({
   const goToNextCard = () => {
     setIsFlipped(false);
     setTimeout(() => {
-      // Verifica se chegou ao fim do deck
       if (currentCardIndex === flashcards.length - 1) {
-        // Para sessão de revisão (ID 0), volta para biblioteca
         if (document.id === 0) {
           toast.success("Revisão concluída! Bom trabalho.");
           onBack();
           return;
         }
-        // Para decks normais, mostra o relatório de desempenho
-        studyProgressManager.clearProgress(document.id); // Limpa o progresso ao completar
+        studyProgressManager.clearProgress(document.id);
         setShowReport(true);
         return;
       }
-      // Continua para o próximo card
       setCurrentCardIndex((prev) => prev + 1);
     }, 150);
   };
@@ -146,15 +140,12 @@ export function FlashcardStudyFinal({
 
     setIsLogging(true);
     try {
-      // Registra a sessão de estudo localmente
       const newSession: StudySession = {
         flashcardId: currentFlashcard.id,
         accuracy,
         timestamp: new Date()
       };
       setStudySessions(prev => [...prev, newSession]);
-
-      // Envia para o backend
       await apiClient.logStudyForFlashcard(currentFlashcard.id, accuracy);
       toast.success("Progresso guardado!");
       goToNextCard();
@@ -181,7 +172,6 @@ export function FlashcardStudyFinal({
   };
 
   const handleContinueReview = () => {
-    // Filtra apenas os cards que tiveram erro ou resposta parcial
     const cardsToReview = studySessions
       .filter(session => session.accuracy < 1.0)
       .map(session => session.flashcardId);
@@ -205,13 +195,10 @@ export function FlashcardStudyFinal({
   };
 
   const handlePracticeQuestions = () => {
-    // Por enquanto, volta para a biblioteca
-    // Futuramente pode navegar para uma seção de questões
     toast.info("Funcionalidade de questões será implementada em breve!");
     onBack();
   };
 
-  // Calcula as estatísticas de desempenho
   const performanceStats: PerformanceStats = calculatePerformanceStats(studySessions);
 
   if (flashcards.length === 0) {
@@ -225,7 +212,6 @@ export function FlashcardStudyFinal({
     );
   }
 
-  // Mostra o prompt para retomar o estudo
   if (showResumePrompt && savedProgress) {
     return (
       <div className="flex flex-col h-full items-center justify-center w-full max-w-md mx-auto p-6">
@@ -269,7 +255,6 @@ export function FlashcardStudyFinal({
     );
   }
 
-  // Mostra o relatório de desempenho
   if (showReport) {
     return (
       <PerformanceReportResponsive
@@ -291,10 +276,15 @@ export function FlashcardStudyFinal({
 
   return (
     <div className="flex flex-col h-full items-center w-full">
-      <Button onClick={onBack} variant="ghost" className="mb-4 self-start">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Voltar para a Biblioteca
-      </Button>
+      {/* Alteração aqui: renderiza o botão dinâmico ou o antigo */}
+      {backButton ? (
+        <div className="mb-4 self-start">{backButton}</div>
+      ) : (
+        <Button onClick={onBack} variant="ghost" className="mb-4 self-start">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Voltar para a Biblioteca
+        </Button>
+      )}
 
       <div className="w-full max-w-2xl flex-grow flex flex-col items-center justify-center perspective-1000">
         <div
@@ -302,7 +292,6 @@ export function FlashcardStudyFinal({
           style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
           onClick={handleFlip}
         >
-          {/* Botão de edição */}
           <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="ghost"
@@ -391,7 +380,6 @@ export function FlashcardStudyFinal({
         </div>
       </div>
       
-      {/* Modal de edição */}
       <EditFlashcardModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}

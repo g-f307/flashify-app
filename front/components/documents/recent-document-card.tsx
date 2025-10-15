@@ -1,3 +1,5 @@
+// front/components/documents/recent-document-card.tsx
+
 "use client";
 
 import { useState } from "react";
@@ -16,139 +18,141 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLoading } from "@/components/providers/loading-provider";
 import { MoveToFolderModal } from "./move-to-folder-modal";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 interface RecentDocumentCardProps {
   document: Document;
-  onSelect?: () => void;      // Tornou-se opcional
-  onDelete?: () => void;      // Tornou-se opcional
-  onUpdate?: () => void;      // Tornou-se opcional
+  onSelect?: () => void;
+  onDelete?: () => void;
+  onUpdate?: () => void;
 }
 
 export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: RecentDocumentCardProps) {
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const { showLoading } = useLoading();
+  const pathname = usePathname();
 
   const displayName = formatDocumentTitle(document.file_path);
 
-  const progressPercentage = document.total_flashcards > 0 
-    ? Math.round((document.studied_flashcards / document.total_flashcards) * 100) 
+  const progressPercentage = document.total_flashcards > 0
+    ? Math.round((document.studied_flashcards / document.total_flashcards) * 100)
     : 0;
 
   const handleStartStudy = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Impede o "clique fantasma"
+    e.stopPropagation();
     if (onSelect) {
       showLoading("A preparar sessão de estudo...", false);
-      onSelect();
     }
   };
 
   const handleDeleteClick = (e: React.MouseEvent | Event) => {
-    e.stopPropagation(); // Impede o "clique fantasma"
+    e.stopPropagation();
     if (onDelete) onDelete();
   };
 
   const handleMoveClick = (e: React.MouseEvent | Event) => {
-    e.stopPropagation(); // Impede o "clique fantasma"
+    e.stopPropagation();
     setIsMoveModalOpen(true);
   };
-  
+
   const handleMoveSuccess = () => {
     setIsMoveModalOpen(false);
-    if (onUpdate) onUpdate(); // Só chama se a função for fornecida
+    if (onUpdate) onUpdate();
   };
 
   return (
     <>
-      <Card
-        className={`flex flex-col h-full w-64 card-enhanced transition-all hover:-translate-y-1 glow-on-hover overflow-hidden ${
-          document.status === "COMPLETED" && onSelect ? "cursor-pointer" : "cursor-default"
-        }`}
-        onClick={() => {
-          // A ação de clique principal só funciona se 'onSelect' for fornecido
-          if (document.status === "COMPLETED" && onSelect) {
-            onSelect();
-          }
-        }}
-      >
-        <CardHeader className="pb-3 relative">
-          <div className="flex items-start gap-3">
-              <FileText className="w-5 h-5 text-secondary mt-1 flex-shrink-0" />
-              <div className="flex-1 min-w-0 overflow-hidden">
-                  <CardTitle className="text-lg leading-tight break-words line-clamp-2" title={displayName}>
-                      {displayName}
-                  </CardTitle>
-                  <CardDescription className="mt-1 text-sm">
-                      Criado <TimeAgo date={document.created_at} />
-                  </CardDescription>
-              </div>
-          </div>
-          
-          <div className="absolute top-2 right-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); }}>
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {/* O menu só mostra as opções se as funções correspondentes existirem */}
-                {onUpdate && (
-                  <DropdownMenuItem onSelect={handleMoveClick} onClick={(e) => e.stopPropagation()}>
-                      <Move className="mr-2 h-4 w-4" />
-                      Mover para...
-                  </DropdownMenuItem>
-                )}
-                {onDelete && (
-                  <DropdownMenuItem
-                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                    onSelect={handleDeleteClick} onClick={(e) => e.stopPropagation()}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Excluir
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </CardHeader>
-
-        <CardContent className="flex-grow">
-          {document.status === 'PROCESSING' && (
-            <div className="flex items-center text-sm text-blue-500 rounded-md h-full">
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              <span>{document.current_step || 'A processar...'}</span>
-            </div>
-          )}
-          {document.status === 'FAILED' && (
-            <div className="flex items-center text-sm text-red-500 rounded-md h-full">
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              <span>Falhou</span>
-            </div>
-          )}
-          {document.status === 'COMPLETED' && (
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Progresso</span>
-                <span>{progressPercentage}%</span>
-              </div>
-              <Progress value={progressPercentage} className="h-2" />
-            </div>
-          )}
-        </CardContent>
-
-        <CardFooter>
-          <Button
-            className="w-full"
-            variant="secondary"
-            onClick={handleStartStudy}
-            disabled={document.status !== 'COMPLETED'}
+      <Link href={document.status === "COMPLETED" ? `/study/${document.id}?from=${pathname}` : '#'} legacyBehavior>
+        <a onClick={(e) => { 
+            if (document.status !== 'COMPLETED') e.preventDefault(); 
+            if (onSelect) onSelect();
+        }}>
+          {/* ▼▼▼ ALTERAÇÃO AQUI: A classe w-64 foi removida ▼▼▼ */}
+          <Card
+            className={`flex flex-col h-full card-enhanced transition-all hover:-translate-y-1 glow-on-hover overflow-hidden ${
+              document.status === "COMPLETED" && onSelect ? "cursor-pointer" : "cursor-default"
+            }`}
           >
-            {document.status === 'PROCESSING' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/> A processar</> : 'Iniciar'}
-          </Button>
-        </CardFooter>
-      </Card>
+            <CardHeader className="pb-3 relative">
+              <div className="flex items-start gap-3">
+                  <FileText className="w-5 h-5 text-secondary mt-1 flex-shrink-0" />
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                      <CardTitle className="text-lg leading-tight break-words line-clamp-2" title={displayName}>
+                          {displayName}
+                      </CardTitle>
+                      <CardDescription className="mt-1 text-sm">
+                          Criado <TimeAgo date={document.created_at} />
+                      </CardDescription>
+                  </div>
+              </div>
+              
+              <div className="absolute top-2 right-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); }}>
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onUpdate && (
+                      <DropdownMenuItem onSelect={handleMoveClick} onClick={(e) => e.stopPropagation()}>
+                          <Move className="mr-2 h-4 w-4" />
+                          Mover para...
+                      </DropdownMenuItem>
+                    )}
+                    {onDelete && (
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                        onSelect={handleDeleteClick} onClick={(e) => e.stopPropagation()}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Excluir
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
+
+            <CardContent className="flex-grow">
+              {document.status === 'PROCESSING' && (
+                <div className="flex items-center text-sm text-blue-500 rounded-md h-full">
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <span>{document.current_step || 'A processar...'}</span>
+                </div>
+              )}
+              {document.status === 'FAILED' && (
+                <div className="flex items-center text-sm text-red-500 rounded-md h-full">
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  <span>Falhou</span>
+                </div>
+              )}
+              {document.status === 'COMPLETED' && (
+                <div>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>Progresso</span>
+                    <span>{progressPercentage}%</span>
+                  </div>
+                  <Progress value={progressPercentage} className="h-2" />
+                </div>
+              )}
+            </CardContent>
+
+            <CardFooter>
+              <Button
+                className="w-full"
+                variant="secondary"
+                onClick={handleStartStudy}
+                disabled={document.status !== 'COMPLETED'}
+              >
+                {document.status === 'PROCESSING' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/> A processar</> : 'Iniciar'}
+              </Button>
+            </CardFooter>
+          </Card>
+        </a>
+      </Link>
       
-      {/* O Modal só é renderizado se a função onUpdate existir */}
       {onUpdate && (
         <MoveToFolderModal
           doc={document}

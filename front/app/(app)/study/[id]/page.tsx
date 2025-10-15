@@ -1,18 +1,22 @@
 // front/app/(app)/study/[id]/page.tsx
+
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { apiClient, Document, Flashcard } from '@/lib/api';
 import { FlashcardStudyFinal } from '@/components/study/flashcard-study';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 export default function StudyPage() {
   const router = useRouter();
   const params = useParams();
-  const documentId = params.id as string; // Pode ser um número ou a string "review"
+  const searchParams = useSearchParams();
+
+  const documentId = params.id as string;
 
   const [document, setDocument] = useState<Document | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -20,6 +24,19 @@ export default function StudyPage() {
   const [error, setError] = useState<string | null>(null);
 
   const flipAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const from = searchParams.get("from");
+  const backPath = from || "/library";
+
+  const getBackLinkText = () => {
+    if (from === "/") {
+      return "Voltar para o Início";
+    }
+    if (from?.startsWith("/library/folder")) {
+      return "Voltar para a Pasta";
+    }
+    return "Voltar para a Biblioteca";
+  };
   
   useEffect(() => {
     const fetchStudyData = async () => {
@@ -30,7 +47,6 @@ export default function StudyPage() {
         setError(null);
 
         if (documentId === 'review') {
-          // Lógica para a Sessão de Revisão
           const reviewFlashcards = await apiClient.getReviewFlashcards();
           if (reviewFlashcards.length === 0) {
              toast.info("Você não tem cards para rever no momento!");
@@ -38,9 +54,8 @@ export default function StudyPage() {
              return;
           }
           setFlashcards(reviewFlashcards);
-          // Cria um objeto "documento" virtual para a sessão de revisão
           setDocument({
-            id: 0, // ID virtual
+            id: 0,
             file_path: "Sessão de Revisão Inteligente",
             status: 'COMPLETED',
             user_id: 0,
@@ -49,7 +64,6 @@ export default function StudyPage() {
             studied_flashcards: 0,
           });
         } else {
-          // Lógica para um Documento normal
           const docIdNumber = parseInt(documentId, 10);
           if (isNaN(docIdNumber)) {
             throw new Error("ID do documento inválido.");
@@ -100,8 +114,16 @@ export default function StudyPage() {
       {document && (
         <FlashcardStudyFinal
           document={document}
-          initialFlashcards={flashcards} // Passa os flashcards como prop
-          onBack={() => router.push('/library')}
+          initialFlashcards={flashcards}
+          onBack={() => router.push(backPath)}
+          backButton={
+            <Link href={backPath}>
+              <Button variant="ghost">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {getBackLinkText()}
+              </Button>
+            </Link>
+          }
           flipAudioRef={flipAudioRef}
         />
       )}
