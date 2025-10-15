@@ -1,15 +1,16 @@
 // front/components/documents/folder-list.tsx
+
 "use client";
 
-import { FolderWithDocuments, Document } from "@/lib/api"; // <-- Use o tipo corrigido
+import { FolderWithDocuments, Document } from "@/lib/api";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { DocumentList } from "./document-list";
 import { Folder as FolderIcon } from "lucide-react";
-import { Card } from "@/components/ui/card";   // <-- IMPORTAÇÃO ADICIONADA
-import { Badge } from "@/components/ui/badge"; // <-- IMPORTAÇÃO ADICIONADA
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface FolderListProps {
-  folders: FolderWithDocuments[]; // <-- Use o tipo corrigido
+  folders: FolderWithDocuments[];
   onDocumentSelect: (document: Document) => void;
   onUpdate: () => void;
 }
@@ -34,13 +35,16 @@ export function FolderList({ folders, onDocumentSelect, onUpdate }: FolderListPr
                 </div>
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-4 bg-muted/20">
-                <DocumentList
-                  documents={folder.documents}
-                  onDocumentSelect={onDocumentSelect}
-                  onUpdate={onUpdate}
-                  onNewUpload={() => {}} // Não é aplicável aqui
-                  isInsideFolder
-                />
+                {/* ▼▼▼ ALTERAÇÃO AQUI: Mudado de grid-cols-1 para grid-cols-2 como padrão ▼▼▼ */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <DocumentList
+                    documents={folder.documents}
+                    onDocumentSelect={onDocumentSelect}
+                    onUpdate={onUpdate}
+                    onNewUpload={() => {}}
+                    isInsideFolder
+                  />
+                </div>
               </AccordionContent>
             </Card>
           </AccordionItem>

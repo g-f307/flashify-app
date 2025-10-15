@@ -1,3 +1,5 @@
+// front/app/(app)/layout.tsx
+
 "use client";
 
 import { useState, ReactNode, useEffect } from "react";
@@ -20,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LoadingScreen } from "@/components/ui/loading-screen"; // Importado
 
 const sidebarItems = [
     { href: "/", label: "Início", icon: Home },
@@ -47,22 +50,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }, [user, loading, router]);
 
   if (loading || !user) {
+    // Alteração aqui para usar o LoadingScreen
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-            <div className="text-center">
-                <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <Brain className="w-8 h-8 text-primary-foreground" />
-                </div>
-                <div className="flex items-center text-muted-foreground mt-4">
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    A carregar a sua sessão...
-                </div>
-            </div>
-        </div>
+        <LoadingScreen 
+          message="A carregar a sua sessão..." 
+          fullScreen={true}
+        />
     );
   }
 
-  // Componente reutilizável para o logo
   const AppLogo = () => (
     <Link href="/" className="flex items-center justify-center gap-2">
       <Image 
@@ -145,16 +141,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* ▼▼▼ ALTERAÇÕES AQUI ▼▼▼ */}
         <header className="lg:hidden flex items-center p-4 border-b border-slate-200 dark:border-slate-800 bg-background">
-          {/* Esquerda: Botão de Menu */}
           <div className="flex-1 flex justify-start">
             <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-accent rounded-lg">
               <Menu className="w-5 h-5" />
             </button>
           </div>
           
-          {/* Centro: Logo */}
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center gap-2">
               <Image
@@ -169,13 +162,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </Link>
           </div>
 
-          {/* Direita: Separador e Botão de Tema */}
           <div className="flex-1 flex justify-end items-center gap-3">
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-800" />
             <ThemeToggle />
           </div>
         </header>
-        {/* ▲▲▲ FIM DAS ALTERAÇÕES ▲▲▲ */}
         <div className="flex-1 p-4 lg:p-8 overflow-auto">
             {children}
         </div>

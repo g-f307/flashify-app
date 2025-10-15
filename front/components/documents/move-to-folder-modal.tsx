@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils"; // Importe o cn
 
 interface MoveToFolderModalProps {
   doc: Document | null;
@@ -55,10 +56,8 @@ export function MoveToFolderModal({ doc, isOpen, onClose, onSuccess }: MoveToFol
   const handleMove = async () => {
     if (!doc || selectedFolderId === null) return;
     
-    // Converte a string 'root' para null, ou o ID da pasta para número
     const targetFolderId = selectedFolderId === 'root' ? null : parseInt(selectedFolderId, 10);
 
-    // Impede mover para a mesma pasta
     if (doc.folder_id === targetFolderId) {
         toast.info("O deck já está nesta localização.");
         onClose();
@@ -97,7 +96,6 @@ export function MoveToFolderModal({ doc, isOpen, onClose, onSuccess }: MoveToFol
                 <SelectValue placeholder="Selecione um destino..." />
               </SelectTrigger>
               <SelectContent>
-                {/* Opção para mover para a raiz da biblioteca */}
                 <SelectItem value="root">Biblioteca Principal (sem pasta)</SelectItem>
                 {folders.map((folder) => (
                   <SelectItem key={folder.id} value={String(folder.id)}>
@@ -108,7 +106,8 @@ export function MoveToFolderModal({ doc, isOpen, onClose, onSuccess }: MoveToFol
             </Select>
           )}
         </div>
-        <DialogFooter>
+        {/* ▼▼▼ ALTERAÇÃO AQUI ▼▼▼ */}
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button type="button" variant="secondary" onClick={onClose} disabled={isMoving}>
             Cancelar
           </Button>
