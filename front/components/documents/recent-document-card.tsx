@@ -68,7 +68,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
             if (document.status !== 'COMPLETED') e.preventDefault(); 
             if (onSelect) onSelect();
         }}>
-          {/* ▼▼▼ ALTERAÇÃO AQUI: A classe w-64 foi removida ▼▼▼ */}
+          {/* A classe 'w-64' foi removida daqui */}
           <Card
             className={`flex flex-col h-full card-enhanced transition-all hover:-translate-y-1 glow-on-hover overflow-hidden ${
               document.status === "COMPLETED" && onSelect ? "cursor-pointer" : "cursor-default"
@@ -77,7 +77,8 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
             <CardHeader className="pb-3 relative">
               <div className="flex items-start gap-3">
                   <FileText className="w-5 h-5 text-secondary mt-1 flex-shrink-0" />
-                  <div className="flex-1 min-w-0 overflow-hidden">
+                  {/* Container do título com altura mínima e padding à direita */}
+                  <div className="flex-1 min-w-0 overflow-hidden pr-8 min-h-[3rem]">
                       <CardTitle className="text-lg leading-tight break-words line-clamp-2" title={displayName}>
                           {displayName}
                       </CardTitle>

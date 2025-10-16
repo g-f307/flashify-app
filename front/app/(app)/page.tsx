@@ -1,3 +1,5 @@
+// front/app/(app)/page.tsx
+
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -22,7 +24,7 @@ export default function HomePage() {
 
   const fetchRecent = async () => {
     try {
-      const allDocs = await apiClient.getDocuments(); // Supondo que este método existe no seu api.ts
+      const allDocs = await apiClient.getDocuments();
       const sortedDocs = allDocs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setRecentDocuments(sortedDocs.slice(0, 5));
     } catch (error) {
@@ -43,7 +45,6 @@ export default function HomePage() {
     router.push(`/study/${doc.id}`);
   };
 
-  // Esta função agora trata do delete e atualiza a UI
   const handleDelete = async (deletedId: number) => {
     try {
       await apiClient.deleteDocument(deletedId);
@@ -113,29 +114,29 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className="relative">
+                      {/* ▼▼▼ ALTERAÇÃO PRINCIPAL AQUI ▼▼▼ */}
                       <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
                           {recentDocuments.map((doc) => (
-                              <div key={doc.id} className="flex-shrink-0 py-4">
+                              <div key={doc.id} className="flex-shrink-0 w-full basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 py-4">
                                   <RecentDocumentCard
                                     document={doc}
                                     onSelect={() => handleDocumentSelect(doc)}
-                                    // onDelete agora abre uma confirmação no próprio card
                                     onDelete={() => handleDelete(doc.id)} 
-                                    onUpdate={fetchRecent} // Passa a função para recarregar a lista
+                                    onUpdate={fetchRecent}
                                   />
                               </div>
                           ))}
 
-                          <div className="flex-shrink-0 flex items-stretch py-4">
+                          <div className="flex-shrink-0 w-full basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 flex items-stretch py-4">
                               <Card
-                              className="flex flex-col items-center justify-center h-full w-64 cursor-pointer hover:shadow-lg transition-shadow"
-                              onClick={() => router.push("/library")}
+                                className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:shadow-lg transition-shadow"
+                                onClick={() => router.push("/library")}
                               >
-                              <CardHeader className="text-center p-6">
+                                <CardHeader className="text-center p-6">
                                   <Library className="w-10 h-10 mx-auto text-primary mb-2" />
                                   <CardTitle>Acessar à Biblioteca</CardTitle>
                                   <CardDescription>Ver todos os seus decks</CardDescription>
-                              </CardHeader>
+                                </CardHeader>
                               </Card>
                           </div>
                       </div>
