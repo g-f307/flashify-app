@@ -78,8 +78,8 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               <div className="flex items-start gap-3">
                   <FileText className="w-5 h-5 text-secondary mt-1 flex-shrink-0" />
                   {/* Container do título com altura mínima e padding à direita */}
-                  <div className="flex-1 min-w-0 overflow-hidden pr-8 min-h-[3rem]">
-                      <CardTitle className="text-lg leading-tight break-words line-clamp-2" title={displayName}>
+                  <div className="flex-1 min-w-0 overflow-hidden pr-8 min-h-[3rem] max-h-[3rem]">
+                      <CardTitle className="text-lg leading-tight line-clamp-2" title={displayName}>
                           {displayName}
                       </CardTitle>
                       <CardDescription className="mt-1 text-sm">
@@ -140,7 +140,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               )}
             </CardContent>
 
-            <CardFooter>
+            <CardFooter className="flex-shrink-0">
               <Button
                 className="w-full"
                 variant="secondary"
