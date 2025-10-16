@@ -62,7 +62,7 @@ export function DocumentList({
   if (isLoading) {
     return (
       // A grade de esqueletos também começa com 2 colunas
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="h-60 animate-pulse bg-muted/50"></Card>
         ))}
@@ -103,7 +103,7 @@ export function DocumentList({
     <>
       {/* ▼▼▼ ALTERAÇÃO AQUI ▼▼▼ */}
       {/* Mudamos de grid-cols-1 para grid-cols-2 para telas pequenas (mobile) */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {documents.map((doc) => (
           <RecentDocumentCard
             key={doc.id}

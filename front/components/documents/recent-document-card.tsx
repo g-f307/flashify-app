@@ -70,7 +70,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
         }}>
           {/* A classe 'w-64' foi removida daqui */}
           <Card
-            className={`flex flex-col h-full card-enhanced transition-all hover:-translate-y-1 glow-on-hover overflow-hidden ${
+            className={`w-full flex flex-col h-full card-enhanced transition-all hover:-translate-y-1 glow-on-hover overflow-hidden ${
               document.status === "COMPLETED" && onSelect ? "cursor-pointer" : "cursor-default"
             }`}
           >
