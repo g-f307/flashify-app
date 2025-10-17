@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Document } from "@/lib/api";
-import { FileText, Loader2, MoreVertical, Trash2, Move, AlertTriangle } from "lucide-react";
+import { FileText, Loader2, MoreVertical, Trash2, Move, AlertTriangle, BrainCircuit } from "lucide-react";
 import TimeAgo from "../common/time-ago";
 import { formatDocumentTitle } from "@/lib/utils";
 import {
@@ -20,6 +20,7 @@ import { useLoading } from "@/components/providers/loading-provider";
 import { MoveToFolderModal } from "./move-to-folder-modal";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { Badge } from "../ui/badge";
 
 interface RecentDocumentCardProps {
   document: Document;
@@ -41,6 +42,8 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
 
   const handleStartStudy = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Ao clicar em 'Iniciar', a navegação agora é feita pelo Link que envolve o Card
+    // Apenas mostramos o loading se a função onSelect for chamada
     if (onSelect) {
       showLoading("A preparar sessão de estudo...", false);
     }
@@ -61,14 +64,15 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
     if (onUpdate) onUpdate();
   };
 
+  const linkHref = document.status === "COMPLETED" ? `/deck/${document.id}?from=${pathname}` : '#';
+
   return (
     <>
-      <Link href={document.status === "COMPLETED" ? `/study/${document.id}?from=${pathname}` : '#'} legacyBehavior>
+      <Link href={linkHref} legacyBehavior>
         <a onClick={(e) => { 
             if (document.status !== 'COMPLETED') e.preventDefault(); 
             if (onSelect) onSelect();
         }}>
-          {/* A classe 'w-64' foi removida daqui */}
           <Card
             className={`w-full flex flex-col h-full card-enhanced transition-all hover:-translate-y-1 glow-on-hover overflow-hidden ${
               document.status === "COMPLETED" && onSelect ? "cursor-pointer" : "cursor-default"
@@ -77,7 +81,6 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
             <CardHeader className="pb-3 relative">
               <div className="flex items-start gap-3">
                   <FileText className="w-5 h-5 text-secondary mt-1 flex-shrink-0" />
-                  {/* Container do título com altura mínima e padding à direita */}
                   <div className="flex-1 min-w-0 overflow-hidden pr-8 min-h-[3rem] max-h-[3rem]">
                       <CardTitle className="text-lg leading-tight line-clamp-2" title={displayName}>
                           {displayName}
@@ -131,11 +134,16 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               )}
               {document.status === 'COMPLETED' && (
                 <div>
-                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <div className="flex justify-between items-center text-xs text-muted-foreground mb-1">
                     <span>Progresso</span>
-                    <span>{progressPercentage}%</span>
+                    {document.has_quiz && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                            <BrainCircuit className="w-3 h-3"/>
+                            Quiz
+                        </Badge>
+                    )}
                   </div>
-                  <Progress value={progressPercentage} className="h-2" />
+                  <Progress value={progressPercentage} className="h-2 mt-1" />
                 </div>
               )}
             </CardContent>
@@ -147,7 +155,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                 onClick={handleStartStudy}
                 disabled={document.status !== 'COMPLETED'}
               >
-                {document.status === 'PROCESSING' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/> A processar</> : 'Iniciar'}
+                {document.status === 'PROCESSING' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/> A processar</> : 'Abrir Deck'}
               </Button>
             </CardFooter>
           </Card>

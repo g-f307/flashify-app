@@ -30,17 +30,14 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Estados para os modais de gestão de pastas
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [folderToRename, setFolderToRename] = useState<Folder | null>(null);
   const [folderToDelete, setFolderToDelete] = useState<Folder | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  // Novo estado para a checkbox de exclusão de decks
   const [isDeleteDecksChecked, setIsDeleteDecksChecked] = useState(false);
 
   const fetchLibraryData = async () => {
-    // Não mostra o ecrã de loading completo em recarregamentos, apenas na carga inicial
     if (!libraryData) setLoading(true);
     
     try {
@@ -57,7 +54,7 @@ export default function LibraryPage() {
     fetchLibraryData();
   }, []);
 
-  const handleDocumentSelect = (doc: Document) => router.push(`/study/${doc.id}`);
+  // A função handleDocumentSelect foi REMOVIDA
   const handleNewUpload = () => router.push("/create");
 
   const handleCreateSuccess = () => {
@@ -76,7 +73,6 @@ export default function LibraryPage() {
     if (!folderToDelete) return;
     setIsDeleting(true);
     try {
-      // Envia o estado da checkbox para a API
       await apiClient.deleteFolder(folderToDelete.id, isDeleteDecksChecked);
       
       toast.success(`Pasta "${folderToDelete.name}" excluída com sucesso!`);
@@ -86,11 +82,10 @@ export default function LibraryPage() {
       toast.error("Falha ao excluir a pasta", { description: error.message });
     } finally {
       setIsDeleting(false);
-      setIsDeleteDecksChecked(false); // Reseta a checkbox
+      setIsDeleteDecksChecked(false);
     }
   };
   
-  // Lógica de paginação para os decks que estão na raiz da biblioteca
   const rootDocuments = libraryData?.root_documents || [];
   const totalPages = Math.ceil(rootDocuments.length / ITEMS_PER_PAGE);
   const paginatedRootDocuments = rootDocuments.slice(
@@ -124,7 +119,6 @@ export default function LibraryPage() {
           </div>
         ) : (
           <div className="space-y-12">
-            {/* Secção de Pastas */}
             {libraryData?.folders && libraryData.folders.length > 0 && (
               <section>
                 <h3 className="text-xl font-semibold tracking-tight mb-4">Pastas</h3>
@@ -141,12 +135,11 @@ export default function LibraryPage() {
               </section>
             )}
 
-            {/* Secção de Decks na Raiz */}
             <section>
               <h3 className="text-xl font-semibold tracking-tight mb-4">Decks na Biblioteca</h3>
               <DocumentList
                 documents={paginatedRootDocuments}
-                onDocumentSelect={handleDocumentSelect}
+                // A propriedade onDocumentSelect foi REMOVIDA
                 onNewUpload={handleNewUpload}
                 onUpdate={fetchLibraryData}
               />
@@ -172,7 +165,6 @@ export default function LibraryPage() {
         )}
       </div>
 
-      {/* Modais de Gestão de Pastas */}
       <CreateFolderModal isOpen={isCreateFolderModalOpen} onClose={() => setIsCreateFolderModalOpen(false)} onSuccess={handleCreateSuccess} />
       <RenameFolderModal folder={folderToRename} isOpen={!!folderToRename} onClose={() => setFolderToRename(null)} onSuccess={handleRenameSuccess} />
       
@@ -181,7 +173,7 @@ export default function LibraryPage() {
         onOpenChange={(isOpen) => {
           if (!isOpen) {
             setFolderToDelete(null);
-            setIsDeleteDecksChecked(false); // Reseta a checkbox ao fechar
+            setIsDeleteDecksChecked(false);
           }
         }}
       >

@@ -1,5 +1,3 @@
-// front/components/documents/folder-list.tsx
-
 "use client";
 
 import { FolderWithDocuments, Document } from "@/lib/api";
@@ -11,11 +9,11 @@ import { Badge } from "@/components/ui/badge";
 
 interface FolderListProps {
   folders: FolderWithDocuments[];
-  onDocumentSelect: (document: Document) => void;
+  // A propriedade onDocumentSelect foi REMOVIDA daqui
   onUpdate: () => void;
 }
 
-export function FolderList({ folders, onDocumentSelect, onUpdate }: FolderListProps) {
+export function FolderList({ folders, onUpdate }: FolderListProps) {
   if (folders.length === 0) {
     return null;
   }
@@ -35,11 +33,10 @@ export function FolderList({ folders, onDocumentSelect, onUpdate }: FolderListPr
                 </div>
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-4 bg-muted/20">
-                {/* ▼▼▼ ALTERAÇÃO AQUI: Mudado de grid-cols-1 para grid-cols-2 como padrão ▼▼▼ */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   <DocumentList
                     documents={folder.documents}
-                    onDocumentSelect={onDocumentSelect}
+                    // A propriedade onDocumentSelect foi REMOVIDA daqui
                     onUpdate={onUpdate}
                     onNewUpload={() => {}}
                     isInsideFolder
