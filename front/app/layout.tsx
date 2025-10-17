@@ -2,7 +2,6 @@
 
 import type React from "react";
 import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
 import "./globals.css"; // Importe o globals.css da pasta app
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
@@ -11,11 +10,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from "@/components/ui/sonner"; // Importe o Toaster
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-dm-sans",
-});
 
 // A exportação de metadados deve ser feita separadamente quando "use client" é usado
 // export const metadata: Metadata = { ... };
@@ -29,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className={`font-sans ${dmSans.variable} antialiased`}>
+      <body>
         <GoogleAnalytics />
         <GoogleOAuthProvider clientId={clientId}>
           <ThemeProvider 
