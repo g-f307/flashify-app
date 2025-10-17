@@ -304,6 +304,11 @@ class ApiClient {
   }
 
   async checkQuizAnswer(questionId: number, answerId: number): Promise<any> {
+      console.log('🔧 API Client - Enviando:', {
+          question_id: questionId,
+          answer_id: answerId
+      });
+      
       const result = await this.request('/quizzes/check-answer', {
           method: 'POST',
           body: JSON.stringify({
@@ -311,6 +316,9 @@ class ApiClient {
               answer_id: answerId
           })
       });
+      
+      console.log('🔧 API Client - Recebido:', result);
+      return result;
   }
   
   async getDocuments(): Promise<Document[]> {

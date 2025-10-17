@@ -21,8 +21,6 @@ class CheckAnswerResponse(models.SQLModel):
     correct_answer_id: int
     explanation: str
 
-# back/app/routers/quizzes.py
-
 @router.post("/check-answer", response_model=CheckAnswerResponse)
 def check_quiz_answer(
     request: CheckAnswerRequest,
@@ -32,10 +30,17 @@ def check_quiz_answer(
     """
     Verifica se a resposta de um quiz selecionada pelo utilizador está correta.
     """
+    # 🔍 LOG DE DEBUGGING
+    print(f"📥 Recebido: question_id={request.question_id}, answer_id={request.answer_id}")
+    
     selected_answer = session.get(models.Answer, request.answer_id)
 
     if not selected_answer:
+        print(f"❌ Resposta {request.answer_id} não encontrada no banco")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resposta não encontrada.")
+
+    # 🔍 LOG DE DEBUGGING
+    print(f"✅ Resposta encontrada: id={selected_answer.id}, text={selected_answer.text}, is_correct={selected_answer.is_correct}")
 
     question = crud.get_question_if_owned_by_user(
         session=session,
@@ -43,14 +48,22 @@ def check_quiz_answer(
         user_id=current_user.id
     )
     if not question or selected_answer.question_id != question.id:
+        print(f"❌ Pergunta não encontrada ou resposta não pertence à pergunta")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso não autorizado a esta pergunta.")
 
+    # 🔍 LOG DE DEBUGGING - Mostra todas as respostas da pergunta
+    print(f"📋 Respostas da pergunta {question.id}:")
     for ans in question.answers:
         print(f"  - id={ans.id}, text={ans.text}, is_correct={ans.is_correct}")
 
     correct_answer = next((ans for ans in question.answers if ans.is_correct), None)
     if not correct_answer:
+        print(f"❌ Nenhuma resposta correta configurada para a pergunta {question.id}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Pergunta sem resposta correta configurada.")
+
+    # 🔍 LOG DE DEBUGGING
+    print(f"✅ Resposta correta: id={correct_answer.id}, text={correct_answer.text}")
+    print(f"🎯 Resultado: is_correct={selected_answer.is_correct}")
 
     return CheckAnswerResponse(
         is_correct=selected_answer.is_correct,

@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiClient, Document, Question, Answer, CheckAnswerResponse } from "@/lib/api"; // Importa CheckAnswerResponse
+import { apiClient, Document, Question, Answer, CheckAnswerResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -17,8 +17,6 @@ import { toast } from "sonner";
 import Confetti from "react-confetti";
 
 type AnswerStatus = 'unanswered' | 'correct' | 'incorrect';
-// --- CORREÇÃO AQUI ---
-// O tipo agora é o mesmo da API (CheckAnswerResponse), usando snake_case
 type AnswerFeedback = CheckAnswerResponse;
 
 export default function QuizPage() {
@@ -67,7 +65,6 @@ export default function QuizPage() {
         return ((currentQuestionIndex + 1) / questions.length) * 100;
     }, [currentQuestionIndex, questions.length]);
 
-
     const handleCheckAnswer = async () => {
         if (!selectedAnswerId) {
             toast.warning("Por favor, selecione uma alternativa.");
@@ -75,15 +72,23 @@ export default function QuizPage() {
         }
         setIsChecking(true);
         try {
+            console.log('📤 Enviando para API:', {
+                questionId: currentQuestion.id,
+                answerId: selectedAnswerId
+            });
+            
             const result = await apiClient.checkQuizAnswer(currentQuestion.id, selectedAnswerId);
+            
+            console.log('📥 Resposta da API:', result);
+            console.log('🎯 is_correct recebido:', result.isCorrect);
+            
             setFeedback(result);
-            // --- CORREÇÃO AQUI ---
-            // Usa result.is_correct (snake_case)
-            setAnswerStatus(result.is_correct ? 'correct' : 'incorrect');
-            if (result.is_correct) {
+            setAnswerStatus(result.isCorrect ? 'correct' : 'incorrect');
+            if (result.isCorrect) {
                 setCorrectAnswersCount(prev => prev + 1);
             }
         } catch (err: any) {
+            console.error('❌ Erro ao verificar resposta:', err);
             toast.error("Erro ao verificar a resposta.", { description: err.message });
         } finally {
             setIsChecking(false);
@@ -208,8 +213,6 @@ export default function QuizPage() {
                             className="space-y-3"
                         >
                             {currentQuestion.answers.map((answer, index) => {
-                                // --- CORREÇÃO AQUI ---
-                                // Usa feedback.correct_answer_id (snake_case)
                                 const isCorrect = feedback?.correct_answer_id === answer.id;
                                 const isSelected = selectedAnswerId === answer.id;
                                 const letters = ['A', 'B', 'C', 'D', 'E'];
@@ -267,8 +270,6 @@ export default function QuizPage() {
                         {feedback && (
                             <div className={cn(
                                 "mt-6 p-4 rounded-xl animate-in fade-in-50 slide-in-from-bottom-4 duration-500 border",
-                                // --- CORREÇÃO AQUI ---
-                                // Usa feedback.is_correct (snake_case)
                                 feedback.is_correct
                                     ? "bg-green-500/10 border-green-500/30"
                                     : "bg-destructive/10 border-destructive/30"
