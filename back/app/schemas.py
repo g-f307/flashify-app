@@ -1,4 +1,5 @@
 # back/app/schemas.py
+
 from sqlmodel import SQLModel
 from .models import DocumentStatus, AuthProvider
 from typing import List, Optional
@@ -27,32 +28,6 @@ class Token(SQLModel):
     access_token: str
     token_type: str
 
-# --- Schemas de Documento (Deck) ---
-class DocumentRead(SQLModel):
-    id: int
-    status: DocumentStatus
-
-class DocumentDetail(DocumentRead):
-    file_path: str
-    extracted_text: Optional[str] = None
-
-class DocumentCardData(SQLModel):
-    id: int
-    file_path: str
-    status: DocumentStatus
-    created_at: datetime
-    total_flashcards: int
-    studied_flashcards: int
-    folder_id: Optional[int] = None
-
-class DocumentUpdateFolder(BaseModel):
-    folder_id: Optional[int] = None
-
-# --- Schemas de Flashcard ---
-class FlashcardUpdate(BaseModel):
-    front: Optional[str] = None
-    back: Optional[str] = None
-
 # --- Schemas de Pasta (Folder) ---
 class FolderBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
@@ -68,7 +43,83 @@ class FolderRead(FolderBase):
     class Config:
         from_attributes = True
 
-# ▼▼▼ ESTA É A VERSÃO CORRIGIDA E FINAL ▼▼▼
-# Garante que os decks dentro das pastas usam o schema completo DocumentCardData.
+# --- SCHEMAS PARA QUIZZES (Definidos antes de serem usados) ---
+class AnswerBase(BaseModel):
+    text: str
+    is_correct: bool
+    explanation: Optional[str] = None
+
+class AnswerCreate(AnswerBase):
+    pass
+
+class Answer(AnswerBase):
+    id: int
+    question_id: int
+    class Config:
+        from_attributes = True
+
+class QuestionBase(BaseModel):
+    text: str
+
+class QuestionCreate(QuestionBase):
+    answers: List[AnswerCreate]
+
+class Question(QuestionBase):
+    id: int
+    quiz_id: int
+    answers: List[Answer] = []
+    class Config:
+        from_attributes = True
+
+class QuizBase(BaseModel):
+    title: str
+
+class QuizCreate(QuizBase):
+    questions: List[QuestionCreate]
+
+class Quiz(QuizBase):
+    id: int
+    document_id: int
+    questions: List[Question] = []
+    class Config:
+        from_attributes = True
+
+# --- SCHEMAS DE DOCUMENTO (DECK) ---
+class DocumentRead(SQLModel):
+    id: int
+    status: DocumentStatus
+
+# --- CORREÇÃO AQUI: Simplificamos o DocumentDetail ---
+class DocumentDetail(BaseModel):
+    id: int
+    status: DocumentStatus
+    file_path: str
+    extracted_text: Optional[str] = None
+    quiz: Optional[Quiz] = None
+    # Apenas declaramos os campos que queremos na resposta final:
+    total_flashcards: int
+    has_quiz: bool
+
+    class Config:
+        from_attributes = True # Garante a compatibilidade com objetos da DB
+
+class DocumentCardData(SQLModel):
+    id: int
+    file_path: str
+    status: DocumentStatus
+    created_at: datetime
+    total_flashcards: int
+    studied_flashcards: int
+    folder_id: Optional[int] = None
+    has_quiz: bool = False
+
+class DocumentUpdateFolder(BaseModel):
+    folder_id: Optional[int] = None
+
 class FolderReadWithDocuments(FolderRead):
     documents: List[DocumentCardData] = []
+
+# --- Schemas de Flashcard ---
+class FlashcardUpdate(BaseModel):
+    front: Optional[str] = None
+    back: Optional[str] = None

@@ -89,6 +89,7 @@ class Document(SQLModel, table=True):
         back_populates="document",
         sa_relationship_kwargs={"cascade": "all, delete"}
     )
+    quiz: Optional["Quiz"] = Relationship(back_populates="document", sa_relationship_kwargs={"cascade": "all, delete"})
 
 # NOVO MODELO FLASHCARD
 class Flashcard(SQLModel, table=True):
@@ -126,3 +127,30 @@ class StudyLog(SQLModel, table=True):
     # Chaves estrangeiras
     user_id: int = Field(foreign_key="user.id")
     flashcard_id: int = Field(foreign_key="flashcard.id")
+
+class Quiz(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str
+    
+    document_id: int = Field(foreign_key="document.id")
+    document: "Document" = Relationship(back_populates="quiz")
+    
+    questions: List["Question"] = Relationship(back_populates="quiz", sa_relationship_kwargs={"cascade": "all, delete"})
+
+class Question(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    text: str
+    
+    quiz_id: int = Field(foreign_key="quiz.id")
+    quiz: Quiz = Relationship(back_populates="questions")
+    
+    answers: List["Answer"] = Relationship(back_populates="question", sa_relationship_kwargs={"cascade": "all, delete"})
+
+class Answer(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    text: str
+    is_correct: bool = False
+    explanation: Optional[str] = Field(default=None) # Explicação para a IA fornecer em caso de erro
+    
+    question_id: int = Field(foreign_key="question.id")
+    question: Question = Relationship(back_populates="answers")

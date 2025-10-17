@@ -113,6 +113,24 @@ def get_documents_by_user(
     stmt = stmt.order_by(models.Document.created_at.desc())
     return session.exec(stmt).all()
 
+def get_document_with_details(session: Session, document_id: int) -> Optional[models.Document]:
+    """
+    Busca um documento pelo seu ID e carrega de forma explícita (eager load)
+    as suas relações de flashcards e quiz completo (com perguntas e respostas).
+    """
+    # Esta query garante que todas as relações aninhadas são carregadas numa única consulta
+    result = session.exec(
+        select(models.Document)
+        .where(models.Document.id == document_id)
+        .options(
+            selectinload(models.Document.flashcards),
+            selectinload(models.Document.quiz)
+            .selectinload(models.Quiz.questions)
+            .selectinload(models.Question.answers)
+        )
+    ).first()
+    return result
+
 def get_flashcard(session: Session, flashcard_id: int, user_id: int) -> models.Flashcard | None:
     """Busca um flashcard pelo ID, garantindo que ele pertence ao utilizador."""
     statement = (
@@ -243,3 +261,48 @@ def update_document_folder(db: Session, document_id: int, folder_id: Optional[in
     db.commit()
     db.refresh(db_document)
     return db_document
+
+def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, document_id: int) -> models.Quiz:
+    """
+    Cria um novo quiz completo, com todas as suas perguntas e respostas,
+    e associa-o a um documento existente.
+    """
+    # Cria os objetos Question e Answer a partir dos dados do schema
+    questions_to_create = []
+    for question_schema in quiz_data.questions:
+        answers_to_create = [
+            models.Answer(**ans.dict()) for ans in question_schema.answers
+        ]
+        question_obj = models.Question(
+            text=question_schema.text, answers=answers_to_create
+        )
+        questions_to_create.append(question_obj)
+
+    # Cria o objeto Quiz principal com as suas perguntas já aninhadas
+    db_quiz = models.Quiz(
+        title=quiz_data.title,
+        document_id=document_id,
+        questions=questions_to_create
+    )
+    
+    db.add(db_quiz)
+    db.commit()
+    db.refresh(db_quiz)
+    
+    return db_quiz
+
+def get_question_if_owned_by_user(session: Session, question_id: int, user_id: int) -> Optional[models.Question]:
+    """
+    Busca uma pergunta e verifica se ela pertence a um documento do utilizador especificado.
+    Retorna o objeto da pergunta se a verificação for bem-sucedida, caso contrário, None.
+    """
+    result = session.exec(
+        select(models.Question)
+        .join(models.Quiz)
+        .join(models.Document)
+        .where(
+            models.Question.id == question_id,
+            models.Document.user_id == user_id
+        )
+    ).first()
+    return result
