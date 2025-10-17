@@ -21,6 +21,8 @@ class CheckAnswerResponse(models.SQLModel):
     correct_answer_id: int
     explanation: str
 
+# back/app/routers/quizzes.py
+
 @router.post("/check-answer", response_model=CheckAnswerResponse)
 def check_quiz_answer(
     request: CheckAnswerRequest,
@@ -30,13 +32,11 @@ def check_quiz_answer(
     """
     Verifica se a resposta de um quiz selecionada pelo utilizador está correta.
     """
-    # Busca a resposta selecionada pelo utilizador
     selected_answer = session.get(models.Answer, request.answer_id)
 
     if not selected_answer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resposta não encontrada.")
 
-    # Validação de segurança: Garante que a pergunta pertence ao utilizador atual
     question = crud.get_question_if_owned_by_user(
         session=session,
         question_id=request.question_id,
@@ -45,14 +45,15 @@ def check_quiz_answer(
     if not question or selected_answer.question_id != question.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso não autorizado a esta pergunta.")
 
-    # Encontra a resposta correta para esta pergunta
+    for ans in question.answers:
+        print(f"  - id={ans.id}, text={ans.text}, is_correct={ans.is_correct}")
+
     correct_answer = next((ans for ans in question.answers if ans.is_correct), None)
     if not correct_answer:
-        # Isto seria um erro de dados, mas é bom tratar
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Pergunta sem resposta correta configurada.")
 
     return CheckAnswerResponse(
         is_correct=selected_answer.is_correct,
         correct_answer_id=correct_answer.id,
-        explanation=selected_answer.explanation or "Não foi fornecida uma explicação."
+        explanation=correct_answer.explanation or "Não foi fornecida uma explicação para a resposta correta."
     )

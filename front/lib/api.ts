@@ -112,6 +112,12 @@ export interface Quiz {
   questions: Question[];
 }
 
+export interface CheckAnswerResponse {
+  is_correct: boolean;
+  correct_answer_id: number;
+  explanation: string;
+}
+
 type UploadDocumentParams = {
   file: File;
   title: string;
@@ -297,14 +303,14 @@ class ApiClient {
     });
   }
 
-  async checkQuizAnswer(questionId: number, answerId: number): Promise<{ isCorrect: boolean; correctAnswerId: number; explanation: string; }> {
-    return this.request<{ isCorrect: boolean; correctAnswerId: number; explanation: string; }>('/quizzes/check-answer', {
-      method: 'POST',
-      body: JSON.stringify({
-        question_id: questionId,
-        answer_id: answerId,
-      }),
-    });
+  async checkQuizAnswer(questionId: number, answerId: number): Promise<any> {
+      const result = await this.request('/quizzes/check-answer', {
+          method: 'POST',
+          body: JSON.stringify({
+              question_id: questionId,
+              answer_id: answerId
+          })
+      });
   }
   
   async getDocuments(): Promise<Document[]> {
