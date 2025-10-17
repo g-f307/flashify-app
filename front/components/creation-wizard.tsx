@@ -9,15 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import FlashcardLoader from "@/components/flashcard-loader";
-import { 
-  Loader2, 
-  ArrowLeft, 
-  UploadCloud, 
-  FileText, 
-  Sparkles, 
-  ListOrdered
+import {
+  Loader2,
+  ArrowLeft,
+  UploadCloud,
+  FileText,
+  Sparkles,
+  Settings2, // Ícone atualizado
 } from "lucide-react";
 import Link from "next/link";
 
@@ -26,8 +28,11 @@ type WizardData = {
   inputType: "text" | "upload";
   text: string;
   file: File | null;
+  // --- CAMPOS ATUALIZADOS E NOVOS ---
+  contentType: "flashcards" | "quiz" | "both";
   num_flashcards: number;
-  difficulty: string; // Adicionado para consistência
+  difficulty: string;
+  num_questions: number;
 };
 
 interface CreationWizardProps {
@@ -38,7 +43,7 @@ interface CreationWizardProps {
 const steps = [
   { id: 1, name: "Nome", icon: Sparkles },
   { id: 2, name: "Conteúdo", icon: FileText },
-  { id: 3, name: "Quantidade", icon: ListOrdered },
+  { id: 3, name: "Customizar", icon: Settings2 }, // Passo atualizado
 ];
 
 export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardProps) {
@@ -47,33 +52,42 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingDocument, setProcessingDocument] = useState<Document | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const [data, setData] = useState<WizardData>({
     name: "",
     inputType: "text",
     text: "",
     file: null,
+    // --- VALORES INICIAIS PARA AS NOVAS OPÇÕES ---
+    contentType: "flashcards",
     num_flashcards: 10,
-    difficulty: "Médio", // Valor padrão
+    difficulty: "Médio",
+    num_questions: 5,
   });
 
-  const handleNext = () => setStep((s) => Math.min(s + 1, 3));
+  const handleNext = () => setStep((s) => Math.min(s + 1, steps.length));
   const handleBack = () => setStep((s) => Math.max(s - 1, 1));
 
   const monitorProcessing = async (documentId: number) => {
     try {
-      // Nota: getDocument pode não existir no seu apiClient, use um método existente se for o caso
-      // Para este exemplo, vamos assumir que a lógica de sucesso/falha funciona.
-      const document = await apiClient.getDocument(documentId);      
+      const document = await apiClient.getDocument(documentId);
       setProcessingDocument(document);
 
       if (document.status === 'COMPLETED') {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          setIsProcessing(false);
-          toast.success(`Deck "${data.name}" criado com sucesso!`, {
-            description: `${document.total_flashcards || 'Os seus'} flashcards estão prontos.`,
-          });
-          onCreationSuccess(); 
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setIsProcessing(false);
+        // Mensagem de sucesso dinâmica
+        const createdItems = [];
+        if (data.contentType === 'flashcards' || data.contentType === 'both') {
+            createdItems.push('Flashcards');
+        }
+        if (data.contentType === 'quiz' || data.contentType === 'both') {
+            createdItems.push('Quiz');
+        }
+        toast.success(`Deck "${data.name}" processado!`, {
+          description: `${createdItems.join(' e ')} foram gerados com sucesso.`,
+        });
+        onCreationSuccess();
       } else if (document.status === 'FAILED') {
         if (intervalRef.current) clearInterval(intervalRef.current);
         setIsProcessing(false);
@@ -98,35 +112,30 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   const handleSubmit = async () => {
     if (!data.name.trim()) return toast.error("Por favor, dê um nome ao seu deck.");
     if (data.inputType === 'text' && !data.text.trim()) return toast.error("O conteúdo de texto não pode estar vazio.");
-    if (data.inputType === 'upload' && !data.file) return toast.error("Por favor, selecione um arquivo para upload.");
+    if (data.inputType === 'upload' && !data.file) return toast.error("Por favor, selecione um ficheiro para upload.");
 
     setIsSubmitting(true);
     try {
       let document: Document;
-      
+      const params = {
+        title: data.name,
+        folderId: folderId,
+        contentType: data.contentType,
+        num_flashcards: data.num_flashcards,
+        difficulty: data.difficulty,
+        num_questions: data.num_questions,
+      };
+
       if (data.inputType === 'upload' && data.file) {
-        document = await apiClient.uploadDocument(
-          data.file, 
-          data.name, 
-          data.num_flashcards, 
-          data.difficulty, 
-          folderId // Passa o folderId para a API
-        );
+        document = await apiClient.uploadDocument({ ...params, file: data.file });
       } else {
-        document = await apiClient.createDocumentFromText(
-          data.text, 
-          data.name, 
-          data.num_flashcards, 
-          data.difficulty, 
-          folderId // Passa o folderId para a API
-        );
+        document = await apiClient.createDocumentFromText({ ...params, text: data.text });
       }
 
       setIsSubmitting(false);
       setIsProcessing(true);
       setProcessingDocument(document);
 
-      // Inicia a monitorização
       intervalRef.current = setInterval(() => monitorProcessing(document.id), 3000);
       monitorProcessing(document.id);
 
@@ -135,7 +144,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
       toast.error("Falha ao criar deck", { description: error.message || "Tente novamente mais tarde." });
     }
   };
-  
+
   const WizardProgress = () => (
     <div className="flex items-center justify-center gap-2 sm:gap-4 p-4">
         {steps.map((s, index) => (
@@ -194,21 +203,62 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
           </CardContent>
         )}
         {step === 3 && (
-            <CardContent className="text-center pt-12">
-                <ListOrdered className="w-12 h-12 mx-auto text-primary mb-4" />
-                <CardTitle>Quantidade de Flashcards</CardTitle>
-                <CardDescription className="mt-2">Escolha quantos flashcards quer gerar.</CardDescription>
-                <div className="my-8"><span className="font-bold text-5xl text-primary">{data.num_flashcards}</span></div>
-                <Slider defaultValue={[data.num_flashcards]} max={20} min={1} step={1} onValueChange={(value) => setData({ ...data, num_flashcards: value[0] })} className="max-w-sm mx-auto" />
-                <Button onClick={handleSubmit} className="w-full max-w-sm mt-8" disabled={isSubmitting || isProcessing}>
-                    {isSubmitting ? (<div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Criando deck...</div>) : ("Gerar Flashcards!")}
+            <CardContent className="pt-8 space-y-6">
+                <div className="text-center">
+                    <Settings2 className="w-10 h-10 mx-auto text-primary mb-3" />
+                    <CardTitle>Customize a Geração</CardTitle>
+                    <CardDescription className="mt-1">Ajuste as opções de IA para o seu material.</CardDescription>
+                </div>
+
+                <div>
+                  <Label className="font-semibold">O que deseja criar?</Label>
+                  <ToggleGroup
+                      type="single" value={data.contentType}
+                      onValueChange={(value: WizardData['contentType']) => value && setData({ ...data, contentType: value })}
+                      className="w-full grid grid-cols-3 mt-2"
+                  >
+                      <ToggleGroupItem value="flashcards">Flashcards</ToggleGroupItem>
+                      <ToggleGroupItem value="quiz">Quiz</ToggleGroupItem>
+                      <ToggleGroupItem value="both">Ambos</ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+
+                {(data.contentType === 'flashcards' || data.contentType === 'both') && (
+                  <div className="animate-in fade-in-20 duration-300 space-y-2">
+                      <Label htmlFor="num-flashcards" className="font-semibold">Número de Flashcards: <span className="text-primary font-bold">{data.num_flashcards}</span></Label>
+                      <Slider id="num-flashcards" min={5} max={50} step={1} value={[data.num_flashcards]} onValueChange={(v) => setData({ ...data, num_flashcards: v[0] })} />
+                  </div>
+                )}
+
+                {(data.contentType === 'quiz' || data.contentType === 'both') && (
+                  <div className="animate-in fade-in-20 duration-300 space-y-2">
+                      <Label htmlFor="num-questions" className="font-semibold">Perguntas do Quiz: <span className="text-primary font-bold">{data.num_questions}</span></Label>
+                      <Slider id="num-questions" min={3} max={25} step={1} value={[data.num_questions]} onValueChange={(v) => setData({ ...data, num_questions: v[0] })}/>
+                  </div>
+                )}
+
+                <div>
+                  <Label className="font-semibold">Nível de Dificuldade</Label>
+                  <ToggleGroup
+                      type="single" value={data.difficulty}
+                      onValueChange={(value: string) => value && setData({ ...data, difficulty: value })}
+                      className="w-full grid grid-cols-3 mt-2"
+                  >
+                      <ToggleGroupItem value="Fácil">Fácil</ToggleGroupItem>
+                      <ToggleGroupItem value="Médio">Médio</ToggleGroupItem>
+                      <ToggleGroupItem value="Difícil">Difícil</ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+
+                <Button onClick={handleSubmit} className="w-full !mt-8" disabled={isSubmitting || isProcessing}>
+                    {isSubmitting ? (<div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />A criar...</div>) : ("Gerar Conteúdo!")}
                 </Button>
             </CardContent>
         )}
       </div>
     );
   };
-  
+
   return (
     <div className="w-full max-w-3xl mx-auto p-4 sm:p-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">

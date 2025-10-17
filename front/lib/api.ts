@@ -1,4 +1,3 @@
-// --- CONFIGURAÇÃO E INTERFACES ---
 import { AuthContextType } from "@/contexts/auth-context"; 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:9000';
@@ -48,9 +47,11 @@ export interface Document {
   processing_progress?: number;
   current_step?: string;
   can_cancel?: boolean;
-  created_at: string; 
+  created_at: string;
   total_flashcards: number;
   studied_flashcards: number;
+  has_quiz?: boolean; 
+  quiz?: Quiz;
 }
 
 export interface Flashcard {
@@ -91,6 +92,46 @@ export interface LibraryData {
   folders: FolderWithDocuments[]; // <-- MUDANÇA AQUI
   root_documents: Document[];
 }
+
+export interface Answer {
+  id: number;
+  text: string;
+  is_correct: boolean;
+  explanation?: string;
+}
+
+export interface Question {
+  id: number;
+  text: string;
+  answers: Answer[];
+}
+
+export interface Quiz {
+  id: number;
+  title: string;
+  questions: Question[];
+}
+
+type UploadDocumentParams = {
+  file: File;
+  title: string;
+  folderId?: number;
+  contentType: string;
+  num_flashcards: number;
+  difficulty: string;
+  num_questions: number;
+};
+
+// Agrupa todos os parâmetros para criação a partir de texto
+type CreateFromTextParams = {
+  text: string;
+  title: string;
+  folderId?: number;
+  contentType: string;
+  num_flashcards: number;
+  difficulty: string;
+  num_questions: number;
+};
 
 // --- CLASSE DO CLIENTE API ---
 
@@ -213,21 +254,18 @@ class ApiClient {
     return this.request<Folder[]>('/folders/');
   }
 
-  async uploadDocument(
-    file: File,
-    title: string,
-    num_flashcards: number,
-    difficulty: string,
-    folderId?: number // <-- Adicione o parâmetro opcional
-  ): Promise<Document> {
+  async uploadDocument(params: UploadDocumentParams): Promise<Document> {
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("title", title);
-    formData.append("num_flashcards", String(num_flashcards));
-    formData.append("difficulty", difficulty);
-    if (folderId) { // <-- Adicione o folderId se ele existir
-      formData.append("folder_id", String(folderId));
+    formData.append("file", params.file);
+    formData.append("title", params.title);
+    if (params.folderId) {
+      formData.append("folder_id", String(params.folderId));
     }
+    // Adicionando novos campos
+    formData.append("content_type", params.contentType);
+    formData.append("num_flashcards", String(params.num_flashcards));
+    formData.append("difficulty", params.difficulty);
+    formData.append("num_questions", String(params.num_questions));
 
     return this.request<Document>("/documents/upload", {
       method: "POST",
@@ -236,13 +274,36 @@ class ApiClient {
     });
   }
 
-
-  async createDocumentFromText(
-text: string, title: string, num_flashcards: number, p0?: string, folderId?: number
-  ): Promise<Document> {
+  // --- MÉTODO DE CRIAÇÃO POR TEXTO ATUALIZADO ---
+  async createDocumentFromText(params: CreateFromTextParams): Promise<Document> {
     return this.request<Document>('/documents/text', {
       method: 'POST',
-      body: JSON.stringify({ text, title, num_flashcards, folder_id: folderId}),
+      body: JSON.stringify({
+        text: params.text,
+        title: params.title,
+        folder_id: params.folderId,
+        // Adicionando novos campos
+        content_type: params.contentType,
+        num_flashcards: params.num_flashcards,
+        difficulty: params.difficulty,
+        num_questions: params.num_questions,
+      }),
+    });
+  }
+
+  async generateQuizForDocument(documentId: number): Promise<Quiz> {
+    return this.request<Quiz>(`/documents/${documentId}/generate-quiz`, {
+      method: 'POST',
+    });
+  }
+
+  async checkQuizAnswer(questionId: number, answerId: number): Promise<{ isCorrect: boolean; correctAnswerId: number; explanation: string; }> {
+    return this.request<{ isCorrect: boolean; correctAnswerId: number; explanation: string; }>('/quizzes/check-answer', {
+      method: 'POST',
+      body: JSON.stringify({
+        question_id: questionId,
+        answer_id: answerId,
+      }),
     });
   }
   
@@ -268,6 +329,12 @@ text: string, title: string, num_flashcards: number, p0?: string, folderId?: num
 
   async getFlashcardDetails(flashcardId: number): Promise<Flashcard> {
     return this.request<Flashcard>(`/flashcards/${flashcardId}`);
+  }
+
+  async generateFlashcardsForDocument(documentId: number): Promise<Flashcard[]> {
+    return this.request<Flashcard[]>(`/documents/${documentId}/generate-flashcards`, {
+      method: 'POST',
+    });
   }
 
   async chatWithFlashcard(flashcardId: number, message: string): Promise<ChatResponse> {
