@@ -39,6 +39,7 @@ class User(SQLModel, table=True):
     # Adicione esta relação para que um usuário possa ter muitas pastas
     folders: List["Folder"] = Relationship(back_populates="user")
     documents: List["Document"] = Relationship(back_populates="user")
+    quiz_attempts: List["QuizAttempt"] = Relationship(back_populates="user")
 
 # NOVO MODELO FOLDER
 class Folder(SQLModel, table=True):
@@ -136,6 +137,7 @@ class Quiz(SQLModel, table=True):
     document: "Document" = Relationship(back_populates="quiz")
     
     questions: List["Question"] = Relationship(back_populates="quiz", sa_relationship_kwargs={"cascade": "all, delete"})
+    attempts: List["QuizAttempt"] = Relationship(back_populates="quiz")
 
 class Question(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -154,3 +156,16 @@ class Answer(SQLModel, table=True):
     
     question_id: int = Field(foreign_key="question.id")
     question: Question = Relationship(back_populates="answers")
+
+class QuizAttempt(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    score: float
+    correct_answers: int
+    total_questions: int
+    completed_at: datetime = Field(default_factory=datetime.utcnow)
+
+    quiz_id: int = Field(foreign_key="quiz.id")
+    quiz: "Quiz" = Relationship(back_populates="attempts")
+
+    user_id: int = Field(foreign_key="user.id")
+    user: "User" = Relationship(back_populates="quiz_attempts")

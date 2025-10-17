@@ -65,6 +65,7 @@ export default function QuizPage() {
         return ((currentQuestionIndex + 1) / questions.length) * 100;
     }, [currentQuestionIndex, questions.length]);
 
+
     const handleCheckAnswer = async () => {
         if (!selectedAnswerId) {
             toast.warning("Por favor, selecione uma alternativa.");
@@ -72,39 +73,54 @@ export default function QuizPage() {
         }
         setIsChecking(true);
         try {
-            console.log('📤 Enviando para API:', {
-                questionId: currentQuestion.id,
-                answerId: selectedAnswerId
-            });
-            
             const result = await apiClient.checkQuizAnswer(currentQuestion.id, selectedAnswerId);
-            
-            console.log('📥 Resposta da API:', result);
-            console.log('🎯 is_correct recebido:', result.isCorrect);
-            
-            setFeedback(result);
-            setAnswerStatus(result.isCorrect ? 'correct' : 'incorrect');
-            if (result.isCorrect) {
-                setCorrectAnswersCount(prev => prev + 1);
+            if (result && typeof result.is_correct !== 'undefined') {
+                setFeedback(result);
+                setAnswerStatus(result.is_correct ? 'correct' : 'incorrect');
+                if (result.is_correct) {
+                    setCorrectAnswersCount(prev => prev + 1);
+                }
+            } else {
+                console.error("Resposta da API inválida ou vazia:", result);
+                throw new Error("O servidor não retornou uma resposta válida.");
             }
         } catch (err: any) {
-            console.error('❌ Erro ao verificar resposta:', err);
             toast.error("Erro ao verificar a resposta.", { description: err.message });
         } finally {
             setIsChecking(false);
         }
     };
 
-    const handleNextQuestion = () => {
+    // --- CORREÇÃO APLICADA AQUI ---
+    // A função foi marcada como 'async' para que o 'await' funcione corretamente.
+    const handleNextQuestion = async () => {
         if (currentQuestionIndex < questions.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
             setSelectedAnswerId(null);
             setAnswerStatus('unanswered');
             setFeedback(null);
         } else {
+            // Fim do quiz
+            const finalScore = (correctAnswersCount / questions.length) * 100;
+
+            // Submete o resultado para o backend
+            if (document?.quiz?.id) {
+                try {
+                    await apiClient.submitQuizResult(
+                        document.quiz.id,
+                        finalScore,
+                        correctAnswersCount,
+                        questions.length
+                    );
+                    toast.success("O seu progresso foi guardado!");
+                } catch (error) {
+                    console.error("Falha ao submeter o resultado do quiz", error);
+                    toast.error("Não foi possível guardar o seu resultado.");
+                }
+            }
+            
             setShowResults(true);
-            const score = (correctAnswersCount / questions.length) * 100;
-            if (score > 70) {
+            if (finalScore > 70) {
                 setShowConfetti(true);
             }
         }

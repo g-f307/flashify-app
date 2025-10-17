@@ -70,3 +70,36 @@ def check_quiz_answer(
         correct_answer_id=correct_answer.id,
         explanation=correct_answer.explanation or "Não foi fornecida uma explicação para a resposta correta."
     )
+
+class SubmitQuizRequest(models.SQLModel):
+    score: float
+    correct_answers: int
+    total_questions: int
+
+@router.post("/{quiz_id}/submit", status_code=status.HTTP_201_CREATED)
+def submit_quiz_attempt(
+    quiz_id: int,
+    request: SubmitQuizRequest,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session)
+):
+    """
+    Regista uma tentativa de quiz (resultado) para o utilizador atual.
+    """
+    quiz = session.get(models.Quiz, quiz_id)
+    if not quiz or quiz.document.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz não encontrado.")
+    
+    quiz_attempt = models.QuizAttempt(
+        score=request.score,
+        correct_answers=request.correct_answers,
+        total_questions=request.total_questions,
+        quiz_id=quiz_id,
+        user_id=current_user.id
+    )
+    
+    session.add(quiz_attempt)
+    session.commit()
+    session.refresh(quiz_attempt)
+    
+    return {"message": "Resultado do quiz guardado com sucesso."}

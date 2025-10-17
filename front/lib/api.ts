@@ -118,6 +118,24 @@ export interface CheckAnswerResponse {
   explanation: string;
 }
 
+export interface FlashcardStats {
+  known: number;
+  learning: number;
+  total: number;
+  progress_percentage: number;
+}
+
+export interface QuizStatSummary {
+  last_score: number | null;
+  average_score: number | null;
+  total_attempts: number;
+}
+
+export interface DeckStats {
+  flashcards: FlashcardStats;
+  quiz: QuizStatSummary | null;
+}
+
 type UploadDocumentParams = {
   file: File;
   title: string;
@@ -454,6 +472,28 @@ class ApiClient {
     return this.request<Document>(`/documents/${documentId}/move`, {
       method: 'PATCH',
       body: JSON.stringify({ folder_id: folderId }),
+    });
+  }
+
+  // Adicione este novo método para buscar estatísticas
+  async getDocumentStats(documentId: number): Promise<DeckStats> {
+    return this.request<DeckStats>(`/stats/document/${documentId}`);
+  }
+
+  // Adicione este novo método para submeter o resultado do quiz
+  async submitQuizResult(
+    quizId: number, 
+    score: number, 
+    correctAnswers: number, 
+    totalQuestions: number
+  ): Promise<any> {
+    return this.request(`/quizzes/${quizId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify({
+        score,
+        correct_answers: correctAnswers,
+        total_questions: totalQuestions,
+      })
     });
   }
   
