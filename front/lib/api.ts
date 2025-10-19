@@ -81,8 +81,10 @@ export interface ChatResponse {
 export interface ProgressStats {
   cards_studied_week: number;
   streak_days: number;
-  general_accuracy: number;
-  weekly_activity: number[];
+  flashcard_accuracy: number; // ✅ Renomeado
+  flashcard_weekly_activity: number[]; // ✅ Renomeado
+  quizzes_completed_week: number; // ✅ Novo
+  quiz_average_score: number; // ✅ Novo
 }
 
 export interface FolderWithDocuments extends Folder {
