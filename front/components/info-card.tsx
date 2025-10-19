@@ -9,7 +9,6 @@ interface InfoCardProps {
 
 export function InfoCard({ illustration, title, description }: InfoCardProps) {
   return (
-    // 🔽 ALTERAÇÃO AQUI: Adicionadas as classes de transição e hover 🔽
     <Card className="text-center h-full flex flex-col p-4 transition-all duration-300 hover:border-primary hover:shadow-lg">
       <CardHeader className="p-2">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-2">

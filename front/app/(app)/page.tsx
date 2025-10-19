@@ -42,7 +42,7 @@ export default function HomePage() {
   }, [user]);
 
   const handleDocumentSelect = (doc: Document) => {
-    router.push(`/study/${doc.id}`);
+    router.push(`/deck/${doc.id}`);
   };
 
   const handleDelete = async (deletedId: number) => {
@@ -71,9 +71,10 @@ export default function HomePage() {
       <section>
         <div className="text-center mb-8">
           <h2 className="text-2xl lg:text-3xl font-bold">Como Funciona</h2>
-          <p className="text-muted-foreground mt-1">Em três simples passos, o seu estudo fica mais inteligente.</p>
+          <p className="text-muted-foreground mt-1">Transforme qualquer conteúdo em material de estudo inteligente.</p>
         </div>
         <div className="max-w-5xl mx-auto">
+          {/* ▼▼▼ ALTERAÇÕES APLICADAS AQUI ▼▼▼ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <InfoCard
               illustration={<FileUp className="h-10 w-10 text-primary" />}
@@ -82,13 +83,13 @@ export default function HomePage() {
             />
             <InfoCard
               illustration={<MessageSquare className="h-10 w-10 text-primary" />}
-              title="2. Geração com IA"
-              description="A nossa Inteligência Artificial analisa o seu material e cria flashcards relevantes automaticamente."
+              title="2. IA Cria Flashcards e Quizzes"
+              description="A nossa Inteligência Artificial analisa o seu material e cria flashcards e quizzes relevantes automaticamente."
             />
             <InfoCard
               illustration={<BrainCircuit className="h-10 w-10 text-primary" />}
               title="3. Estude de Forma Eficaz"
-              description="Reveja os seus novos flashcards, acompanhe o seu progresso e memorize o conteúdo mais rapidamente."
+              description="Reveja os flashcards, teste os seus conhecimentos com quizzes e memorize o conteúdo mais rapidamente."
             />
           </div>
         </div>
@@ -114,7 +115,6 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className="relative">
-                      {/* ▼▼▼ ALTERAÇÃO PRINCIPAL AQUI ▼▼▼ */}
                       <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
                           {recentDocuments.map((doc) => (
                               <div key={doc.id} className="flex-shrink-0 w-full basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 py-4">
