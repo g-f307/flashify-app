@@ -23,11 +23,11 @@ export default function CreatePage() {
   return (
     <div className="w-full max-w-4xl mx-auto">
        <div className="flex flex-col items-start gap-2 mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
-          Criar Novo Deck de Flashcards
-        </h1>
+        <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">
+          Criar Novo Deck 
+        </h2>
         <p className="text-muted-foreground max-w-2xl">
-          Escolha como quer criar os seus flashcards: a partir de um ficheiro, imagem ou simplesmente colando um texto.
+          Escolha como quer criar os seus materiais para estudo: a partir de um arquivo, imagem ou simplesmente digitando um texto.
         </p>
       </div>
       

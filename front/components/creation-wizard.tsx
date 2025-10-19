@@ -12,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-// Corrigido: O nome do importado pode ser o que quisermos, mas apontando para o ficheiro correto
 import ContentLoader from "@/components/content-loader"; 
 import {
   Loader2,
@@ -211,56 +210,127 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
             <Button onClick={handleNext} className="w-full mt-6" disabled={(data.inputType === 'text' && !data.text.trim()) || (data.inputType === 'upload' && !data.file)}>Próximo</Button>
           </CardContent>
         )}
+        
         {step === 3 && (
-            <CardContent className="pt-8 space-y-6">
-                <div className="text-center">
-                    <Settings2 className="w-10 h-10 mx-auto text-primary mb-3" />
-                    <CardTitle>Customize a Geração</CardTitle>
-                    <CardDescription className="mt-1">Ajuste as opções de IA para o seu material.</CardDescription>
+            <CardContent className="pt-8 pb-8 space-y-6">
+                <div className="text-center mb-8">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+                        <Settings2 className="w-8 h-8 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl">Customize a Geração</CardTitle>
+                    <CardDescription className="mt-2 text-base">Ajuste as opções de IA para o seu material.</CardDescription>
                 </div>
 
-                <div>
-                  <Label className="font-semibold">O que deseja criar?</Label>
+                {/* Tipo de Conteúdo */}
+                <div className="bg-muted/50 dark:bg-muted/20 rounded-lg p-6 space-y-4 border border-border/50">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-primary"></div>
+                    <Label className="text-base font-semibold">O que deseja criar?</Label>
+                  </div>
                   <ToggleGroup
                       type="single" value={data.contentType}
                       onValueChange={(value: WizardData['contentType']) => value && setData({ ...data, contentType: value })}
-                      className="w-full grid grid-cols-3 mt-2"
+                      className="w-full grid grid-cols-3 gap-2"
                   >
-                      <ToggleGroupItem value="flashcards">Flashcards</ToggleGroupItem>
-                      <ToggleGroupItem value="quiz">Quiz</ToggleGroupItem>
-                      <ToggleGroupItem value="both">Ambos</ToggleGroupItem>
+                      <ToggleGroupItem value="flashcards" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                        Flashcards
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="quiz" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                        Quiz
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="both" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                        Ambos
+                      </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
 
+                {/* Flashcards Settings */}
                 {(data.contentType === 'flashcards' || data.contentType === 'both') && (
-                  <div className="animate-in fade-in-20 duration-300 space-y-2">
-                      <Label htmlFor="num-flashcards" className="font-semibold">Número de Flashcards: <span className="text-primary font-bold">{data.num_flashcards}</span></Label>
-                      <Slider id="num-flashcards" min={5} max={50} step={1} value={[data.num_flashcards]} onValueChange={(v) => setData({ ...data, num_flashcards: v[0] })} />
+                  <div className="animate-in fade-in-20 duration-300 bg-muted/50 dark:bg-muted/20 rounded-lg p-6 space-y-4 border border-border/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-primary"></div>
+                          <Label htmlFor="num-flashcards" className="text-base font-semibold">Número de Flashcards</Label>
+                        </div>
+                        <span className="text-2xl font-bold text-primary">{data.num_flashcards}</span>
+                      </div>
+                      <Slider 
+                        id="num-flashcards" 
+                        min={5} 
+                        max={50} 
+                        step={1} 
+                        value={[data.num_flashcards]} 
+                        onValueChange={(v) => setData({ ...data, num_flashcards: v[0] })}
+                        className="mt-2"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Mínimo: 5</span>
+                        <span>Máximo: 50</span>
+                      </div>
                   </div>
                 )}
 
+                {/* Quiz Settings */}
                 {(data.contentType === 'quiz' || data.contentType === 'both') && (
-                  <div className="animate-in fade-in-20 duration-300 space-y-2">
-                      <Label htmlFor="num-questions" className="font-semibold">Perguntas do Quiz: <span className="text-primary font-bold">{data.num_questions}</span></Label>
-                      <Slider id="num-questions" min={3} max={25} step={1} value={[data.num_questions]} onValueChange={(v) => setData({ ...data, num_questions: v[0] })}/>
+                  <div className="animate-in fade-in-20 duration-300 bg-muted/50 dark:bg-muted/20 rounded-lg p-6 space-y-4 border border-border/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-primary"></div>
+                          <Label htmlFor="num-questions" className="text-base font-semibold">Perguntas do Quiz</Label>
+                        </div>
+                        <span className="text-2xl font-bold text-primary">{data.num_questions}</span>
+                      </div>
+                      <Slider 
+                        id="num-questions" 
+                        min={3} 
+                        max={25} 
+                        step={1} 
+                        value={[data.num_questions]} 
+                        onValueChange={(v) => setData({ ...data, num_questions: v[0] })}
+                        className="mt-2"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Mínimo: 3</span>
+                        <span>Máximo: 25</span>
+                      </div>
                   </div>
                 )}
 
-                <div>
-                  <Label className="font-semibold">Nível de Dificuldade</Label>
+                {/* Dificuldade */}
+                <div className="bg-muted/50 dark:bg-muted/20 rounded-lg p-6 space-y-4 border border-border/50">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-primary"></div>
+                    <Label className="text-base font-semibold">Nível de Dificuldade</Label>
+                  </div>
                   <ToggleGroup
                       type="single" value={data.difficulty}
                       onValueChange={(value: string) => value && setData({ ...data, difficulty: value })}
-                      className="w-full grid grid-cols-3 mt-2"
+                      className="w-full grid grid-cols-3 gap-2"
                   >
-                      <ToggleGroupItem value="Fácil">Fácil</ToggleGroupItem>
-                      <ToggleGroupItem value="Médio">Médio</ToggleGroupItem>
-                      <ToggleGroupItem value="Difícil">Difícil</ToggleGroupItem>
+                      <ToggleGroupItem value="Fácil" className="data-[state=on]:bg-green-600 data-[state=on]:text-white dark:data-[state=on]:bg-green-700">
+                        Fácil
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="Médio" className="data-[state=on]:bg-yellow-600 data-[state=on]:text-white dark:data-[state=on]:bg-yellow-700">
+                        Médio
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="Difícil" className="data-[state=on]:bg-red-600 data-[state=on]:text-white dark:data-[state=on]:bg-red-700">
+                        Difícil
+                      </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
 
-                <Button onClick={handleSubmit} className="w-full !mt-8" disabled={isSubmitting || isProcessing}>
-                    {isSubmitting ? (<div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />A criar...</div>) : ("Gerar Conteúdo!")}
+                <Button onClick={handleSubmit} className="w-full !mt-8 h-12 text-base font-semibold" disabled={isSubmitting || isProcessing}>
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        A criar...
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5" />
+                        Gerar Conteúdo!
+                      </div>
+                    )}
                 </Button>
             </CardContent>
         )}
