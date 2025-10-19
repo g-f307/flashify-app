@@ -30,8 +30,6 @@ def get_library_data(
     
     def to_card_data(doc: models.Document) -> schemas.DocumentCardData:
         total_flashcards = len(doc.flashcards)
-        # ▼▼▼ ESTA É A CORREÇÃO FINAL ▼▼▼
-        # Usamos 'session=db' para corresponder exatamente à definição da função em crud.py
         studied_flashcards = crud.get_studied_flashcards_count(session=db, document_id=doc.id)
         return schemas.DocumentCardData(
             id=doc.id,
@@ -41,6 +39,7 @@ def get_library_data(
             total_flashcards=total_flashcards,
             studied_flashcards=studied_flashcards,
             folder_id=doc.folder_id,
+            has_quiz=doc.quiz is not None,  # ✅ ADICIONE ESTA LINHA!
         )
 
     root_documents_data = [to_card_data(doc) for doc in root_docs_from_db]
@@ -83,6 +82,7 @@ def get_folder_details(
             total_flashcards=total_flashcards,
             studied_flashcards=studied_flashcards,
             folder_id=doc.folder_id,
+            has_quiz=doc.quiz is not None,  # ✅ ADICIONE ESTA LINHA!
         )
     
     docs_in_folder_data = [to_card_data(doc) for doc in folder.documents]

@@ -164,7 +164,6 @@ export default function QuizPage() {
                     </Card>
                     <div className="flex gap-4 mt-8">
                         <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
-                        {/* ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼ */}
                         <Button variant="outline" onClick={() => router.back()}>Voltar ao Deck</Button>
                     </div>
                 </div>
@@ -177,11 +176,9 @@ export default function QuizPage() {
             <div className="max-w-4xl mx-auto">
                 <header className="relative mb-6 animate-in fade-in-50 slide-in-from-top-4 duration-500">
                     <div className="flex items-center justify-between mb-4">
-                        {/* ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼ */}
                         <Button variant="ghost" size="sm" onClick={() => router.back()} className="hover:bg-accent/50">
                             <ArrowLeft className="w-4 h-4 mr-2" /> Sair
                         </Button>
-                        {/* ▲▲▲ FIM DA CORREÇÃO ▲▲▲ */}
                         
                         <div className="text-center flex-1 mx-4">
                              <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
@@ -287,22 +284,25 @@ export default function QuizPage() {
                                     ? "bg-green-500/10 border-green-500/30"
                                     : "bg-destructive/10 border-destructive/30"
                             )}>
-                                <div className="flex items-center gap-3 mb-2">
+                                <div className="flex items-start gap-3">
                                     <div className={cn(
-                                        "w-8 h-8 rounded-full flex items-center justify-center",
+                                        "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5",
                                         feedback.is_correct ? "bg-green-500" : "bg-destructive"
                                     )}>
                                         {feedback.is_correct ? <CheckCircle className="w-5 h-5 text-white"/> : <XCircle className="w-5 h-5 text-white"/>}
                                     </div>
-                                    <h3 className={cn(
-                                        "font-bold text-lg",
-                                        feedback.is_correct ? "text-green-700 dark:text-green-400" : "text-destructive"
-                                    )}>
-                                        {feedback.is_correct ? "Resposta Correta!" : "Resposta Incorreta"}
-                                    </h3>
-                                </div>
-                                <div className="pl-[44px] text-sm text-muted-foreground">
-                                    <p className="leading-relaxed">{feedback.explanation}</p>
+                                    <div className="flex-1">
+                                        <p className={cn(
+                                            "text-sm leading-relaxed",
+                                            feedback.is_correct ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"
+                                        )}>
+                                            {feedback.explanation
+                                                .replace(/^Correto!\s*/i, '')
+                                                .replace(/^Incorreto[o|a]?[!]?\s*/i, '')
+                                                .replace(/^Errado[!]?\s*/i, '')
+                                            }
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         )}
