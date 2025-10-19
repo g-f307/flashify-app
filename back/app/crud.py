@@ -110,11 +110,21 @@ def get_documents_by_user(
     - Se in_folder for False, busca apenas docs que estão na raiz (sem pasta).
     - Se in_folder for None, busca todos os docs do usuário.
     """
-    stmt = select(models.Document).where(models.Document.user_id == user_id)
+    # ✅ ADICIONADO: selectinload para carregar as relações
+    stmt = (
+        select(models.Document)
+        .where(models.Document.user_id == user_id)
+        .options(
+            selectinload(models.Document.flashcards),
+            selectinload(models.Document.quiz).selectinload(models.Quiz.questions)
+        )
+    )
+    
     if in_folder is True:
         stmt = stmt.where(models.Document.folder_id != None)
     elif in_folder is False:
         stmt = stmt.where(models.Document.folder_id == None)
+    
     stmt = stmt.order_by(models.Document.created_at.desc())
     return session.exec(stmt).all()
 
@@ -312,3 +322,14 @@ def get_question_if_owned_by_user(session: Session, question_id: int, user_id: i
         )
     ).first()
     return result
+
+def get_quiz_attempts_for_user(session: Session, user_id: int) -> list[models.QuizAttempt]:
+    """Busca todas as tentativas de quiz para um utilizador específico."""
+    statement = (
+        select(models.QuizAttempt)
+        .join(models.Quiz)
+        .join(models.Document)
+        .where(models.Document.user_id == user_id)
+        .order_by(models.QuizAttempt.completed_at.desc())
+    )
+    return session.exec(statement).all()

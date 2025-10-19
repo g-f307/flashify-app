@@ -164,7 +164,10 @@ class QuizAttempt(SQLModel, table=True):
     score: float
     correct_answers: int
     total_questions: int
-    completed_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
 
     quiz_id: int = Field(foreign_key="quiz.id")
     quiz: "Quiz" = Relationship(back_populates="attempts")
