@@ -41,6 +41,8 @@ export interface Document {
   id: number;
   file_path: string;
   status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  generates_flashcards: boolean;
+  generates_quizzes: boolean;
   extracted_text?: string;
   user_id: number;
   folder_id?: number;
@@ -126,20 +128,23 @@ export interface FlashcardStats {
 }
 
 export interface QuizStatSummary {
-  last_score: number | null;
-  average_score: number | null;
   total_attempts: number;
+  average_score: number | null;
+  last_score: number | null;
 }
 
 export interface DeckStats {
   flashcards: FlashcardStats;
   quiz: QuizStatSummary | null;
+  mastery_history: { date: string; mastery: number }[];
 }
 
 type UploadDocumentParams = {
   file: File;
   title: string;
   folderId?: number;
+  generates_flashcards: boolean;
+  generates_quizzes: boolean;
   contentType: string;
   num_flashcards: number;
   difficulty: string;
@@ -285,11 +290,13 @@ class ApiClient {
     if (params.folderId) {
       formData.append("folder_id", String(params.folderId));
     }
-    // Adicionando novos campos
     formData.append("content_type", params.contentType);
     formData.append("num_flashcards", String(params.num_flashcards));
     formData.append("difficulty", params.difficulty);
     formData.append("num_questions", String(params.num_questions));
+
+    formData.append("generates_flashcards", String(params.generates_flashcards));
+    formData.append("generates_quizzes", String(params.generates_quizzes));
 
     return this.request<Document>("/documents/upload", {
       method: "POST",

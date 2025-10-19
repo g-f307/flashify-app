@@ -57,6 +57,8 @@ class Document(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     file_path: str
     status: DocumentStatus = Field(default=DocumentStatus.PROCESSING)
+    generates_flashcards: bool = Field(default=True)
+    generates_quizzes: bool = Field(default=False)
     extracted_text: Optional[str] = Field(default=None, sa_column=Column(Text))
     processing_progress: int = Field(default=0)
     current_step: Optional[str] = Field(default=None)

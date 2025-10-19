@@ -23,29 +23,34 @@ def process_document(
     difficulty: str,
     num_questions: int
 ):
-    print(f"Iniciando processamento para Doc ID: {document_id} com content_type: '{content_type}'")
+    print(f"[TASK] Iniciando processamento para Doc ID: {document_id} com content_type: '{content_type}'")
     
     with Session(engine) as session:
         db_document = crud.get_document(session=session, document_id=document_id)
         if not db_document:
-            print(f"ERRO: Documento ID {document_id} não encontrado.")
+            print(f"[TASK] ERRO: Documento ID {document_id} não encontrado.")
             return
 
         if db_document.status == models.DocumentStatus.CANCELLED:
-            print(f"Processamento para o documento {document_id} foi cancelado.")
+            print(f"[TASK] Processamento para o documento {document_id} foi cancelado.")
             return
 
         try:
             # --- PASSO 1: EXTRAÇÃO DE TEXTO (AGORA CONDICIONAL) ---
-            db_document.current_step = "Passo 1/3: Preparando conteúdo..."
+            db_document.current_step = "iniciando processamento"
+            session.add(db_document)
             session.commit()
+            print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
 
             extracted_text = db_document.extracted_text
 
             # Só extrai de um ficheiro se o texto ainda não existir no documento
             if not extracted_text:
-                db_document.current_step = "Passo 1/3: Extraindo texto do ficheiro..."
+                db_document.current_step = "extraindo texto"
+                session.add(db_document)
                 session.commit()
+                print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
+                
                 file_path = Path(db_document.file_path)
                 
                 if file_path.suffix.lower() == ".pdf":
@@ -59,32 +64,57 @@ def process_document(
                     raise ValueError("Nenhum texto pôde ser extraído do ficheiro.")
                 
                 db_document.extracted_text = extracted_text
+                session.add(db_document)
                 session.commit()
 
             # --- PASSO 2: GERAÇÃO DE CONTEÚDO COM IA ---
-            db_document.current_step = "Passo 2/3: Gerando conteúdo com IA..."
-            session.commit()
-
             flashcards_data = None
             quiz_data_dict = None
 
             if content_type in ["flashcards", "both"]:
+                db_document.current_step = "gerando flashcards com ia"
+                session.add(db_document)
+                session.commit()
+                print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
+                
                 flashcards_data = generate_flashcards_from_text(
                     text=extracted_text, num_flashcards=num_flashcards, difficulty=difficulty
                 )
-
+                
+                db_document.current_step = "parsing flashcards"
+                session.add(db_document)
+                session.commit()
+                print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
+                
+                db_document.current_step = "salvando flashcards"
+                session.add(db_document)
+                session.commit()
+                print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
+                
             if content_type in ["quiz", "both"]:
+                db_document.current_step = "gerando quiz com ia"
+                session.add(db_document)
+                session.commit()
+                print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
+                
                 quiz_data_dict = generate_quiz_from_text(
                     text=extracted_text, num_questions=num_questions, difficulty=difficulty
                 )
+                
+                db_document.current_step = "parsing quiz"
+                session.add(db_document)
+                session.commit()
+                print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
+                
+                db_document.current_step = "salvando quiz"
+                session.add(db_document)
+                session.commit()
+                print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
 
             if not flashcards_data and not quiz_data_dict:
                 raise ValueError("A IA não retornou nenhum conteúdo válido.")
 
-            # --- PASSO 3: SALVAR CONTEÚDO E FINALIZAR ---
-            db_document.current_step = "Passo 3/3: Guardando na base de dados..."
-            session.commit()
-            
+            # --- PASSO 3: FINALIZAR ---
             success_parts = []
             if flashcards_data:
                 crud.create_flashcards_for_document(
@@ -100,11 +130,12 @@ def process_document(
                 success_parts.append("1 quiz")
 
             db_document.status = models.DocumentStatus.COMPLETED
-            success_message = f"Sucesso! { ' e '.join(success_parts) } foram criados."
-            db_document.current_step = success_message
+            db_document.current_step = "concluído"
             db_document.processing_progress = 100
+            session.add(db_document)
             session.commit()
-            print(f"Documento {document_id} processado com sucesso.")
+            print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
+            print(f"[TASK] Documento {document_id} processado com sucesso.")
 
         except Exception as e:
             session.rollback()
@@ -113,10 +144,11 @@ def process_document(
                 final_error = f"Falha final após {self.max_retries + 1} tentativas. {error_message}"
                 db_document.status = models.DocumentStatus.FAILED
                 db_document.current_step = final_error
-                print(f"Tarefa para doc {document_id} FALHOU PERMANENTEMENTE: {traceback.format_exc()}")
+                print(f"[TASK] Tarefa para doc {document_id} FALHOU PERMANENTEMENTE: {traceback.format_exc()}")
             else:
                 retry_count = self.request.retries + 1
                 db_document.current_step = f"Tentativa {retry_count}/{self.max_retries + 1} falhou. {error_message}"
-                print(f"Tarefa para doc {document_id} falhou. Tentando novamente... Erro: {str(e)}")
+                print(f"[TASK] Tarefa para doc {document_id} falhou. Tentando novamente... Erro: {str(e)}")
+            session.add(db_document)
             session.commit()
             raise e

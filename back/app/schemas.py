@@ -96,12 +96,14 @@ class DocumentDetail(BaseModel):
     file_path: str
     extracted_text: Optional[str] = None
     quiz: Optional[Quiz] = None
-    # Apenas declaramos os campos que queremos na resposta final:
+    generates_flashcards: bool 
+    generates_quizzes: bool
     total_flashcards: int
     has_quiz: bool
+    current_step: Optional[str] = None  # ← ADICIONADO ESTE CAMPO
 
     class Config:
-        from_attributes = True # Garante a compatibilidade com objetos da DB
+        from_attributes = True
 
 class DocumentCardData(SQLModel):
     id: int

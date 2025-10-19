@@ -67,10 +67,16 @@ def get_document(session: Session, document_id: int) -> models.Document | None:
     return session.get(models.Document, document_id)
 
 def create_document_for_user(
-    session: Session, user_id: int, file_path: str, folder_id: Optional[int] = None
+    session: Session, user_id: int, file_path: str, folder_id: Optional[int] = None, generates_flashcards: bool = True, generates_quizzes: bool = False
 ) -> models.Document:
     db_document = models.Document(
-        user_id=user_id, file_path=file_path, folder_id=folder_id
+        user_id=user_id, 
+        file_path=file_path, 
+        folder_id=folder_id, 
+        generates_flashcards=generates_flashcards, 
+        generates_quizzes=generates_quizzes,
+        status=models.DocumentStatus.PROCESSING,
+        current_step="iniciando processamento"
     )
     session.add(db_document)
     session.commit()
@@ -95,7 +101,6 @@ def create_flashcards_for_document(
 def get_flashcards_by_document(session: Session, document_id: int) -> list[models.Flashcard]:
     return session.exec(select(models.Flashcard).where(models.Flashcard.document_id == document_id)).all()
 
-# ▼▼▼ ESTA É A VERSÃO CORRIGIDA DA FUNÇÃO ▼▼▼
 def get_documents_by_user(
     session: Session, user_id: int, in_folder: Optional[bool] = None
 ) -> list[models.Document]:
@@ -117,19 +122,25 @@ def get_document_with_details(session: Session, document_id: int) -> Optional[mo
     """
     Busca um documento pelo seu ID e carrega de forma explícita (eager load)
     as suas relações de flashcards e quiz completo (com perguntas e respostas).
+    ATUALIZADO: Agora força uma nova query do banco, ignorando qualquer cache de sessão.
     """
-    # Esta query garante que todas as relações aninhadas são carregadas numa única consulta
-    result = session.exec(
+    # Usa uma query explícita com selectinload para carregar todas as relações
+    stmt = (
         select(models.Document)
         .where(models.Document.id == document_id)
         .options(
             selectinload(models.Document.flashcards),
-            selectinload(models.Document.quiz)
-            .selectinload(models.Quiz.questions)
-            .selectinload(models.Question.answers)
+            selectinload(models.Document.quiz).selectinload(models.Quiz.questions).selectinload(models.Question.answers)
         )
-    ).first()
-    return result
+    )
+    db_document = session.exec(stmt).first()
+    
+    # Força o reload completo do objeto a partir do banco de dados
+    if db_document:
+        session.expire(db_document)
+        session.refresh(db_document)
+                
+    return db_document
 
 def get_flashcard(session: Session, flashcard_id: int, user_id: int) -> models.Flashcard | None:
     """Busca um flashcard pelo ID, garantindo que ele pertence ao utilizador."""
@@ -152,7 +163,6 @@ def create_study_log(session: Session, user_id: int, flashcard_id: int, accuracy
     session.refresh(db_study_log)
     return db_study_log
 
-# ▼▼▼ FUNÇÃO RESTAURADA E CORRIGIDA AQUI ▼▼▼
 def get_study_logs_for_user(session: Session, user_id: int) -> list[models.StudyLog]:
     """Busca todos os registos de estudo para um utilizador específico."""
     statement = select(models.StudyLog).where(models.StudyLog.user_id == user_id)
@@ -167,7 +177,6 @@ def get_studied_flashcards_count(session: Session, document_id: int) -> int:
         .join(models.Flashcard)
         .where(models.Flashcard.document_id == document_id)
     )
-    # A correção está aqui: usamos .one_or_none() para obter o resultado único.
     count = session.exec(statement).one_or_none()
     return count or 0
 
@@ -241,7 +250,6 @@ def delete_folder(db: Session, folder_id: int, user_id: int, delete_decks: bool 
             doc.folder_id = None
             db.add(doc)
     
-    # Exclui a pasta vazia
     db.delete(db_folder)
     db.commit()
     return True
@@ -267,7 +275,6 @@ def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, documen
     Cria um novo quiz completo, com todas as suas perguntas e respostas,
     e associa-o a um documento existente.
     """
-    # Cria os objetos Question e Answer a partir dos dados do schema
     questions_to_create = []
     for question_schema in quiz_data.questions:
         answers_to_create = [
@@ -278,7 +285,6 @@ def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, documen
         )
         questions_to_create.append(question_obj)
 
-    # Cria o objeto Quiz principal com as suas perguntas já aninhadas
     db_quiz = models.Quiz(
         title=quiz_data.title,
         document_id=document_id,

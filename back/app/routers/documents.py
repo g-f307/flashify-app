@@ -25,6 +25,8 @@ class TextInput(BaseModel):
     text: str
     title: str
     folder_id: Optional[int] = None
+    generate_flashcards: bool = True
+    generate_quizzes: bool = False
     content_type: str = "flashcards"
     num_flashcards: int = Field(default=10, ge=1, le=50)
     difficulty: str = "Médio"
@@ -43,6 +45,8 @@ def upload_document(
     file: UploadFile = File(...),
     title: str = Form(...),
     folder_id: Optional[int] = Form(default=None),
+    generates_flashcards: bool = Form(True),
+    generates_quizzes: bool = Form(False),
     content_type: str = Form("flashcards"),
     num_flashcards: int = Form(10),
     difficulty: str = Form("Médio"),
@@ -64,7 +68,9 @@ def upload_document(
         session,
         user_id=current_user.id,
         file_path=str(file_path_on_disk),
-        folder_id=folder_id
+        folder_id=folder_id,
+        generates_flashcards=generates_flashcards,
+        generates_quizzes=generates_quizzes
     )
     
     process_document.delay(
@@ -90,7 +96,9 @@ def create_document_from_text(
         session,
         user_id=current_user.id,
         file_path=text_input.title,
-        folder_id=text_input.folder_id
+        folder_id=text_input.folder_id,
+        generates_flashcards=text_input.generate_flashcards,
+        generates_quizzes=text_input.generate_quizzes
     )
 
     db_document.extracted_text = text_input.text
@@ -134,21 +142,31 @@ def get_user_documents(
             
     return docs_with_progress
 
-# --- CORREÇÃO FINAL ESTÁ AQUI ---
 @router.get("/{document_id}", response_model=schemas.DocumentDetail)
 def get_document_details(
     document_id: int,
     current_user: CurrentUser,
     session: Session = Depends(get_session)
 ):
-    """Obtém os detalhes completos de um documento, incluindo o quiz."""
-    # 1. Buscamos o objeto completo da base de dados
+    """
+    Obtém os detalhes completos de um documento, incluindo o quiz.
+    ATUALIZADO: Agora força a leitura dos dados mais recentes do banco.
+    """
+    # CORREÇÃO CRÍTICA: Expira todos os objetos em cache da sessão
+    # Isso garante que vamos buscar dados frescos do banco, mesmo que
+    # tenham sido atualizados pelo worker do Celery (outro processo)
+    session.expire_all()
+    
+    # Busca o objeto completo da base de dados
     db_document = crud.get_document_with_details(session, document_id)
     
     if not db_document or db_document.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Documento não encontrado")
 
-    # 2. Construímos o objeto de resposta (schema) manualmente, resolvendo o erro de validação.
+    # Debug: descomentar para verificar o que está sendo recebido
+    print(f"[ENDPOINT] Doc {document_id} - current_step: {db_document.current_step}, status: {db_document.status}")
+
+    # Constrói o objeto de resposta (schema) manualmente
     return schemas.DocumentDetail(
         id=db_document.id,
         status=db_document.status,
@@ -156,9 +174,11 @@ def get_document_details(
         extracted_text=db_document.extracted_text,
         quiz=db_document.quiz,
         total_flashcards=len(db_document.flashcards),
-        has_quiz=(db_document.quiz is not None)
+        has_quiz=(db_document.quiz is not None),
+        generates_flashcards=db_document.generates_flashcards,
+        generates_quizzes=db_document.generates_quizzes,
+        current_step=db_document.current_step
     )
-# --- FIM DA CORREÇÃO ---
 
 @router.get("/{document_id}/flashcards", response_model=list[models.Flashcard])
 def get_document_flashcards(
