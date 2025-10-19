@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LoadingScreen } from "@/components/ui/loading-screen"; // Importado
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 const sidebarItems = [
     { href: "/", label: "Início", icon: Home },
@@ -50,7 +50,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }, [user, loading, router]);
 
   if (loading || !user) {
-    // Alteração aqui para usar o LoadingScreen
     return (
         <LoadingScreen 
           message="A carregar a sua sessão..." 
@@ -94,7 +93,22 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+              
+              // ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼
+              let isActive = false;
+              if (item.href === '/') {
+                isActive = pathname === '/';
+              } else if (item.href === '/library') {
+                // Marca como ativo se estiver em qualquer página relacionada à biblioteca
+                isActive = pathname.startsWith('/library') || 
+                           pathname.startsWith('/deck/') || 
+                           pathname.startsWith('/study/') || 
+                           pathname.startsWith('/quiz/');
+              } else {
+                isActive = pathname.startsWith(item.href);
+              }
+              // ▲▲▲ FIM DA CORREÇÃO ▲▲▲
+
               return (
                 <li key={item.href}>
                   <Link

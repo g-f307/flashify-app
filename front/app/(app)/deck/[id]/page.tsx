@@ -178,9 +178,11 @@ export default function DeckDashboardPage() {
         <div className="w-full min-h-screen bg-background">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8">
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-                    <Button variant="ghost" size="sm" asChild className="mb-2 hover:bg-primary/10">
-                        <Link href="/library"><ArrowLeft className="w-4 h-4 mr-2" />Voltar</Link>
+                    {/* ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼ */}
+                    <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-2 hover:bg-primary/10">
+                        <ArrowLeft className="w-4 h-4 mr-2" />Voltar
                     </Button>
+                    {/* ▲▲▲ FIM DA CORREÇÃO ▲▲▲ */}
                     <div className="relative">
                         <div className="absolute -top-4 left-0 w-20 h-20 bg-primary/10 rounded-full blur-3xl" />
                         <div className="absolute -bottom-4 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl" />

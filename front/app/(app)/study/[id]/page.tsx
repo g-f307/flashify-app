@@ -1,21 +1,16 @@
-// front/app/(app)/study/[id]/page.tsx
-
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { apiClient, Document, Flashcard } from '@/lib/api';
 import { FlashcardStudyFinal } from '@/components/study/flashcard-study';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import Link from 'next/link';
 
 export default function StudyPage() {
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
-
   const documentId = params.id as string;
 
   const [document, setDocument] = useState<Document | null>(null);
@@ -24,19 +19,6 @@ export default function StudyPage() {
   const [error, setError] = useState<string | null>(null);
 
   const flipAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  const from = searchParams.get("from");
-  const backPath = from || "/library";
-
-  const getBackLinkText = () => {
-    if (from === "/") {
-      return "Voltar para o Início";
-    }
-    if (from?.startsWith("/library/folder")) {
-      return "Voltar para a Pasta";
-    }
-    return "Voltar para a Biblioteca";
-  };
   
   useEffect(() => {
     const fetchStudyData = async () => {
@@ -62,6 +44,9 @@ export default function StudyPage() {
             created_at: new Date().toISOString(),
             total_flashcards: reviewFlashcards.length,
             studied_flashcards: 0,
+            generates_flashcards: true,
+            generates_quizzes: false,
+            has_quiz: false,
           });
         } else {
           const docIdNumber = parseInt(documentId, 10);
@@ -115,15 +100,16 @@ export default function StudyPage() {
         <FlashcardStudyFinal
           document={document}
           initialFlashcards={flashcards}
-          onBack={() => router.push(backPath)}
+          // ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼
+          onBack={() => router.back()} // Ação principal de voltar
           backButton={
-            <Link href={backPath}>
-              <Button variant="ghost">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {getBackLinkText()}
-              </Button>
-            </Link>
+            // O botão visual que o utilizador vê
+            <Button variant="ghost" onClick={() => router.back()}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar
+            </Button>
           }
+          // ▲▲▲ FIM DA CORREÇÃO ▲▲▲
           flipAudioRef={flipAudioRef}
         />
       )}

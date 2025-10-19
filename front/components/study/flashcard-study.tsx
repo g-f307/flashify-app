@@ -28,7 +28,7 @@ interface FlashcardStudyFinalProps {
   document: Document;
   initialFlashcards: Flashcard[];
   onBack: () => void;
-  backButton?: React.ReactNode; // Propriedade adicionada
+  backButton?: React.ReactNode;
   flipAudioRef: React.RefObject<HTMLAudioElement>;
 }
 
@@ -36,7 +36,7 @@ export function FlashcardStudyFinal({
   document, 
   initialFlashcards, 
   onBack, 
-  backButton, // Propriedade recebida
+  backButton,
   flipAudioRef 
 }: FlashcardStudyFinalProps) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>(initialFlashcards);
@@ -276,7 +276,6 @@ export function FlashcardStudyFinal({
 
   return (
     <div className="flex flex-col h-full items-center w-full">
-      {/* Alteração aqui: renderiza o botão dinâmico ou o antigo */}
       {backButton ? (
         <div className="mb-4 self-start">{backButton}</div>
       ) : (
@@ -288,10 +287,11 @@ export function FlashcardStudyFinal({
 
       <div className="w-full max-w-2xl flex-grow flex flex-col items-center justify-center perspective-1000">
         <div
-          className="relative group w-full h-[350px] sm:h-[400px] transform-style-preserve-3d transition-transform duration-600 cursor-pointer glow-on-hover"
+          className="relative group w-full h-[450px] sm:h-[500px] transform-style-preserve-3d transition-transform duration-600 cursor-pointer glow-on-hover"
           style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
           onClick={handleFlip}
         >
+          {/* Botão de Editar */}
           <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="ghost"
@@ -308,14 +308,24 @@ export function FlashcardStudyFinal({
             </Button>
           </div>
 
-          <Card className="absolute w-full h-full backface-hidden flex items-center justify-center p-4 sm:p-6 flashcard-enhanced text-center">
-            <div className="w-full flex flex-col items-center justify-center">
-              <EnhancedFlashcardRenderer content={currentFlashcard.front} type={currentFlashcard.type} />
+          {/* FRENTE DO CARD - CENTRALIZADO */}
+          <Card className="absolute w-full h-full backface-hidden flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
+            <div className="w-full h-full flex items-center justify-center text-center">
+              <EnhancedFlashcardRenderer 
+                content={currentFlashcard.front} 
+                type={currentFlashcard.type} 
+              />
             </div>
           </Card>
-          <Card className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center p-4 sm:p-6 flashcard-enhanced text-center">
-            <div className="w-full flex flex-col items-center justify-center">
-              <EnhancedFlashcardRenderer content={currentFlashcard.back} type={currentFlashcard.type} isAnswer />
+
+          {/* VERSO DO CARD - CENTRALIZADO */}
+          <Card className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
+            <div className="w-full h-full flex items-center justify-center text-center">
+              <EnhancedFlashcardRenderer 
+                content={currentFlashcard.back} 
+                type={currentFlashcard.type} 
+                isAnswer 
+              />
             </div>
           </Card>
         </div>

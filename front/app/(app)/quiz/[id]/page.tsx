@@ -90,9 +90,7 @@ export default function QuizPage() {
             setIsChecking(false);
         }
     };
-
-    // --- CORREÇÃO APLICADA AQUI ---
-    // A função foi marcada como 'async' para que o 'await' funcione corretamente.
+    
     const handleNextQuestion = async () => {
         if (currentQuestionIndex < questions.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
@@ -100,10 +98,8 @@ export default function QuizPage() {
             setAnswerStatus('unanswered');
             setFeedback(null);
         } else {
-            // Fim do quiz
             const finalScore = (correctAnswersCount / questions.length) * 100;
 
-            // Submete o resultado para o backend
             if (document?.quiz?.id) {
                 try {
                     await apiClient.submitQuizResult(
@@ -168,7 +164,8 @@ export default function QuizPage() {
                     </Card>
                     <div className="flex gap-4 mt-8">
                         <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
-                        <Button variant="outline" asChild><Link href={`/deck/${documentId}`}>Voltar ao Deck</Link></Button>
+                        {/* ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼ */}
+                        <Button variant="outline" onClick={() => router.back()}>Voltar ao Deck</Button>
                     </div>
                 </div>
             </>
@@ -180,11 +177,11 @@ export default function QuizPage() {
             <div className="max-w-4xl mx-auto">
                 <header className="relative mb-6 animate-in fade-in-50 slide-in-from-top-4 duration-500">
                     <div className="flex items-center justify-between mb-4">
-                        <Button variant="ghost" size="sm" asChild className="hover:bg-accent/50">
-                            <Link href={`/deck/${documentId}`}>
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Sair
-                            </Link>
+                        {/* ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼ */}
+                        <Button variant="ghost" size="sm" onClick={() => router.back()} className="hover:bg-accent/50">
+                            <ArrowLeft className="w-4 h-4 mr-2" /> Sair
                         </Button>
+                        {/* ▲▲▲ FIM DA CORREÇÃO ▲▲▲ */}
                         
                         <div className="text-center flex-1 mx-4">
                              <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
