@@ -12,14 +12,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import FlashcardLoader from "@/components/flashcard-loader";
+// Corrigido: O nome do importado pode ser o que quisermos, mas apontando para o ficheiro correto
+import ContentLoader from "@/components/content-loader"; 
 import {
   Loader2,
   ArrowLeft,
   UploadCloud,
   FileText,
   Sparkles,
-  Settings2, // Ícone atualizado
+  Settings2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -28,7 +29,6 @@ type WizardData = {
   inputType: "text" | "upload";
   text: string;
   file: File | null;
-  // --- CAMPOS ATUALIZADOS E NOVOS ---
   contentType: "flashcards" | "quiz" | "both";
   num_flashcards: number;
   difficulty: string;
@@ -37,13 +37,13 @@ type WizardData = {
 
 interface CreationWizardProps {
   onCreationSuccess: () => void;
-  folderId?: number; // Prop para receber o ID da pasta
+  folderId?: number;
 }
 
 const steps = [
   { id: 1, name: "Nome", icon: Sparkles },
   { id: 2, name: "Conteúdo", icon: FileText },
-  { id: 3, name: "Customizar", icon: Settings2 }, // Passo atualizado
+  { id: 3, name: "Customizar", icon: Settings2 },
 ];
 
 export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardProps) {
@@ -58,7 +58,6 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     inputType: "text",
     text: "",
     file: null,
-    // --- VALORES INICIAIS PARA AS NOVAS OPÇÕES ---
     contentType: "flashcards",
     num_flashcards: 10,
     difficulty: "Médio",
@@ -76,7 +75,6 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
       if (document.status === 'COMPLETED') {
         if (intervalRef.current) clearInterval(intervalRef.current);
         setIsProcessing(false);
-        // Mensagem de sucesso dinâmica
         const createdItems = [];
         if (data.contentType === 'flashcards' || data.contentType === 'both') {
             createdItems.push('Flashcards');
@@ -117,19 +115,25 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     setIsSubmitting(true);
     try {
       let document: Document;
-      const params = {
+      
+      const generates_flashcards = data.contentType === 'flashcards' || data.contentType === 'both';
+      const generates_quizzes = data.contentType === 'quiz' || data.contentType === 'both';
+
+      const baseParams = {
         title: data.name,
         folderId: folderId,
-        contentType: data.contentType,
         num_flashcards: data.num_flashcards,
         difficulty: data.difficulty,
         num_questions: data.num_questions,
+        contentType: data.contentType, 
+        generates_flashcards,
+        generates_quizzes,
       };
 
       if (data.inputType === 'upload' && data.file) {
-        document = await apiClient.uploadDocument({ ...params, file: data.file });
+        document = await apiClient.uploadDocument({ ...baseParams, file: data.file });
       } else {
-        document = await apiClient.createDocumentFromText({ ...params, text: data.text });
+        document = await apiClient.createDocumentFromText({ ...baseParams, text: data.text });
       }
 
       setIsSubmitting(false);
@@ -164,7 +168,12 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
       return (
         <div className="animate-in fade-in-50 duration-500">
           <CardContent className="flex justify-center items-center py-12">
-            <FlashcardLoader currentStepMessage={processingDocument?.current_step} />
+            {/* ▼▼▼ ALTERAÇÃO CRUCIAL AQUI ▼▼▼ */}
+            <ContentLoader 
+              currentStepMessage={processingDocument?.current_step}
+              generatesFlashcards={processingDocument?.generates_flashcards ?? false}
+              generatesQuizzes={processingDocument?.generates_quizzes ?? false}
+            />
           </CardContent>
         </div>
       );
