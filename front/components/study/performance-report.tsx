@@ -36,9 +36,7 @@ export function PerformanceReportResponsive({
   return (
     <div className="min-h-screen bg-background p-4 pt-4 md:pt-8">
       <div className="max-w-4xl mx-auto">
-        {/* Card principal do relatório */}
         <Card className="p-6 md:p-8 lg:p-12 glow-on-hover mt-4 md:mt-8">
-          {/* Header integrado com botão de voltar e contador */}
           <div className="flex items-center justify-between mb-6 md:mb-8">
             <Button
               onClick={onBack}
@@ -53,20 +51,17 @@ export function PerformanceReportResponsive({
               {totalCards} / {totalCards}
             </div>
             
-            <div className="w-10 h-10"></div> {/* Spacer para centralizar */}
+            <div className="w-10 h-10"></div> 
           </div>
 
-          {/* Layout melhorado - ícone centralizado acima da frase motivacional */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
             
-            {/* Coluna esquerda - Cabeçalho motivacional com ícone centralizado acima */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
               className="text-center lg:col-span-1 flex flex-col items-center"
             >
-              {/* Ícone decorativo - centralizado acima do texto */}
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
@@ -79,24 +74,20 @@ export function PerformanceReportResponsive({
                 className="mb-6 flex justify-center"
               >
                 <div className="relative inline-flex items-center justify-center">
-                  {/* Elementos decorativos usando cores do sistema */}
                   <div className="absolute -top-2 -right-2 w-4 h-4 bg-secondary rounded-full opacity-80"></div>
                   <div className="absolute -bottom-1 -left-3 w-3 h-3 bg-primary rounded-full opacity-60"></div>
                   <div className="absolute top-3 -left-2 w-2 h-2 bg-secondary rounded-full opacity-70"></div>
                   <div className="absolute -top-1 left-4 w-2 h-2 bg-primary rounded-full opacity-80"></div>
                   
-                  {/* Ícone principal com cor primária - tamanho maior para desktop */}
                   <div className="bg-primary p-4 lg:p-5 rounded-2xl shadow-lg relative z-10">
                     <span className="text-2xl lg:text-3xl">{message.emoji}</span>
                   </div>
                   
-                  {/* Elementos decorativos adicionais */}
                   <div className="absolute -bottom-2 right-1 w-3 h-3 bg-secondary rounded-full opacity-60"></div>
                   <div className="absolute top-1 right-3 w-2 h-2 bg-primary rounded-full opacity-70"></div>
                 </div>
               </motion.div>
 
-              {/* Título principal - centralizado */}
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -106,7 +97,6 @@ export function PerformanceReportResponsive({
                 {message.title}
               </motion.h1>
 
-              {/* Subtítulo - centralizado */}
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -117,7 +107,6 @@ export function PerformanceReportResponsive({
               </motion.p>
             </motion.div>
 
-            {/* Coluna central - Progresso circular */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -140,14 +129,12 @@ export function PerformanceReportResponsive({
               </div>
             </motion.div>
 
-            {/* Coluna direita - Estatísticas e ações */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
               className="flex flex-col items-center lg:col-span-1"
             >
-              {/* Estatísticas */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -168,14 +155,12 @@ export function PerformanceReportResponsive({
                 />
               </motion.div>
 
-              {/* Botões de ação - organizados verticalmente */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.0 }}
                 className="flex flex-col gap-4 w-full max-w-xs"
               >
-                {/* Botão de revisar cards (se disponível) */}
                 {recommendations.showReviewOption && (
                   <Button
                     onClick={onContinueReview}
@@ -187,7 +172,6 @@ export function PerformanceReportResponsive({
                   </Button>
                 )}
 
-                {/* Link de reiniciar */}
                 <button
                   onClick={onRestart}
                   className="text-muted-foreground hover:text-foreground text-sm underline transition-colors duration-200 flex items-center justify-center gap-1 py-2"

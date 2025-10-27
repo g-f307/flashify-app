@@ -1,5 +1,3 @@
-// front/components/documents/recent-document-card.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -38,7 +36,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
   const handleStartStudy = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onSelect) {
-      showLoading("A preparar o seu deck...", false);
+      showLoading("Preparando seu deck...", false);
     }
   };
 
@@ -68,22 +66,19 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
             if (onSelect) onSelect();
         }} className="h-full block">
           <Card
-            className={`group relative w-full h-full flex flex-col p-5 border-2 transition-all duration-300 ease-out overflow-hidden
+            className={`group relative w-full h-full flex flex-col p-5 border border-transparent transition-all duration-300 ease-out overflow-hidden 
               ${isClickable 
                 ? "cursor-pointer hover:border-[#48cfea] hover:shadow-xl hover:shadow-[#48cfea]/20 hover:-translate-y-1.5 hover:bg-gradient-to-br hover:from-[#48cfea]/[0.03] hover:to-transparent" 
                 : "cursor-default bg-muted/30 border-muted"
               }
             `}
           >
-            {/* Efeito de brilho sutil no hover - gradiente azul/amarelo */}
             {isClickable && (
               <div className="absolute inset-0 bg-gradient-to-br from-[#48cfea]/8 via-[#FACC15]/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             )}
 
-            {/* === CABEÇALHO === */}
             <div className="relative flex items-start justify-between gap-3 mb-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                {/* Ícone com background em azul */}
                 <div className={`flex-shrink-0 p-2 rounded-lg transition-all duration-300 ${
                   isClickable 
                     ? "bg-[#48cfea]/20 text-[#48cfea] group-hover:bg-[#48cfea] group-hover:text-white group-hover:scale-110" 
@@ -92,7 +87,6 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                   <BookOpen className="w-4 h-4" />
                 </div>
                 
-                {/* Título com melhor tipografia */}
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-bold leading-tight line-clamp-2 text-foreground/90 group-hover:text-foreground transition-colors" title={displayName}>
                     {displayName}
@@ -100,7 +94,6 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                 </div>
               </div>
               
-              {/* Menu com estilo melhorado */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
@@ -131,14 +124,12 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               </DropdownMenu>
             </div>
 
-            {/* === CORPO === */}
             <div className="relative flex-grow flex flex-col justify-between min-h-[80px] space-y-4">
-              {/* Status do processamento com azul da marca */}
               {document.status === 'PROCESSING' && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#48cfea]/10 border border-[#48cfea]/30">
                   <Loader2 className="w-4 h-4 text-[#48cfea] animate-spin flex-shrink-0" />
                   <span className="text-sm font-medium text-[#48cfea] truncate">
-                    {document.current_step || 'A processar...'}
+                    {document.current_step || 'Processando...'}
                   </span>
                 </div>
               )}
@@ -154,13 +145,11 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               
               {document.status === 'COMPLETED' && (
                 <div className="space-y-3">
-                  {/* Data de criação com estilo melhorado */}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <CalendarDays className="w-3.5 h-3.5 opacity-60" />
                     <span className="font-medium">Criado <TimeAgo date={document.created_at} /></span>
                   </div>
                   
-                  {/* Badges com as cores da marca - AMARELO para flashcards e quiz */}
                   <div className="flex flex-wrap items-center gap-2">
                     {document.total_flashcards > 0 && (
                       <Badge 
@@ -185,10 +174,9 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               )}
             </div>
             
-            {/* === RODAPÉ === */}
-            <div className="relative mt-4 pt-4 border-t border-border/50">
+            <div className="relative mt-4 pt-4 border-t border-muted">
               <Button 
-                className={`w-full font-semibold transition-all duration-300 ${
+                className={`w-full transition-all duration-300 ${
                   isClickable 
                     ? "bg-[#48cfea] hover:bg-[#48cfea]/90 text-black shadow-md hover:shadow-lg hover:shadow-[#48cfea]/30 group-hover:scale-[1.02]" 
                     : ""
@@ -200,7 +188,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                 {document.status === 'PROCESSING' ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin"/> 
-                    A processar
+                    Processando
                   </>
                 ) : (
                   <>
