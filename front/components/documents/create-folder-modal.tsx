@@ -1,4 +1,3 @@
-// front/components/documents/create-folder-modal.tsx
 "use client";
 
 import { useState } from "react";

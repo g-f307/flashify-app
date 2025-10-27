@@ -22,7 +22,6 @@ export function FolderCard({ folder, onRename, onDelete }: FolderCardProps) {
 
   return (
     <div className="relative group h-full">
-      {/* Menu de Opções */}
       <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -43,9 +42,8 @@ export function FolderCard({ folder, onRename, onDelete }: FolderCardProps) {
         </DropdownMenu>
       </div>
 
-      {/* Link do Card */}
       <Link href={`/library/folder/${folder.id}`} legacyBehavior>
-        <a className="block p-4 bg-card rounded-lg border shadow-sm hover:shadow-md transition-shadow duration-200 h-full">
+      <a className="block p-4 bg-card rounded-lg border-0 dark:border-0 shadow-none dark:shadow-none hover:shadow-md transition-shadow duration-200 h-full">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Folder className="w-8 h-8 text-yellow-500" />

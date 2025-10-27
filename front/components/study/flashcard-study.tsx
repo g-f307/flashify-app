@@ -1,5 +1,3 @@
-// front/components/study/flashcard-study.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -147,7 +145,6 @@ export function FlashcardStudyFinal({
       };
       setStudySessions(prev => [...prev, newSession]);
       await apiClient.logStudyForFlashcard(currentFlashcard.id, accuracy);
-      toast.success("Progresso guardado!");
       goToNextCard();
     } catch (error) {
       toast.error("Não foi possível guardar o seu progresso. Tente novamente.");
@@ -281,7 +278,7 @@ export function FlashcardStudyFinal({
       ) : (
         <Button onClick={onBack} variant="ghost" className="mb-4 self-start">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar para a Biblioteca
+          Voltar para Biblioteca
         </Button>
       )}
 
@@ -291,7 +288,6 @@ export function FlashcardStudyFinal({
           style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
           onClick={handleFlip}
         >
-          {/* Botão de Editar */}
           <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="ghost"
@@ -308,7 +304,6 @@ export function FlashcardStudyFinal({
             </Button>
           </div>
 
-          {/* FRENTE DO CARD - CENTRALIZADO */}
           <Card className="absolute w-full h-full backface-hidden flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
             <div className="w-full h-full flex items-center justify-center text-center">
               <EnhancedFlashcardRenderer 
@@ -318,7 +313,6 @@ export function FlashcardStudyFinal({
             </div>
           </Card>
 
-          {/* VERSO DO CARD - CENTRALIZADO */}
           <Card className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
             <div className="w-full h-full flex items-center justify-center text-center">
               <EnhancedFlashcardRenderer 

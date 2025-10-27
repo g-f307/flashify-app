@@ -75,8 +75,6 @@ export default function FolderPage() {
     fetchFolderData();
   }, [folderId]);
 
-  // A função handleDocumentSelect foi REMOVIDA pois não é mais necessária.
-
   const handleNewUploadInFolder = () => {
     router.push(`/create?folderId=${folderId}`);
   };
@@ -143,7 +141,6 @@ export default function FolderPage() {
         
         <DocumentList
           documents={paginatedDocuments}
-          // A propriedade onDocumentSelect foi REMOVIDA
           onNewUpload={handleNewUploadInFolder}
           onUpdate={fetchFolderData}
           isInsideFolder

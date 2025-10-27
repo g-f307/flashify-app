@@ -7,12 +7,9 @@ export default function CreatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Lê o folderId da URL. Ex: /create?folderId=123
   const folderId = searchParams.get("folderId");
 
   const handleCreationSuccess = () => {
-    // Se o deck foi criado dentro de uma pasta, volta para essa pasta.
-    // Caso contrário, volta para a biblioteca principal.
     if (folderId) {
       router.push(`/library/folder/${folderId}`);
     } else {
@@ -33,7 +30,6 @@ export default function CreatePage() {
       
       <CreationWizard
         onCreationSuccess={handleCreationSuccess}
-        // Converte o folderId de string para número antes de passar
         folderId={folderId ? parseInt(folderId, 10) : undefined}
       />
     </div>

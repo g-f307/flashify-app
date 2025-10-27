@@ -1,4 +1,3 @@
-// front/components/documents/move-to-folder-modal.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -21,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils"; // Importe o cn
+import { cn } from "@/lib/utils"; 
 
 interface MoveToFolderModalProps {
   doc: Document | null;
@@ -106,7 +105,6 @@ export function MoveToFolderModal({ doc, isOpen, onClose, onSuccess }: MoveToFol
             </Select>
           )}
         </div>
-        {/* ▼▼▼ ALTERAÇÃO AQUI ▼▼▼ */}
         <DialogFooter className="gap-2 sm:gap-0">
           <Button type="button" variant="secondary" onClick={onClose} disabled={isMoving}>
             Cancelar

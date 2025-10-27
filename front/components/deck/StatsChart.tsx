@@ -1,11 +1,8 @@
-// front/components/deck/StatsChart.tsx
-
 "use client";
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { useTheme } from "next-themes";
 
-// Adicionamos a propriedade 'fill' para a cor da barra
 interface ChartData {
   name: string;
   value: number;
@@ -49,7 +46,6 @@ export function StatsChart({ data }: StatsChartProps) {
                     }}
                 />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {/* Itera sobre os dados para aplicar a cor específica de cada barra */}
                     {data.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}

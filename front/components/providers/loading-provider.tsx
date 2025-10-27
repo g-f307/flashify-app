@@ -33,12 +33,10 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Verificar se estamos na zona de autenticação
   const isAuthZone = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
 
   const showLoading = useCallback((newMessage?: string, isFullScreen?: boolean) => {
     setMessage(newMessage || 'Carregando...');
-    // Se estamos na zona de autenticação, sempre tela cheia
     setFullScreen(isFullScreen ?? (isAuthZone ? true : false));
     setIsLoading(true);
   }, [isAuthZone]);
@@ -49,26 +47,22 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
 
   const showAuthLoading = useCallback((newMessage: string) => {
     setMessage(newMessage);
-    setFullScreen(true); // Sempre tela cheia para autenticação
+    setFullScreen(true); 
     setIsLoading(true);
   }, []);
 
-  // Interceptar navegação para mostrar loading instantâneo
   useEffect(() => {
     const handleStart = () => {
-      // Se estamos na zona de autenticação, sempre tela cheia
       const shouldBeFullScreen = isAuthZone;
       showLoading('Navegando...', shouldBeFullScreen);
     };
 
     const handleComplete = () => {
-      // Pequeno delay para suavizar a transição
       setTimeout(() => {
         hideLoading();
       }, 200);
     };
 
-    // Interceptar cliques em elementos de navegação
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const link = target.closest('a[href], button[data-navigate]');
@@ -77,7 +71,6 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
         const href = link.getAttribute('href');
         const navigate = link.getAttribute('data-navigate');
         
-        // Verificar se é navegação interna
         if ((href && !href.startsWith('http') && !href.startsWith('#')) || navigate) {
           handleStart();
         }
@@ -91,7 +84,6 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
     };
   }, [showLoading, hideLoading, isAuthZone]);
 
-  // Limpar loading quando a rota muda
   useEffect(() => {
     const timer = setTimeout(() => {
       hideLoading();

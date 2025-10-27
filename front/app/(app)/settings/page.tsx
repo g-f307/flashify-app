@@ -33,7 +33,6 @@ export default function SettingsPage() {
         </p>
       </header>
 
-      {/* 1. Cartão de Perfil Horizontal */}
       <Card>
         <CardHeader>
           <CardTitle>Perfil</CardTitle>
@@ -55,9 +54,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* 2. Grelha para outras configurações */}
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        {/* Cartão de Aparência */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -68,13 +65,11 @@ export default function SettingsPage() {
               Personalize o visual da aplicação.
             </CardDescription>
           </CardHeader>
-          {/* 🔽 ALTERAÇÃO AQUI 🔽 */}
           <CardContent className="flex justify-center">
             <ThemeSelector />
           </CardContent>
         </Card>
 
-        {/* Cartão de Segurança (Condicional) */}
         {user?.provider === 'local' && (
           <Card>
             <CardHeader>
@@ -107,7 +102,6 @@ export default function SettingsPage() {
           </Card>
         )}
 
-        {/* Cartão de Sair */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

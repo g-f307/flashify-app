@@ -1,5 +1,3 @@
-// front/app/(app)/layout.tsx
-
 "use client";
 
 import { useState, ReactNode, useEffect } from "react";
@@ -52,7 +50,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   if (loading || !user) {
     return (
         <LoadingScreen 
-          message="A carregar a sua sessão..." 
+          message="Carregando sua sessão..." 
           fullScreen={true}
         />
     );
@@ -94,12 +92,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             {sidebarItems.map((item) => {
               const Icon = item.icon;
               
-              // ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼
               let isActive = false;
               if (item.href === '/') {
                 isActive = pathname === '/';
               } else if (item.href === '/library') {
-                // Marca como ativo se estiver em qualquer página relacionada à biblioteca
                 isActive = pathname.startsWith('/library') || 
                            pathname.startsWith('/deck/') || 
                            pathname.startsWith('/study/') || 
@@ -107,7 +103,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               } else {
                 isActive = pathname.startsWith(item.href);
               }
-              // ▲▲▲ FIM DA CORREÇÃO ▲▲▲
 
               return (
                 <li key={item.href}>

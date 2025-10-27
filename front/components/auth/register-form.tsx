@@ -14,9 +14,9 @@ import { toast } from "sonner";
 import { GoogleLoginButton } from "./google-login-button";
 
 const formSchema = z.object({
-  username: z.string().min(3, "O nome de utilizador deve ter pelo menos 3 caracteres."),
-  email: z.string().email("Por favor, insira um email válido."),
-  password: z.string().min(6, "A palavra-passe deve ter pelo menos 6 caracteres."),
+  username: z.string().min(3, "O usuário deve ter pelo menos 3 caracteres."),
+  email: z.string().email("Por favor, insira um e-mail válido."),
+  password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
 });
 
 export default function RegisterForm() {
@@ -37,12 +37,12 @@ export default function RegisterForm() {
         email: values.email,
         password: values.password
       });
-      toast.success("Registo bem-sucedido!", {
-        description: "A redirecionar para a aplicação...",
+      toast.success("Registro bem-sucedido!", {
+        description: "Carregando...",
       });
       router.push("/");
     } catch (error: any) {
-      toast.error("Falha no registo", {
+      toast.error("Falha no registro", {
         description: error.message || "Por favor, verifique os seus dados e tente novamente.",
       });
     } finally {
@@ -59,9 +59,9 @@ export default function RegisterForm() {
                 name="username"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Nome de utilizador</FormLabel>
+                    <FormLabel>Usuário</FormLabel>
                     <FormControl>
-                    <Input placeholder="O seu nome de utilizador" {...field} />
+                    <Input placeholder="O seu usuário" {...field} />
                     </FormControl>
                     <FormMessage />
                 </FormItem>
@@ -72,7 +72,7 @@ export default function RegisterForm() {
                 name="email"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>E-mail</FormLabel>
                     <FormControl>
                     <Input placeholder="seu@email.com" {...field} />
                     </FormControl>

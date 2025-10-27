@@ -8,10 +8,8 @@ import { UploadCloud, Loader2, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface FileUploadProps {
-  // A função onSubmit agora recebe o ficheiro e o título
   onSubmit: (file: File, title: string) => Promise<void>
   isLoading: boolean
-  // Aceita o componente de opções para ser renderizado
   optionsComponent: ReactNode
 }
 
@@ -25,18 +23,17 @@ export function FileUpload({ onSubmit, isLoading, optionsComponent }: FileUpload
 
     const validTypes = ['application/pdf', 'image/jpeg', 'image/png']
     if (!validTypes.includes(selectedFile.type)) {
-      toast.error('Tipo de ficheiro inválido. Apenas PDF, JPEG e PNG são suportados.')
+      toast.error('Tipo de arquivo inválido. Apenas PDF, JPEG e PNG são suportados.')
       return
     }
     setFile(selectedFile)
-    // Preenche o título automaticamente com o nome do ficheiro (sem a extensão)
     setTitle(selectedFile.name.replace(/\.[^/.]+$/, ""))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file) {
-      toast.error('Por favor, selecione um ficheiro.')
+      toast.error('Por favor, selecione um arquivo.')
       return
     }
     if (!title.trim()) {
@@ -61,7 +58,7 @@ export function FileUpload({ onSubmit, isLoading, optionsComponent }: FileUpload
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="file-input-control">Ficheiro</Label>
+        <Label htmlFor="file-input-control">Arquivo</Label>
         <label
           htmlFor="file-input-control"
           className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors"
@@ -91,14 +88,13 @@ export function FileUpload({ onSubmit, isLoading, optionsComponent }: FileUpload
         </label>
       </div>
 
-      {/* Renderiza as opções de geração passadas pelo wizard */}
       {optionsComponent}
 
       <Button type="submit" className="w-full !mt-6" disabled={isLoading || !file}>
         {isLoading ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            A processar...
+            Processando...
           </>
         ) : (
           'Criar Deck'

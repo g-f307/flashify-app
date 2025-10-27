@@ -44,7 +44,7 @@ export default function LibraryPage() {
       const data = await apiClient.getLibraryData();
       setLibraryData(data);
     } catch (error) {
-      toast.error("Não foi possível carregar a sua biblioteca.");
+      toast.error("Não foi possível carregar a biblioteca.");
     } finally {
       setLoading(false);
     }
@@ -98,7 +98,7 @@ export default function LibraryPage() {
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl lg:text-3xl font-bold text-foreground">A Minha Biblioteca</h2>
+              <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Minha Biblioteca</h2>
               <p className="text-muted-foreground mt-1">Organize os seus estudos em pastas e decks.</p>
             </div>
             <div className="flex items-center gap-2">
@@ -139,7 +139,6 @@ export default function LibraryPage() {
               <h3 className="text-xl font-semibold tracking-tight mb-4">Decks na Biblioteca</h3>
               <DocumentList
                 documents={paginatedRootDocuments}
-                // A propriedade onDocumentSelect foi REMOVIDA
                 onNewUpload={handleNewUpload}
                 onUpdate={fetchLibraryData}
               />
@@ -179,7 +178,7 @@ export default function LibraryPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir a pasta "{folderToDelete?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir pasta "{folderToDelete?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
               Os decks dentro desta pasta não serão apagados, mas movidos para a biblioteca principal. Se desejar apagar os decks permanentemente, selecione a opção abaixo.
             </AlertDialogDescription>

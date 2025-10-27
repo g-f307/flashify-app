@@ -9,10 +9,8 @@ import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface TextInputProps {
-  // A função onSubmit agora recebe os dados e lida com a lógica de API
   onSubmit: (text: string, title: string, folderId?: number) => Promise<void>
   isLoading: boolean
-  // Aceita o componente de opções para ser renderizado
   optionsComponent: ReactNode
 }
 
@@ -33,7 +31,6 @@ export function TextInput({ onSubmit, isLoading, optionsComponent }: TextInputPr
       return
     }
 
-    // Chama a função passada pelo componente pai (CreationWizard)
     await onSubmit(text, title)
   }
 
@@ -54,7 +51,7 @@ export function TextInput({ onSubmit, isLoading, optionsComponent }: TextInputPr
         <Label htmlFor="content">Conteúdo</Label>
         <Textarea
           id="content"
-          placeholder="Cole aqui o texto que você quer transformar em material de estudo..."
+          placeholder="Cole aqui o tópico, texto ou resumo que você quer transformar em material de estudo..."
           className="min-h-[200px]"
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -63,7 +60,6 @@ export function TextInput({ onSubmit, isLoading, optionsComponent }: TextInputPr
         />
       </div>
 
-      {/* Renderiza as opções de geração (sliders, toggles) passadas pelo wizard */}
       {optionsComponent}
 
       <Button 
@@ -74,7 +70,7 @@ export function TextInput({ onSubmit, isLoading, optionsComponent }: TextInputPr
         {isLoading ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            A processar...
+            Processando...
           </>
         ) : (
           'Criar Deck'

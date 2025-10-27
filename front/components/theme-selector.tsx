@@ -13,7 +13,6 @@ export function ThemeSelector() {
         variant={theme === 'light' ? 'default' : 'outline'}
         size="sm"
         onClick={() => setTheme("light")}
-        // 🔽 A classe 'w-full' foi removida daqui 🔽
       >
         <Sun className="mr-2 h-4 w-4" />
         Claro
@@ -22,7 +21,6 @@ export function ThemeSelector() {
         variant={theme === 'dark' ? 'default' : 'outline'}
         size="sm"
         onClick={() => setTheme("dark")}
-        // 🔽 E daqui 🔽
       >
         <Moon className="mr-2 h-4 w-4" />
         Escuro

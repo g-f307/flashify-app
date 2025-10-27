@@ -1,5 +1,3 @@
-// front/components/documents/review-deck-card.tsx
-
 "use client";
 
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -15,7 +13,7 @@ export function ReviewDeckCard({ reviewCount, onClick }: ReviewDeckCardProps) {
   const { showLoading } = useLoading();
 
   if (reviewCount === 0) {
-    return null; // Não mostra o cartão se não houver nada para rever
+    return null; 
   }
 
   const handleStartReview = () => {

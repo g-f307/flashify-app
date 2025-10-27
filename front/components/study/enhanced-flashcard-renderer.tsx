@@ -19,7 +19,6 @@ export function EnhancedFlashcardRenderer({
 
   useEffect(() => {
     if (contentRef.current && type === 'diagram' && isAnswer) {
-      // Simple Mermaid rendering without external dependencies
       const mermaidBlocks = contentRef.current.querySelectorAll('code.language-mermaid, .mermaid')
       mermaidBlocks.forEach((block) => {
         const code = block.textContent || ''
@@ -75,7 +74,6 @@ export function EnhancedFlashcardRenderer({
     }
   }
 
-  // Simple markdown-like rendering
   const renderContent = (text: string) => {
     const lines = text.split('\n')
     const elements: JSX.Element[] = []
@@ -85,10 +83,8 @@ export function EnhancedFlashcardRenderer({
     let key = 0
 
     for (const line of lines) {
-      // Code block detection
       if (line.startsWith('```')) {
         if (inCodeBlock) {
-          // End code block
           elements.push(
             <div key={key++} className="my-4">
               <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto">
@@ -101,7 +97,6 @@ export function EnhancedFlashcardRenderer({
           inCodeBlock = false
           codeLanguage = ''
         } else {
-          // Start code block
           codeLanguage = line.replace('```', '').trim()
           inCodeBlock = true
         }
@@ -113,7 +108,6 @@ export function EnhancedFlashcardRenderer({
         continue
       }
 
-      // Regular text processing
       if (line.trim() === '') {
         elements.push(<br key={key++} />)
       } else if (line.startsWith('# ')) {
@@ -129,7 +123,6 @@ export function EnhancedFlashcardRenderer({
           </blockquote>
         )
       } else {
-        // Regular paragraph with inline code handling
         const processedLine = line.replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm">$1</code>')
         elements.push(
           <p key={key++} className="mb-2 leading-relaxed" dangerouslySetInnerHTML={{__html: processedLine}} />
@@ -142,7 +135,6 @@ export function EnhancedFlashcardRenderer({
 
   return (
     <div className="space-y-3">
-      {/* Type Badge */}
       <div className="flex justify-center">
         <Badge variant="outline" className={`flex items-center gap-1 text-xs ${getTypeColor()}`}>
           {getTypeIcon()}
@@ -150,7 +142,6 @@ export function EnhancedFlashcardRenderer({
         </Badge>
       </div>
 
-      {/* Content */}
       <div ref={contentRef} className="text-left md:text-left text-center space-y-2 overflow-y-auto max-h-full">
         {renderContent(content)}
       </div>

@@ -58,7 +58,6 @@ export function FlashcardChat({ flashcard, onClose }: FlashcardChatProps) {
     try {
       const response = await apiClient.chatWithFlashcard(flashcard.id, userMessage)
       
-      // Adiciona a nova conversa localmente
       const newConversation: FlashcardConversation = {
         id: response.conversation_id,
         user_message: userMessage,
@@ -70,19 +69,16 @@ export function FlashcardChat({ flashcard, onClose }: FlashcardChatProps) {
       setConversations(prev => [...prev, newConversation])
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error)
-      // Você pode adicionar um toast de erro aqui
     } finally {
       setIsLoading(false)
     }
   }
 
   const formatMessage = (text: string) => {
-    // Detectar e formatar código
     if (text.includes("```")) {
       const parts = text.split(/```(\w+)?\n?/)
       return parts.map((part, index) => {
         if (index % 2 === 1) {
-          // É código
           return (
             <pre key={index} className="bg-muted p-3 rounded-md my-2 overflow-x-auto">
               <code className="text-sm">{part}</code>
@@ -129,7 +125,6 @@ export function FlashcardChat({ flashcard, onClose }: FlashcardChatProps) {
         </Button>
       </CardHeader>
 
-      {/* Contexto do Flashcard */}
       <div className="px-4 py-3 bg-muted/50 border-b">
         <div className="text-xs text-muted-foreground mb-1">FLASHCARD</div>
         <div className="text-sm font-medium">{flashcard.front}</div>
@@ -138,7 +133,6 @@ export function FlashcardChat({ flashcard, onClose }: FlashcardChatProps) {
       </div>
 
       <CardContent className="p-0">
-        {/* Área de Mensagens */}
         <ScrollArea className="h-96 px-4">
           <div className="py-4 space-y-4">
             {conversations.length === 0 && !isLoading && (
@@ -151,14 +145,12 @@ export function FlashcardChat({ flashcard, onClose }: FlashcardChatProps) {
             
             {conversations.map((conv) => (
               <div key={conv.id} className="space-y-3">
-                {/* Mensagem do Usuário */}
                 <div className="flex justify-end">
                   <div className="max-w-[85%] bg-lime-accent dark:bg-primary text-lime-accent-foreground dark:text-primary-foreground px-3 py-2 rounded-lg rounded-br-md">
                     <div className="text-sm">{formatMessage(conv.user_message)}</div>
                   </div>
                 </div>
                 
-                {/* Resposta do Assistente */}
                 <div className="flex justify-start">
                   <div className="max-w-[85%] bg-muted px-3 py-2 rounded-lg rounded-bl-md">
                     <div className="text-sm">{formatMessage(conv.assistant_response)}</div>
@@ -181,7 +173,6 @@ export function FlashcardChat({ flashcard, onClose }: FlashcardChatProps) {
           <div ref={messagesEndRef} />
         </ScrollArea>
 
-        {/* Input de Mensagem */}
         <div className="border-t p-4">
           <form onSubmit={handleSendMessage} className="flex gap-2">
             <Input

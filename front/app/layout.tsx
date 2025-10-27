@@ -1,18 +1,14 @@
-"use client"; // Necessário para provedores de contexto que usam hooks
+"use client"; 
 
 import type React from "react";
 import type { Metadata } from "next";
-import "./globals.css"; // Importe o globals.css da pasta app
+import "./globals.css"; 
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { LoadingProvider } from "@/components/providers/loading-provider";
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { Toaster } from "@/components/ui/sonner"; // Importe o Toaster
+import { Toaster } from "@/components/ui/sonner"; 
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
-
-
-// A exportação de metadados deve ser feita separadamente quando "use client" é usado
-// export const metadata: Metadata = { ... };
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
@@ -35,7 +31,7 @@ export default function RootLayout({
             <LoadingProvider>
               <AuthProvider>
                 {children}
-                <Toaster /> {/* Adicione o Toaster para notificações globais */}
+                <Toaster /> 
               </AuthProvider>
             </LoadingProvider>
           </ThemeProvider>

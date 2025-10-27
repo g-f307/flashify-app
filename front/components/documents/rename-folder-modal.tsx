@@ -1,4 +1,3 @@
-// front/components/documents/rename-folder-modal.tsx
 "use client";
 
 import { useState, useEffect } from "react";

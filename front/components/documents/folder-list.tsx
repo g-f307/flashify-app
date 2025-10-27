@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 
 interface FolderListProps {
   folders: FolderWithDocuments[];
-  // A propriedade onDocumentSelect foi REMOVIDA daqui
   onUpdate: () => void;
 }
 
@@ -36,7 +35,6 @@ export function FolderList({ folders, onUpdate }: FolderListProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   <DocumentList
                     documents={folder.documents}
-                    // A propriedade onDocumentSelect foi REMOVIDA daqui
                     onUpdate={onUpdate}
                     onNewUpload={() => {}}
                     isInsideFolder

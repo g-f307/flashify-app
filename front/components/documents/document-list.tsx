@@ -1,5 +1,3 @@
-// front/components/documents/document-list.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -20,7 +18,7 @@ import {
 import { toast } from "sonner";
 import { RecentDocumentCard } from "./recent-document-card";
 import { formatDocumentTitle } from "@/lib/utils";
-import { useRouter } from "next/navigation"; // Importar o useRouter
+import { useRouter } from "next/navigation";
 
 interface DocumentListProps {
   documents?: Document[];
@@ -39,12 +37,12 @@ export function DocumentList({
   isLoading = false,
   error = null,
 }: DocumentListProps) {
-  const router = useRouter(); // Inicializar o router
+  const router = useRouter(); 
   const [docToDelete, setDocToDelete] = useState<Document | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDocumentSelect = (doc: Document) => {
-    router.push(`/deck/${doc.id}`); // ATUALIZADO: Redireciona para o dashboard do deck
+    router.push(`/deck/${doc.id}`); 
   };
 
   const handleDeleteConfirm = async () => {
@@ -92,8 +90,8 @@ export function DocumentList({
     return (
       <div className="text-center py-16 border-2 border-dashed rounded-lg">
         <FileText className="w-12 h-12 mx-auto text-muted-foreground" />
-        <h3 className="text-lg font-semibold mt-4">A sua biblioteca está vazia</h3>
-        <p className="text-muted-foreground mt-2">Crie o seu primeiro conjunto de flashcards para começar a estudar.</p>
+        <h3 className="text-lg font-semibold mt-4">A biblioteca está vazia</h3>
+        <p className="text-muted-foreground mt-2">Crie seu primeiro deck para começar a estudar.</p>
         <Button onClick={onNewUpload} className="mt-6" variant="default">
           <Plus className="w-4 h-4 mr-2" />
           Criar Novo Deck

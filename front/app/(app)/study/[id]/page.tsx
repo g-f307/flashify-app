@@ -74,7 +74,7 @@ export default function StudyPage() {
     return (
       <div className="flex flex-col items-center justify-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">A carregar a sua sessão de estudo...</p>
+        <p className="mt-4 text-muted-foreground">Carregando flashcards...</p>
       </div>
     );
   }
@@ -85,7 +85,7 @@ export default function StudyPage() {
         <p className="text-red-500 mb-4">{error}</p>
         <Button onClick={() => router.push('/library')}>
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar para a Biblioteca
+          Voltar para Biblioteca
         </Button>
       </div>
     );
@@ -100,16 +100,13 @@ export default function StudyPage() {
         <FlashcardStudyFinal
           document={document}
           initialFlashcards={flashcards}
-          // ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼
-          onBack={() => router.back()} // Ação principal de voltar
+          onBack={() => router.back()} 
           backButton={
-            // O botão visual que o utilizador vê
             <Button variant="ghost" onClick={() => router.back()}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Voltar
             </Button>
           }
-          // ▲▲▲ FIM DA CORREÇÃO ▲▲▲
           flipAudioRef={flipAudioRef}
         />
       )}

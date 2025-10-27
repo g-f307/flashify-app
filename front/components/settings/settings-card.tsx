@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import React from "react";
 
-// Definimos as propriedades que o nosso cartão aceitará
 interface SettingsCardProps {
   icon: React.ReactNode;
   title: string;

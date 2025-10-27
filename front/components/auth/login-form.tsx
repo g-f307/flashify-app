@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { useRouter } from 'next/navigation'
 
 const formSchema = z.object({
-  username: z.string().min(1, { message: 'Por favor, insira o seu email ou utilizador.' }),
+  username: z.string().min(1, { message: 'Por favor, insira o seu e-mail ou usuário.' }),
   password: z.string().min(1, { message: 'Por favor, insira a sua senha.' }),
 })
 
@@ -33,12 +33,12 @@ export default function LoginForm() {
     try {
       await login({ username: values.username, password: values.password })
       toast.success("Login bem-sucedido!", {
-        description: "A redirecionar para a aplicação...",
+        description: "Carregando...",
       });
       router.push('/')
     } catch (err: any) {
       toast.error("Falha no login", {
-        description: err.message || 'Falha no login. Verifique as suas credenciais.',
+        description: err.message || 'Falha no login. Verifique as seus dados.',
       });
     } finally {
       setIsLoading(false)
@@ -54,7 +54,7 @@ export default function LoginForm() {
             name="username"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email ou Nome de Utilizador</FormLabel>
+                <FormLabel>E-mail ou Usuário</FormLabel>
                 <FormControl>
                   <Input placeholder="email@exemplo.com" {...field} disabled={isLoading} autoComplete="username" />
                 </FormControl>

@@ -1,5 +1,3 @@
-// front/app/(app)/page.tsx
-
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -74,7 +72,6 @@ export default function HomePage() {
           <p className="text-muted-foreground mt-1">Transforme qualquer conteúdo em material de estudo inteligente.</p>
         </div>
         <div className="max-w-5xl mx-auto">
-          {/* ▼▼▼ ALTERAÇÕES APLICADAS AQUI ▼▼▼ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <InfoCard
               illustration={<FileUp className="h-10 w-10 text-primary" />}

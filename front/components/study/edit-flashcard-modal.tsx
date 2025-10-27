@@ -38,7 +38,6 @@ export function EditFlashcardModal({ flashcard, isOpen, onClose, onUpdate }: Edi
   const handleSave = async () => {
     if (!flashcard) return;
 
-    // Verifica se houve alguma alteração
     if (front.trim() === flashcard.front && back.trim() === flashcard.back) {
         toast.info("Nenhuma alteração foi feita.");
         onClose();
@@ -49,7 +48,7 @@ export function EditFlashcardModal({ flashcard, isOpen, onClose, onUpdate }: Edi
     try {
       const updatedFlashcard = await apiClient.updateFlashcard(flashcard.id, { front, back });
       toast.success("Flashcard atualizado com sucesso!");
-      onUpdate(updatedFlashcard); // Atualiza o estado no componente pai
+      onUpdate(updatedFlashcard); 
       onClose();
     } catch (error: any) {
       toast.error("Falha ao atualizar", { description: error.message });
@@ -66,16 +65,13 @@ export function EditFlashcardModal({ flashcard, isOpen, onClose, onUpdate }: Edi
         <DialogHeader>
           <DialogTitle>Editar Flashcard</DialogTitle>
         </DialogHeader>
-        {/* ▼▼▼ ALTERAÇÃO PRINCIPAL AQUI ▼▼▼ */}
         <div className="grid gap-4 py-4">
-          {/* Borda em volta do campo "Frente" */}
           <div className="grid grid-cols-4 items-start gap-4 border p-4 rounded-md">
             <Label htmlFor="front" className="text-right pt-2">
               Frente
             </Label>
             <Textarea id="front" value={front} onChange={(e) => setFront(e.target.value)} className="col-span-3 min-h-[100px]" />
           </div>
-          {/* Borda em volta do campo "Verso" */}
           <div className="grid grid-cols-4 items-start gap-4 border p-4 rounded-md">
             <Label htmlFor="back" className="text-right pt-2">
               Verso

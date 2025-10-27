@@ -5,9 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export default function RegisterPage() {
   return (
-    // 🔽 O div principal agora organiza o layout em coluna 🔽
     <div className="flex flex-col items-center gap-6">
-      {/* 1. Logo e Nome da Marca (Fora do Cartão) */}
       <div className="flex items-center justify-center gap-2">
         <Image 
           src="/flashify_logo.svg" 
@@ -21,12 +19,11 @@ export default function RegisterPage() {
         </h1>
       </div>
 
-      {/* 2. Cartão de Ação */}
       <Card className="w-full max-w-sm border-border transition-all duration-300 hover:border-primary hover:shadow-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold tracking-tight">Crie a sua conta</CardTitle>
           <CardDescription>
-            Comece a transformar os seus textos em flashcards hoje mesmo.
+            Comece a estudar de forma mais inteligente e otimizada hoje mesmo.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -36,7 +33,7 @@ export default function RegisterPage() {
           <p className="text-center text-sm text-muted-foreground">
             Já tem uma conta?{" "}
             <Link href="/login" className="font-semibold text-primary hover:underline">
-              Inicie sessão
+              Faça login
             </Link>
           </p>
         </CardFooter>

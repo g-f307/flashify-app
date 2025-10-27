@@ -26,7 +26,7 @@ const formSchema = z.object({
   confirm_password: z.string(),
 }).refine((data) => data.new_password === data.confirm_password, {
   message: "As senhas não coincidem.",
-  path: ["confirm_password"], // Onde mostrar o erro
+  path: ["confirm_password"], 
 });
 
 export function ChangePasswordForm() {
