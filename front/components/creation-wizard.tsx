@@ -20,6 +20,15 @@ import {
   FileText,
   Sparkles,
   Settings2,
+  AlertCircle,
+  Type,
+  FileUp,
+  Layers,
+  BrainCircuit,
+  Combine,
+  Sprout,
+  Leaf,
+  Trees,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -45,12 +54,20 @@ const steps = [
   { id: 3, name: "Customizar", icon: Settings2 },
 ];
 
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const ACCEPTED_FILE_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+const ACCEPTED_FILE_TYPES_STRING = ".pdf, .jpg, .jpeg, .png";
+
 export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardProps) {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingDocument, setProcessingDocument] = useState<Document | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [data, setData] = useState<WizardData>({
     name: "",
@@ -66,6 +83,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   const handleNext = () => setStep((s) => Math.min(s + 1, steps.length));
   const handleBack = () => setStep((s) => Math.max(s - 1, 1));
 
+  // Lógica de monitoramento
   const monitorProcessing = async (documentId: number) => {
     try {
       const document = await apiClient.getDocument(documentId);
@@ -73,7 +91,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
 
       if (document.status === 'COMPLETED') {
         if (intervalRef.current) clearInterval(intervalRef.current);
-        setIsProcessing(false);
+        
         const createdItems = [];
         if (data.contentType === 'flashcards' || data.contentType === 'both') {
             createdItems.push('Flashcards');
@@ -81,13 +99,20 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         if (data.contentType === 'quiz' || data.contentType === 'both') {
             createdItems.push('Quiz');
         }
+        
         toast.success(`Deck "${data.name}" processado!`, {
           description: `${createdItems.join(' e ')} foram gerados com sucesso.`,
+          duration: 4000,
         });
-        onCreationSuccess();
+        
+        redirectTimeoutRef.current = setTimeout(() => {
+          setIsProcessing(false); 
+          onCreationSuccess(); 
+        }, 2000); 
+        
       } else if (document.status === 'FAILED') {
         if (intervalRef.current) clearInterval(intervalRef.current);
-        setIsProcessing(false);
+        setIsProcessing(false); 
         toast.error("Falha ao processar o deck", {
           description: document.current_step || "Houve um erro durante o processamento.",
         });
@@ -103,13 +128,15 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      if (redirectTimeoutRef.current) clearTimeout(redirectTimeoutRef.current);
     };
   }, []);
 
   const handleSubmit = async () => {
     if (!data.name.trim()) return toast.error("Por favor, dê um nome ao seu deck.");
     if (data.inputType === 'text' && !data.text.trim()) return toast.error("O conteúdo de texto não pode estar vazio.");
-    if (data.inputType === 'upload' && !data.file) return toast.error("Por favor, selecione um ficheiro para upload.");
+    if (data.inputType === 'upload' && !data.file) return toast.error("Por favor, selecione um arquivo para upload.");
+    if (fileError) return toast.error(fileError); 
 
     setIsSubmitting(true);
     try {
@@ -148,15 +175,58 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null;
+    setFileError(null); 
+
+    if (!file) return;
+
+    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+      const errorMsg = "Tipo de arquivo inválido. Use PDF, JPG, ou PNG.";
+      setFileError(errorMsg);
+      toast.error(errorMsg);
+      setData({ ...data, file: null }); 
+      e.target.value = ''; 
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const errorMsg = `Ficheiro muito grande. O limite é ${MAX_FILE_SIZE_MB}MB.`;
+      setFileError(errorMsg);
+      toast.error(errorMsg);
+      setData({ ...data, file: null }); 
+      e.target.value = ''; 
+      return;
+    }
+
+    setFileError(null);
+    setData({ ...data, file: file, text: "" });
+  };
+
   const WizardProgress = () => (
     <div className="flex items-center justify-center gap-2 sm:gap-4 p-4">
         {steps.map((s, index) => (
             <div key={s.id} className="flex items-center gap-2">
-                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center transition-all", step > s.id ? "bg-primary text-primary-foreground" : step === s.id ? "bg-primary/20 border-2 border-primary text-primary" : "bg-muted text-muted-foreground")}>
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                  step > s.id ? "bg-primary text-primary-foreground" : 
+                  step === s.id ? "bg-primary/20 border-2 border-primary text-primary" : 
+                  "bg-muted text-muted-foreground"
+                )}>
                     <s.icon className="w-5 h-5" />
                 </div>
-                <span className={cn("font-medium hidden sm:inline", step === s.id ? "text-primary" : "text-muted-foreground")}>{s.name}</span>
-                {index < steps.length - 1 && <div className={cn("h-0.5 w-8 sm:w-12 transition-all", step > s.id ? "bg-primary" : "bg-muted")}/>}
+                <span className={cn(
+                  "font-medium hidden sm:inline transition-colors",
+                  step === s.id ? "text-primary" : "text-muted-foreground"
+                )}>
+                  {s.name}
+                </span>
+                {index < steps.length - 1 && (
+                  <div className={cn(
+                    "h-0.5 w-8 sm:w-12 transition-all",
+                    step > s.id ? "bg-primary" : "bg-muted"
+                  )}/>
+                )}
             </div>
         ))}
     </div>
@@ -167,7 +237,6 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
       return (
         <div className="animate-in fade-in-50 duration-500">
           <CardContent className="flex justify-center items-center py-12">
-            {/* ▼▼▼ ALTERAÇÃO CRUCIAL AQUI ▼▼▼ */}
             <ContentLoader 
               currentStepMessage={processingDocument?.current_step}
               generatesFlashcards={processingDocument?.generates_flashcards ?? false}
@@ -180,84 +249,169 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
 
     return (
       <div key={step} className="animate-in fade-in-50 duration-500">
-        {step > 1 && <Button variant="ghost" size="sm" onClick={handleBack} className="absolute top-4 left-4 z-10"><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Button>}
+        {step > 1 && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleBack} 
+            className="absolute top-4 left-4 z-10"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
+          </Button>
+        )}
+        
         {step === 1 && (
           <CardContent className="text-center pt-12">
-            <Sparkles className="w-12 h-12 mx-auto text-primary mb-4" />
-            <CardTitle>Vamos começar!</CardTitle>
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
+              <Sparkles className="w-8 h-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">Vamos começar!</CardTitle>
             <CardDescription className="mt-2">Dê um nome para o seu novo deck de estudos.</CardDescription>
-            <Input id="set-name" placeholder="Ex: Biologia - Fotossíntese" value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} className="mt-6 max-w-sm mx-auto text-center text-lg" />
-            <Button onClick={handleNext} className="w-full max-w-sm mt-4" disabled={!data.name.trim()}>Próximo</Button>
+            <Input 
+              id="set-name" 
+              placeholder="Ex: Biologia - Fotossíntese" 
+              value={data.name} 
+              onChange={(e) => setData({ ...data, name: e.target.value })} 
+              className="mt-6 max-w-sm mx-auto text-center text-lg"
+            />
+            <Button 
+              onClick={handleNext} 
+              className="w-full max-w-sm mt-4" 
+              disabled={!data.name.trim()}
+            >
+              Próximo
+            </Button>
           </CardContent>
         )}
+        
         {step === 2 && (
           <CardContent>
-            <CardTitle className="text-center">Forneça o Conteúdo</CardTitle>
+            <CardTitle className="text-center text-2xl">Forneça o Conteúdo</CardTitle>
             <CardDescription className="text-center mt-2">Escolha como inserir o seu material de estudo.</CardDescription>
-             <Tabs value={data.inputType} onValueChange={(value) => setData({...data, inputType: value as 'text' | 'upload'})} className="w-full mt-6">
-                <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="text">Digitar Texto</TabsTrigger><TabsTrigger value="upload">Upload de Ficheiro</TabsTrigger></TabsList>
+             <Tabs 
+               value={data.inputType} 
+               onValueChange={(value) => {
+                 setData({...data, inputType: value as 'text' | 'upload'});
+                 setFileError(null); 
+               }} 
+               className="w-full mt-6"
+             >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="text" className="gap-2">
+                    <Type className="w-4 h-4" />
+                    Digitar Texto
+                  </TabsTrigger>
+                  <TabsTrigger value="upload" className="gap-2">
+                    <FileUp className="w-4 h-4" />
+                    Upload de Arquivo
+                  </TabsTrigger>
+                </TabsList>
+                
                 <TabsContent value="text" className="mt-4">
-                    <Textarea id="content" placeholder="Cole aqui o texto..." className="min-h-[250px] mt-2" value={data.text} onChange={(e) => setData({ ...data, text: e.target.value, file: null })} />
+                    <Textarea 
+                      id="content" 
+                      placeholder="Cole aqui o tópico, texto ou resumo do seu material de estudo..." 
+                      className="min-h-[250px] mt-2" 
+                      value={data.text} 
+                      onChange={(e) => {
+                        setData({ ...data, text: e.target.value, file: null });
+                        setFileError(null); 
+                      }} 
+                    />
                 </TabsContent>
+                
                 <TabsContent value="upload" className="mt-4">
-                  <label htmlFor="file-upload" className="mt-2 border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer block">
-                    <UploadCloud className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-sm text-muted-foreground">{data.file ? data.file.name : "Clique ou arraste para enviar (PDF, JPG, PNG)"}</p>
-                    <Input id="file-upload" type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setData({ ...data, file: e.target.files ? e.target.files[0] : null, text: "" })} />
+                  <label 
+                    htmlFor="file-upload" 
+                    className={cn(
+                      "mt-2 border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer block",
+                      fileError 
+                        ? "border-red-500/50 bg-red-500/5 text-red-600"
+                        : "text-muted-foreground hover:border-primary hover:bg-accent"
+                    )}
+                  >
+                    {!data.file && !fileError && <UploadCloud className="w-12 h-12 mx-auto mb-4" />}
+                    {fileError && <AlertCircle className="w-12 h-12 mx-auto mb-4" />}
+                    {data.file && !fileError && <FileText className="w-12 h-12 text-primary mx-auto mb-4" />}
+                    
+                    <p className="text-sm">
+                      {data.file && !fileError ? (
+                        <span className="font-medium text-foreground">✓ {data.file.name}</span>
+                      ) : fileError ? (
+                        <span className="font-medium">{fileError}</span>
+                      ) : (
+                        `Clique ou arraste para enviar (${ACCEPTED_FILE_TYPES_STRING})`
+                      )}
+                    </p>
+                    <Input 
+                      id="file-upload" 
+                      type="file" 
+                      className="hidden" 
+                      accept={ACCEPTED_FILE_TYPES_STRING}
+                      onChange={handleFileChange} 
+                    />
                   </label>
                 </TabsContent>
               </Tabs>
-            <Button onClick={handleNext} className="w-full mt-6" disabled={(data.inputType === 'text' && !data.text.trim()) || (data.inputType === 'upload' && !data.file)}>Próximo</Button>
+            <Button 
+              onClick={handleNext} 
+              className="w-full mt-6" 
+              disabled={
+                fileError ? true :
+                (data.inputType === 'text' && !data.text.trim()) || 
+                (data.inputType === 'upload' && !data.file)
+              }
+            >
+              Próximo
+            </Button>
           </CardContent>
         )}
         
         {step === 3 && (
             <CardContent className="pt-8 pb-8 space-y-6">
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
-                        <Settings2 className="w-8 h-8 text-primary" />
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
+                      <Settings2 className="w-8 h-8 text-primary" />
                     </div>
                     <CardTitle className="text-2xl">Customize a Geração</CardTitle>
                     <CardDescription className="mt-2 text-base">Ajuste as opções de IA para o seu material.</CardDescription>
                 </div>
 
-                {/* Tipo de Conteúdo */}
-                <div className="bg-muted/50 dark:bg-muted/20 rounded-lg p-6 space-y-4 border border-border/50">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary"></div>
-                    <Label className="text-base font-semibold">O que deseja criar?</Label>
-                  </div>
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">O que deseja criar?</Label>
                   <ToggleGroup
                       type="single" value={data.contentType}
                       onValueChange={(value: WizardData['contentType']) => value && setData({ ...data, contentType: value })}
                       className="w-full grid grid-cols-3 gap-2"
                   >
-                      <ToggleGroupItem value="flashcards" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                        Flashcards
+                      <ToggleGroupItem value="flashcards" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                        <Layers className="w-4 h-4" />
+                        <span>Flashcards</span>
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="quiz" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                        Quiz
+                      <ToggleGroupItem value="quiz" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                        <BrainCircuit className="w-4 h-4" />
+                        <span>Quiz</span>
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="both" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                        Ambos
+                      <ToggleGroupItem value="both" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                        <Combine className="w-4 h-4" />
+                        <span>Ambos</span>
                       </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
 
-                {/* Flashcards Settings */}
                 {(data.contentType === 'flashcards' || data.contentType === 'both') && (
-                  <div className="animate-in fade-in-20 duration-300 bg-muted/50 dark:bg-muted/20 rounded-lg p-6 space-y-4 border border-border/50">
+                  <div className="animate-in fade-in-20 duration-300 space-y-3">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-primary"></div>
-                          <Label htmlFor="num-flashcards" className="text-base font-semibold">Número de Flashcards</Label>
-                        </div>
-                        <span className="text-2xl font-bold text-primary">{data.num_flashcards}</span>
+                        <Label htmlFor="num-flashcards" className="text-base font-semibold flex items-center gap-2">
+                          <Layers className="w-5 h-5 text-primary/70" />
+                          Número de Flashcards
+                        </Label>
+                        <span className="text-lg font-bold text-primary">{data.num_flashcards}</span>
                       </div>
                       <Slider 
                         id="num-flashcards" 
                         min={5} 
-                        max={50} 
+                        max={20}
                         step={1} 
                         value={[data.num_flashcards]} 
                         onValueChange={(v) => setData({ ...data, num_flashcards: v[0] })}
@@ -265,25 +419,24 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                       />
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Mínimo: 5</span>
-                        <span>Máximo: 50</span>
+                        <span>Máximo: 20</span>
                       </div>
                   </div>
                 )}
 
-                {/* Quiz Settings */}
                 {(data.contentType === 'quiz' || data.contentType === 'both') && (
-                  <div className="animate-in fade-in-20 duration-300 bg-muted/50 dark:bg-muted/20 rounded-lg p-6 space-y-4 border border-border/50">
+                  <div className="animate-in fade-in-20 duration-300 space-y-3">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-primary"></div>
-                          <Label htmlFor="num-questions" className="text-base font-semibold">Perguntas do Quiz</Label>
-                        </div>
-                        <span className="text-2xl font-bold text-primary">{data.num_questions}</span>
+                        <Label htmlFor="num-questions" className="text-base font-semibold flex items-center gap-2">
+                          <BrainCircuit className="w-5 h-5 text-primary/70" />
+                          Perguntas do Quiz
+                        </Label>
+                        <span className="text-lg font-bold text-primary">{data.num_questions}</span>
                       </div>
                       <Slider 
                         id="num-questions" 
                         min={3} 
-                        max={25} 
+                        max={15}
                         step={1} 
                         value={[data.num_questions]} 
                         onValueChange={(v) => setData({ ...data, num_questions: v[0] })}
@@ -291,45 +444,48 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                       />
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Mínimo: 3</span>
-                        <span>Máximo: 25</span>
+                        <span>Máximo: 15</span>
                       </div>
                   </div>
                 )}
 
-                {/* Dificuldade */}
-                <div className="bg-muted/50 dark:bg-muted/20 rounded-lg p-6 space-y-4 border border-border/50">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary"></div>
-                    <Label className="text-base font-semibold">Nível de Dificuldade</Label>
-                  </div>
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Nível de Dificuldade</Label>
                   <ToggleGroup
                       type="single" value={data.difficulty}
                       onValueChange={(value: string) => value && setData({ ...data, difficulty: value })}
                       className="w-full grid grid-cols-3 gap-2"
                   >
-                      <ToggleGroupItem value="Fácil" className="data-[state=on]:bg-green-600 data-[state=on]:text-white dark:data-[state=on]:bg-green-700">
-                        Fácil
+                      <ToggleGroupItem value="Fácil" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                        <Sprout className="w-4 h-4" />
+                        <span>Fácil</span>
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="Médio" className="data-[state=on]:bg-yellow-600 data-[state=on]:text-white dark:data-[state=on]:bg-yellow-700">
-                        Médio
+                      <ToggleGroupItem value="Médio" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                        <Leaf className="w-4 h-4" />
+                        <span>Médio</span>
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="Difícil" className="data-[state=on]:bg-red-600 data-[state=on]:text-white dark:data-[state=on]:bg-red-700">
-                        Difícil
+                      <ToggleGroupItem value="Difícil" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                        <Trees className="w-4 h-4" />
+                        <span>Difícil</span>
                       </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
 
-                <Button onClick={handleSubmit} className="w-full !mt-8 h-12 text-base font-semibold" disabled={isSubmitting || isProcessing}>
+                <Button 
+                  onClick={handleSubmit} 
+                  className="w-full !mt-8 h-12 text-base font-semibold" 
+                  disabled={isSubmitting || isProcessing}
+                >
                     {isSubmitting ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        A criar...
-                      </div>
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Criando...
+                      </>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5" />
-                        Gerar Conteúdo!
-                      </div>
+                      <>
+                        <Sparkles className="w-5 h-5 mr-2" />
+                        Gerar Conteúdo
+                      </>
                     )}
                 </Button>
             </CardContent>
@@ -341,7 +497,13 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   return (
     <div className="w-full max-w-3xl mx-auto p-4 sm:p-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
-            <Link href="/library" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"><ArrowLeft className="w-4 h-4 mr-2" />Voltar para a Biblioteca</Link>
+            <Link 
+              href="/library" 
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar para a Biblioteca
+            </Link>
         </div>
         {!isProcessing && <WizardProgress/>}
         <Card className="relative overflow-hidden">{renderStepContent()}</Card>

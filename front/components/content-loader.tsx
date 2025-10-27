@@ -4,7 +4,6 @@ import { CheckCircle, Loader2, FileText, BrainCircuit, Sparkles, Database, Clipb
 import { cn } from '@/lib/utils';
 import { useMemo } from 'react';
 
-// Palavras-chave exatas que o backend envia no campo 'current_step'
 const keywords = {
   start: "iniciando processamento",
   extract: "extraindo texto",
@@ -29,31 +28,61 @@ export default function ContentLoader({
   generatesQuizzes 
 }: ContentLoaderProps) {
   
-  // 'useMemo' para evitar recriar a lista de passos em cada renderização
+  const currentStepMessageLower = (currentStepMessage || "").toLowerCase();
+  const isCompleted = currentStepMessageLower.includes(keywords.done);
+  
   const processingSteps = useMemo(() => {
     const steps = [];
-    steps.push({ name: "Iniciando processamento", icon: Sparkles, keyword: keywords.start });
-    steps.push({ name: "A extrair texto do ficheiro", icon: FileText, keyword: keywords.extract });
+    steps.push({ 
+      name: "Iniciando processamento", 
+      icon: Sparkles, 
+      keyword: keywords.start
+    });
+    steps.push({ 
+      name: "Extraindo texto do arquivo", 
+      icon: FileText, 
+      keyword: keywords.extract
+    });
     
     if (generatesFlashcards) {
-      steps.push({ name: "IA a gerar flashcards", icon: BrainCircuit, keyword: keywords.ai_flashcards });
-      steps.push({ name: "A estruturar flashcards", icon: Sparkles, keyword: keywords.parse_flashcards });
-      steps.push({ name: "A guardar flashcards", icon: Database, keyword: keywords.save_flashcards });
+      steps.push({ 
+        name: "Gerando seus flashcards", 
+        icon: BrainCircuit, 
+        keyword: keywords.ai_flashcards
+      });
+      steps.push({ 
+        name: "Estruturando seus flashcards", 
+        icon: Sparkles, 
+        keyword: keywords.parse_flashcards
+      });
+      steps.push({ 
+        name: "Salvando seus flashcards", 
+        icon: Database, 
+        keyword: keywords.save_flashcards
+      });
     }
 
     if (generatesQuizzes) {
-      steps.push({ name: "IA a gerar quiz", icon: BrainCircuit, keyword: keywords.ai_quiz });
-      steps.push({ name: "A estruturar quiz", icon: ClipboardCheck, keyword: keywords.parse_quiz });
-      steps.push({ name: "A guardar quiz", icon: Database, keyword: keywords.save_quiz });
+      steps.push({ 
+        name: "Gerando seu quiz", 
+        icon: BrainCircuit, 
+        keyword: keywords.ai_quiz
+      });
+      steps.push({ 
+        name: "Estruturando seu quiz", 
+        icon: ClipboardCheck, 
+        keyword: keywords.parse_quiz
+      });
+      steps.push({ 
+        name: "Salvando seu quiz", 
+        icon: Database, 
+        keyword: keywords.save_quiz
+      });
     }
 
     return steps;
   }, [generatesFlashcards, generatesQuizzes]);
-
-  const currentStepMessageLower = (currentStepMessage || "").toLowerCase();
   
-  // Lógica de detecção do passo ativo: encontra o último passo cuja palavra-chave
-  // está contida na mensagem atual do backend.
   const activeStepIndex = processingSteps.reduce((latestIndex, step, currentIndex) => {
     const isMatch = currentStepMessageLower.includes(step.keyword);
     if (isMatch) {
@@ -62,42 +91,44 @@ export default function ContentLoader({
     return latestIndex;
   }, -1);
   
-  const isCompleted = currentStepMessageLower.includes(keywords.done);
-
-  // Fallback: Se activeStepIndex for -1 (nenhuma palavra-chave encontrada), 
-  // mas o processamento estiver ativo, assumimos o primeiro passo.
-  // Isso garante que o ícone de carregamento apareça imediatamente.
   const finalActiveIndex = activeStepIndex === -1 && !isCompleted ? 0 : activeStepIndex;
 
   const getTitle = () => {
-    if (generatesFlashcards && generatesQuizzes) return "A gerar o seu material de estudo";
-    if (generatesFlashcards) return "A gerar os seus flashcards";
-    if (generatesQuizzes) return "A gerar o seu quiz";
-    return "A processar o seu pedido";
+    if (generatesFlashcards && generatesQuizzes) return "Gerando seu material de estudo";
+    if (generatesFlashcards) return "Gerando seus flashcards";
+    if (generatesQuizzes) return "Gerando seu quiz";
+    return "Processando seu pedido";
   }
 
   const getSubtitle = () => {
     if (generatesFlashcards && generatesQuizzes) {
-      return "Flashcards e quiz a serem criados pela IA";
+      return "Flashcards e quiz a sendo criados pela IA";
     }
     if (generatesFlashcards) {
-      return "Flashcards a serem criados pela IA";
+      return "Flashcards a sendo criados pela IA";
     }
     if (generatesQuizzes) {
-      return "Quiz a ser criado pela IA";
+      return "Quiz sendo criado pela IA";
     }
-    return "O seu conteúdo está a ser processado";
+    return "O seu conteúdo está sendo processado";
   }
 
   return (
-    <div className="w-full max-w-md p-4">
-      <h3 className="text-xl font-semibold text-center mb-2 text-foreground">
-        {getTitle()}
-      </h3>
-      <p className="text-muted-foreground text-center mb-6">
-        {getSubtitle()}
-      </p>
-      <ul className="space-y-4">
+    <div className="w-full max-w-md p-6">
+      <div className="text-center mb-8 animate-in fade-in-50 slide-in-from-top-4 duration-500">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
+          <BrainCircuit className="w-8 h-8 text-primary" />
+        </div>
+        
+        <h3 className="text-2xl font-bold text-foreground mb-2">
+          {getTitle()}
+        </h3>
+        <p className="text-muted-foreground text-sm">
+          {getSubtitle()}
+        </p>
+      </div>
+
+      <ul className="space-y-3 mb-6">
         {processingSteps.map((step, index) => {
           let status: 'completed' | 'active' | 'pending' = 'pending';
           
@@ -110,41 +141,68 @@ export default function ContentLoader({
           }
           
           return (
-            <li key={step.name} className="flex items-center gap-4 transition-all duration-300">
+            <li 
+              key={step.name} 
+              className={cn(
+                "flex items-center gap-4 p-3 rounded-lg transition-all duration-500",
+                status === 'active' && "bg-accent"
+              )}
+              style={{
+                animationDelay: `${index * 100}ms`
+              }}
+            >
               <div className={cn(
-                "flex items-center justify-center w-8 h-8 rounded-full transition-colors",
-                status === 'active' ? 'bg-primary/20' : 'bg-muted'
+                "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300",
+                status === 'active' && 'bg-primary/10',
+                status === 'completed' && 'bg-green-500/10',
+                status === 'pending' && 'bg-muted'
               )}>
                 {status === 'completed' && (
-                  <CheckCircle className="w-5 h-5 text-green-500 animate-in fade-in zoom-in-50 duration-300" />
+                  <CheckCircle className="w-6 h-6 text-green-500 animate-in zoom-in-50 duration-300" />
                 )}
                 {status === 'active' && (
-                  <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
                 )}
                 {status === 'pending' && (
-                  <step.icon className="w-5 h-5 text-muted-foreground" />
+                  <step.icon className="w-6 h-6 text-muted-foreground" />
                 )}
               </div>
-              <span className={cn(
-                "font-medium transition-colors",
-                status === 'pending' ? 'text-muted-foreground' : 'text-foreground'
-              )}>
-                {step.name}
-              </span>
+              
+              <div className="flex-1 min-w-0">
+                <span className={cn(
+                  "font-medium text-sm transition-colors duration-300",
+                  status === 'pending' && 'text-muted-foreground',
+                  status === 'active' && 'text-foreground font-semibold',
+                  status === 'completed' && 'text-muted-foreground'
+                )}>
+                  {step.name}
+                </span>
+              </div>
             </li>
           );
         })}
       </ul>
-      <p className="text-sm text-muted-foreground text-center mt-6">
-        Isto pode demorar alguns minutos. Não feche esta página.
-      </p>
-      
-      {isCompleted && (
-        <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <p className="text-sm text-center text-green-600 dark:text-green-400 font-medium">
-            ✅ Processamento concluído com sucesso!
-          </p>
+
+      {isCompleted ? (
+        <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl animate-in fade-in-50 zoom-in-95 duration-500">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <CheckCircle className="w-6 h-6 text-green-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground mb-1">
+                Processamento concluído!
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Redirecionando para a biblioteca...
+              </p>
+            </div>
+          </div>
         </div>
+      ) : (
+        <p className="text-xs text-muted-foreground text-center">
+          Essa ação pode demorar alguns minutos. Por favor, não feche esta página.
+        </p>
       )}
     </div>
   );
