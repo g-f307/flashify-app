@@ -10,6 +10,7 @@ interface CircularProgressConsistentProps {
   correctCount?: number;
   partialCount?: number;
   totalCount?: number;
+  unitLabel?: string; 
 }
 
 export function CircularProgress({
@@ -19,7 +20,8 @@ export function CircularProgress({
   showPercentage = true,
   correctCount = 0,
   partialCount = 0,
-  totalCount = 0
+  totalCount = 0,
+  unitLabel = "cards" 
 }: CircularProgressConsistentProps) {
   const [animatedPercentage, setAnimatedPercentage] = useState(0);
   const [animatedCorrect, setAnimatedCorrect] = useState(0);
@@ -28,7 +30,6 @@ export function CircularProgress({
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   
-  // Calcula as proporções para cada segmento
   const correctProportion = totalCount > 0 ? correctCount / totalCount : 0;
   const partialProportion = totalCount > 0 ? partialCount / totalCount : 0;
   
@@ -52,7 +53,6 @@ export function CircularProgress({
         height={size}
         className="transform -rotate-90"
       >
-        {/* Círculo de fundo usando cor do sistema */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -63,7 +63,6 @@ export function CircularProgress({
           className="opacity-30"
         />
         
-        {/* Círculo de progresso parcial (usando cor secundária) */}
         {partialCount > 0 && (
           <circle
             cx={size / 2}
@@ -83,7 +82,6 @@ export function CircularProgress({
           />
         )}
         
-        {/* Círculo de progresso correto (usando cor primária) */}
         {correctCount > 0 && (
           <circle
             cx={size / 2}
@@ -100,7 +98,6 @@ export function CircularProgress({
         )}
       </svg>
       
-      {/* Texto central */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         {showPercentage && (
           <span className="text-4xl font-bold text-foreground transition-all duration-1000 ease-out">
@@ -109,7 +106,7 @@ export function CircularProgress({
         )}
         {totalCount > 0 && (
           <span className="text-sm text-muted-foreground mt-1">
-            {totalCount} cards
+            {totalCount} {unitLabel}
           </span>
         )}
       </div>

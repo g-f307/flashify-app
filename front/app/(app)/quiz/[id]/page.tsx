@@ -1,5 +1,3 @@
-// front/app/(app)/quiz/[id]/page.tsx
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -10,22 +8,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertTriangle, ArrowLeft, CheckCircle, XCircle, Sparkles, ArrowRight } from "lucide-react";
+import { 
+    Loader2, 
+    AlertTriangle, 
+    ArrowLeft, 
+    CheckCircle, 
+    XCircle, 
+    Sparkles,
+    ArrowRight
+} from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Confetti from "react-confetti";
+import { useLoading } from "@/components/providers/loading-provider"; 
+import { QuizPerformanceReport } from "@/components/quiz/quiz-performance-report"; 
 
 type AnswerStatus = 'unanswered' | 'correct' | 'incorrect';
 type AnswerFeedback = CheckAnswerResponse;
+
 
 export default function QuizPage() {
     const params = useParams();
     const router = useRouter();
     const documentId = Number(params.id);
+    const { showLoading, hideLoading } = useLoading();
 
     const [document, setDocument] = useState<Document | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true); 
     const [error, setError] = useState<string | null>(null);
 
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -43,6 +53,9 @@ export default function QuizPage() {
         if (!documentId) return;
         const fetchQuiz = async () => {
             try {
+                showLoading("Carregando seu quiz...", true);
+                setIsLoading(true);
+
                 const doc = await apiClient.getDocument(documentId);
                 if (!doc.quiz || doc.quiz.questions.length === 0) {
                     setError("Este deck não tem um quiz válido para iniciar.");
@@ -53,17 +66,20 @@ export default function QuizPage() {
             } catch (err) {
                 setError("Não foi possível carregar o quiz.");
             } finally {
+                hideLoading();
                 setIsLoading(false);
             }
         };
         fetchQuiz();
-    }, [documentId]);
+        
+    }, [documentId]); 
 
     const currentQuestion = useMemo(() => questions[currentQuestionIndex], [questions, currentQuestionIndex]);
     const progressPercentage = useMemo(() => {
         if (questions.length === 0) return 0;
-        return ((currentQuestionIndex + 1) / questions.length) * 100;
-    }, [currentQuestionIndex, questions.length]);
+        const currentStep = showResults ? questions.length : currentQuestionIndex + 1;
+        return (currentStep / questions.length) * 100;
+    }, [currentQuestionIndex, questions.length, showResults]);
 
 
     const handleCheckAnswer = async () => {
@@ -85,7 +101,7 @@ export default function QuizPage() {
                 throw new Error("O servidor não retornou uma resposta válida.");
             }
         } catch (err: any) {
-            toast.error("Erro ao verificar a resposta.", { description: err.message });
+            toast.error("Erro ao verificar resposta.", { description: err.message });
         } finally {
             setIsChecking(false);
         }
@@ -108,10 +124,10 @@ export default function QuizPage() {
                         correctAnswersCount,
                         questions.length
                     );
-                    toast.success("O seu progresso foi guardado!");
+                    toast.success("Seu progresso foi salvo!");
                 } catch (error) {
                     console.error("Falha ao submeter o resultado do quiz", error);
-                    toast.error("Não foi possível guardar o seu resultado.");
+                    toast.error("Não foi possível salvar o seu resultado.");
                 }
             }
             
@@ -121,10 +137,6 @@ export default function QuizPage() {
             }
         }
     };
-
-    if (isLoading) {
-        return <div className="flex justify-center items-center h-screen bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-    }
 
     if (error) {
         return (
@@ -137,38 +149,30 @@ export default function QuizPage() {
         );
     }
 
-    if (!document || !currentQuestion) {
+    if (isLoading || !document) {
         return null;
     }
 
     if (showResults) {
         const score = Math.round((correctAnswersCount / questions.length) * 100);
+
         return (
             <>
                 {showConfetti && <Confetti recycle={false} onConfettiComplete={() => setShowConfetti(false)} />}
-                <div className="flex flex-col justify-center items-center h-screen text-center p-4 animate-in fade-in-50 duration-500 bg-background">
-                    <Sparkles className="w-16 h-16 text-yellow-400 mb-4" />
-                    <h1 className="text-3xl sm:text-4xl font-bold">Quiz Concluído!</h1>
-                    <p className="text-muted-foreground mt-2">Veja o seu desempenho abaixo.</p>
-                    <Card className="mt-8 w-full max-w-md">
-                        <CardContent className="p-6 space-y-4">
-                            <div className="text-center">
-                                <p className="text-lg font-medium">A sua pontuação</p>
-                                <p className="text-6xl font-bold text-primary mt-2">{score}%</p>
-                            </div>
-                            <div className="flex justify-between items-center text-lg p-3 bg-muted rounded-lg">
-                                <span>Respostas Corretas</span>
-                                <span className="font-bold">{correctAnswersCount} de {questions.length}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <div className="flex gap-4 mt-8">
-                        <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
-                        <Button variant="outline" onClick={() => router.back()}>Voltar ao Deck</Button>
-                    </div>
-                </div>
+                
+                <QuizPerformanceReport
+                    score={score}
+                    correctAnswersCount={correctAnswersCount}
+                    totalQuestions={questions.length}
+                    onRestart={() => window.location.reload()} 
+                    onBack={() => router.back()} 
+                />
             </>
         )
+    }
+
+    if (!currentQuestion) {
+        return null;
     }
 
     return (
@@ -179,13 +183,11 @@ export default function QuizPage() {
                         <Button variant="ghost" size="sm" onClick={() => router.back()} className="hover:bg-accent/50">
                             <ArrowLeft className="w-4 h-4 mr-2" /> Sair
                         </Button>
-                        
-                        <div className="text-center flex-1 mx-4">
+                        <div className="text-center flex-1 mx-4 min-w-0">
                              <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
                                 {document.quiz?.title}
                             </h1>
                         </div>
-
                         <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full">
                             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                             <span className="text-sm font-medium text-primary">
@@ -197,14 +199,13 @@ export default function QuizPage() {
                 
                 <div className="mb-6 animate-in fade-in-50 slide-in-from-top-4 duration-500 delay-100">
                     <Progress value={progressPercentage} className="h-2" />
-                    <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
+                    <div className="flex justify-between items-center mt-2 text-xs sm:text-sm text-muted-foreground">
                         <span>Pergunta {currentQuestionIndex + 1}</span>
                         <span>{Math.round(progressPercentage)}% concluído</span>
                     </div>
                 </div>
-
-                <Card className="overflow-hidden border-border animate-in fade-in-50 zoom-in-95 duration-500 delay-200">
-                    <CardHeader className="bg-muted/30 border-b border-border">
+                <Card className="overflow-hidden border-muted animate-in fade-in-50 zoom-in-95 duration-500 delay-200">
+                    <CardHeader className="bg-muted/30 border-b border-muted">
                         <div className="flex items-start gap-4 p-2">
                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                                 <span className="text-primary font-bold text-lg">{currentQuestionIndex + 1}</span>
@@ -258,7 +259,7 @@ export default function QuizPage() {
                                                 id={`ans-${answer.id}`}
                                                 className="border-border"
                                             />
-                                            <span className="text-base leading-relaxed">
+                                            <span className="text-sm sm:text-base leading-relaxed">
                                                 {answer.text}
                                             </span>
                                         </div>
@@ -308,14 +309,13 @@ export default function QuizPage() {
                         )}
                     </CardContent>
                 </Card>
-
-                <div className="mt-6 flex justify-end animate-in fade-in-50 slide-in-from-bottom-4 duration-500 delay-300">
+                <div className="mt-6 flex flex-col sm:flex-row sm:justify-end animate-in fade-in-50 slide-in-from-bottom-4 duration-500 delay-300">
                     {answerStatus === 'unanswered' ? (
                         <Button
                             onClick={handleCheckAnswer}
                             disabled={!selectedAnswerId || isChecking}
                             size="lg"
-                            className="min-w-[140px]"
+                            className="w-full sm:w-auto sm:min-w-[140px]"
                         >
                             {isChecking && <Loader2 className="w-4 h-4 mr-2 animate-spin"/>}
                             Verificar
@@ -324,7 +324,7 @@ export default function QuizPage() {
                         <Button
                             onClick={handleNextQuestion}
                             size="lg"
-                            className="min-w-[140px] group"
+                            className="w-full sm:w-auto sm:min-w-[140px] group"
                         >
                             {currentQuestionIndex === questions.length - 1 ? "Ver Resultados" : "Próxima"}
                             {currentQuestionIndex < questions.length - 1 && <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />}
