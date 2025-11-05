@@ -67,7 +67,6 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   const [fileError, setFileError] = useState<string | null>(null);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [data, setData] = useState<WizardData>({
     name: "",
@@ -83,14 +82,16 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   const handleNext = () => setStep((s) => Math.min(s + 1, steps.length));
   const handleBack = () => setStep((s) => Math.max(s - 1, 1));
 
-  // Lógica de monitoramento
   const monitorProcessing = async (documentId: number) => {
     try {
       const document = await apiClient.getDocument(documentId);
       setProcessingDocument(document);
 
       if (document.status === 'COMPLETED') {
-        if (intervalRef.current) clearInterval(intervalRef.current);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         
         const createdItems = [];
         if (data.contentType === 'flashcards' || data.contentType === 'both') {
@@ -105,13 +106,13 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
           duration: 4000,
         });
         
-        redirectTimeoutRef.current = setTimeout(() => {
-          setIsProcessing(false); 
-          onCreationSuccess(); 
-        }, 2000); 
+        onCreationSuccess();
         
       } else if (document.status === 'FAILED') {
-        if (intervalRef.current) clearInterval(intervalRef.current);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         setIsProcessing(false); 
         toast.error("Falha ao processar o deck", {
           description: document.current_step || "Houve um erro durante o processamento.",
@@ -119,7 +120,10 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
       }
     } catch (error: any) {
       console.error('Erro ao monitorar processamento:', error);
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       setIsProcessing(false);
       toast.error("Não foi possível verificar o estado do deck.");
     }
@@ -127,8 +131,10 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (redirectTimeoutRef.current) clearTimeout(redirectTimeoutRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
   }, []);
 
@@ -204,26 +210,26 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   };
 
   const WizardProgress = () => (
-    <div className="flex items-center justify-center gap-2 sm:gap-4 p-4">
+    <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 p-3 sm:p-4 overflow-x-auto">
         {steps.map((s, index) => (
-            <div key={s.id} className="flex items-center gap-2">
+            <div key={s.id} className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                 <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                  "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0",
                   step > s.id ? "bg-primary text-primary-foreground" : 
                   step === s.id ? "bg-primary/20 border-2 border-primary text-primary" : 
                   "bg-muted text-muted-foreground"
                 )}>
-                    <s.icon className="w-5 h-5" />
+                    <s.icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <span className={cn(
-                  "font-medium hidden sm:inline transition-colors",
+                  "font-medium text-xs sm:text-sm hidden sm:inline transition-colors whitespace-nowrap",
                   step === s.id ? "text-primary" : "text-muted-foreground"
                 )}>
                   {s.name}
                 </span>
                 {index < steps.length - 1 && (
                   <div className={cn(
-                    "h-0.5 w-8 sm:w-12 transition-all",
+                    "h-0.5 w-4 sm:w-8 md:w-12 transition-all flex-shrink-0",
                     step > s.id ? "bg-primary" : "bg-muted"
                   )}/>
                 )}
@@ -236,7 +242,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     if (isProcessing) {
       return (
         <div className="animate-in fade-in-50 duration-500">
-          <CardContent className="flex justify-center items-center py-12">
+          <CardContent className="flex justify-center items-center py-8 sm:py-12 px-4">
             <ContentLoader 
               currentStepMessage={processingDocument?.current_step}
               generatesFlashcards={processingDocument?.generates_flashcards ?? false}
@@ -254,29 +260,32 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
             variant="ghost" 
             size="sm" 
             onClick={handleBack} 
-            className="absolute top-4 left-4 z-10"
+            className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 h-8 sm:h-9"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
+            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" /> 
+            <span className="text-xs sm:text-sm">Voltar</span>
           </Button>
         )}
         
         {step === 1 && (
-          <CardContent className="text-center pt-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-              <Sparkles className="w-8 h-8 text-primary" />
+          <CardContent className="text-center pt-10 sm:pt-12 px-4 sm:px-6">
+            <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-3 sm:mb-4">
+              <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Vamos começar!</CardTitle>
-            <CardDescription className="mt-2">Dê um nome para o seu novo deck de estudos.</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">Vamos começar!</CardTitle>
+            <CardDescription className="mt-2 text-sm sm:text-base px-2">
+              Dê um nome para o seu novo deck de estudos.
+            </CardDescription>
             <Input 
               id="set-name" 
               placeholder="Ex: Biologia - Fotossíntese" 
               value={data.name} 
               onChange={(e) => setData({ ...data, name: e.target.value })} 
-              className="mt-6 max-w-sm mx-auto text-center text-lg"
+              className="mt-4 sm:mt-6 max-w-sm mx-auto text-center text-base sm:text-lg h-11 sm:h-12"
             />
             <Button 
               onClick={handleNext} 
-              className="w-full max-w-sm mt-4" 
+              className="w-full max-w-sm mt-3 sm:mt-4 h-10 sm:h-11" 
               disabled={!data.name.trim()}
             >
               Próximo
@@ -285,33 +294,37 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         )}
         
         {step === 2 && (
-          <CardContent>
-            <CardTitle className="text-center text-2xl">Forneça o Conteúdo</CardTitle>
-            <CardDescription className="text-center mt-2">Escolha como inserir o seu material de estudo.</CardDescription>
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <CardTitle className="text-center text-xl sm:text-2xl mt-8 sm:mt-0">
+              Forneça o Conteúdo
+            </CardTitle>
+            <CardDescription className="text-center mt-2 text-sm sm:text-base px-2">
+              Escolha como inserir o seu material de estudo.
+            </CardDescription>
              <Tabs 
                value={data.inputType} 
                onValueChange={(value) => {
                  setData({...data, inputType: value as 'text' | 'upload'});
                  setFileError(null); 
                }} 
-               className="w-full mt-6"
+               className="w-full mt-4 sm:mt-6"
              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="text" className="gap-2">
-                    <Type className="w-4 h-4" />
-                    Digitar Texto
+                <TabsList className="grid w-full grid-cols-2 h-auto">
+                  <TabsTrigger value="text" className="gap-1.5 sm:gap-2 text-xs sm:text-sm py-2 sm:py-2.5">
+                    <Type className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Digitar </span>Texto
                   </TabsTrigger>
-                  <TabsTrigger value="upload" className="gap-2">
-                    <FileUp className="w-4 h-4" />
-                    Upload de Arquivo
+                  <TabsTrigger value="upload" className="gap-1.5 sm:gap-2 text-xs sm:text-sm py-2 sm:py-2.5">
+                    <FileUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    Upload<span className="hidden xs:inline"> de Arquivo</span>
                   </TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="text" className="mt-4">
+                <TabsContent value="text" className="mt-3 sm:mt-4">
                     <Textarea 
                       id="content" 
                       placeholder="Cole aqui o tópico, texto ou resumo do seu material de estudo..." 
-                      className="min-h-[250px] mt-2" 
+                      className="min-h-[200px] sm:min-h-[250px] mt-2 text-sm sm:text-base" 
                       value={data.text} 
                       onChange={(e) => {
                         setData({ ...data, text: e.target.value, file: null });
@@ -320,27 +333,32 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                     />
                 </TabsContent>
                 
-                <TabsContent value="upload" className="mt-4">
+                <TabsContent value="upload" className="mt-3 sm:mt-4">
                   <label 
                     htmlFor="file-upload" 
                     className={cn(
-                      "mt-2 border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer block",
+                      "mt-2 border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-all cursor-pointer block",
                       fileError 
                         ? "border-red-500/50 bg-red-500/5 text-red-600"
                         : "text-muted-foreground hover:border-primary hover:bg-accent"
                     )}
                   >
-                    {!data.file && !fileError && <UploadCloud className="w-12 h-12 mx-auto mb-4" />}
-                    {fileError && <AlertCircle className="w-12 h-12 mx-auto mb-4" />}
-                    {data.file && !fileError && <FileText className="w-12 h-12 text-primary mx-auto mb-4" />}
+                    {!data.file && !fileError && <UploadCloud className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4" />}
+                    {fileError && <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4" />}
+                    {data.file && !fileError && <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-primary mx-auto mb-3 sm:mb-4" />}
                     
-                    <p className="text-sm">
+                    <p className="text-xs sm:text-sm px-2">
                       {data.file && !fileError ? (
-                        <span className="font-medium text-foreground">✓ {data.file.name}</span>
+                        <span className="font-medium text-foreground break-all">✓ {data.file.name}</span>
                       ) : fileError ? (
                         <span className="font-medium">{fileError}</span>
                       ) : (
-                        `Clique ou arraste para enviar (${ACCEPTED_FILE_TYPES_STRING})`
+                        <>
+                          <span className="block sm:inline">Clique ou arraste para enviar</span>
+                          <span className="block sm:inline text-xs mt-1 sm:mt-0 sm:ml-1">
+                            ({ACCEPTED_FILE_TYPES_STRING})
+                          </span>
+                        </>
                       )}
                     </p>
                     <Input 
@@ -355,7 +373,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
               </Tabs>
             <Button 
               onClick={handleNext} 
-              className="w-full mt-6" 
+              className="w-full mt-4 sm:mt-6 h-10 sm:h-11" 
               disabled={
                 fileError ? true :
                 (data.inputType === 'text' && !data.text.trim()) || 
@@ -368,31 +386,42 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         )}
         
         {step === 3 && (
-            <CardContent className="pt-8 pb-8 space-y-6">
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-                      <Settings2 className="w-8 h-8 text-primary" />
+            <CardContent className="pt-6 sm:pt-8 pb-6 sm:pb-8 px-4 sm:px-6 space-y-5 sm:space-y-6">
+                <div className="text-center mb-6 sm:mb-8">
+                    <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-3 sm:mb-4">
+                      <Settings2 className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
                     </div>
-                    <CardTitle className="text-2xl">Customize a Geração</CardTitle>
-                    <CardDescription className="mt-2 text-base">Ajuste as opções de IA para o seu material.</CardDescription>
+                    <CardTitle className="text-xl sm:text-2xl">Customize a Geração</CardTitle>
+                    <CardDescription className="mt-2 text-sm sm:text-base px-2">
+                      Ajuste as opções de IA para o seu material.
+                    </CardDescription>
                 </div>
 
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">O que deseja criar?</Label>
+                <div className="space-y-2.5 sm:space-y-3">
+                  <Label className="text-sm sm:text-base font-semibold">O que deseja criar?</Label>
                   <ToggleGroup
                       type="single" value={data.contentType}
                       onValueChange={(value: WizardData['contentType']) => value && setData({ ...data, contentType: value })}
-                      className="w-full grid grid-cols-3 gap-2"
+                      className="w-full grid grid-cols-3 gap-1.5 sm:gap-2"
                   >
-                      <ToggleGroupItem value="flashcards" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                      <ToggleGroupItem 
+                        value="flashcards" 
+                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                      >
                         <Layers className="w-4 h-4" />
-                        <span>Flashcards</span>
+                        <span className="leading-tight">Flash-<br className="sm:hidden"/>cards</span>
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="quiz" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                      <ToggleGroupItem 
+                        value="quiz" 
+                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                      >
                         <BrainCircuit className="w-4 h-4" />
                         <span>Quiz</span>
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="both" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                      <ToggleGroupItem 
+                        value="both" 
+                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                      >
                         <Combine className="w-4 h-4" />
                         <span>Ambos</span>
                       </ToggleGroupItem>
@@ -400,13 +429,13 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                 </div>
 
                 {(data.contentType === 'flashcards' || data.contentType === 'both') && (
-                  <div className="animate-in fade-in-20 duration-300 space-y-3">
+                  <div className="animate-in fade-in-20 duration-300 space-y-2.5 sm:space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="num-flashcards" className="text-base font-semibold flex items-center gap-2">
-                          <Layers className="w-5 h-5 text-primary/70" />
-                          Número de Flashcards
+                        <Label htmlFor="num-flashcards" className="text-sm sm:text-base font-semibold flex items-center gap-1.5 sm:gap-2">
+                          <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-primary/70" />
+                          <span className="text-xs sm:text-base">Número de Flashcards</span>
                         </Label>
-                        <span className="text-lg font-bold text-primary">{data.num_flashcards}</span>
+                        <span className="text-base sm:text-lg font-bold text-primary">{data.num_flashcards}</span>
                       </div>
                       <Slider 
                         id="num-flashcards" 
@@ -417,7 +446,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                         onValueChange={(v) => setData({ ...data, num_flashcards: v[0] })}
                         className="mt-2"
                       />
-                      <div className="flex justify-between text-xs text-muted-foreground">
+                      <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
                         <span>Mínimo: 5</span>
                         <span>Máximo: 20</span>
                       </div>
@@ -425,13 +454,13 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                 )}
 
                 {(data.contentType === 'quiz' || data.contentType === 'both') && (
-                  <div className="animate-in fade-in-20 duration-300 space-y-3">
+                  <div className="animate-in fade-in-20 duration-300 space-y-2.5 sm:space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="num-questions" className="text-base font-semibold flex items-center gap-2">
-                          <BrainCircuit className="w-5 h-5 text-primary/70" />
-                          Perguntas do Quiz
+                        <Label htmlFor="num-questions" className="text-sm sm:text-base font-semibold flex items-center gap-1.5 sm:gap-2">
+                          <BrainCircuit className="w-4 h-4 sm:w-5 sm:h-5 text-primary/70" />
+                          <span className="text-xs sm:text-base">Perguntas do Quiz</span>
                         </Label>
-                        <span className="text-lg font-bold text-primary">{data.num_questions}</span>
+                        <span className="text-base sm:text-lg font-bold text-primary">{data.num_questions}</span>
                       </div>
                       <Slider 
                         id="num-questions" 
@@ -442,29 +471,38 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                         onValueChange={(v) => setData({ ...data, num_questions: v[0] })}
                         className="mt-2"
                       />
-                      <div className="flex justify-between text-xs text-muted-foreground">
+                      <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
                         <span>Mínimo: 3</span>
                         <span>Máximo: 15</span>
                       </div>
                   </div>
                 )}
 
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Nível de Dificuldade</Label>
+                <div className="space-y-2.5 sm:space-y-3">
+                  <Label className="text-sm sm:text-base font-semibold">Nível de Dificuldade</Label>
                   <ToggleGroup
                       type="single" value={data.difficulty}
                       onValueChange={(value: string) => value && setData({ ...data, difficulty: value })}
-                      className="w-full grid grid-cols-3 gap-2"
+                      className="w-full grid grid-cols-3 gap-1.5 sm:gap-2"
                   >
-                      <ToggleGroupItem value="Fácil" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                      <ToggleGroupItem 
+                        value="Fácil" 
+                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                      >
                         <Sprout className="w-4 h-4" />
                         <span>Fácil</span>
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="Médio" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                      <ToggleGroupItem 
+                        value="Médio" 
+                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                      >
                         <Leaf className="w-4 h-4" />
                         <span>Médio</span>
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="Difícil" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col sm:flex-row h-auto sm:h-10 gap-2 py-2 sm:py-0">
+                      <ToggleGroupItem 
+                        value="Difícil" 
+                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                      >
                         <Trees className="w-4 h-4" />
                         <span>Difícil</span>
                       </ToggleGroupItem>
@@ -473,17 +511,17 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
 
                 <Button 
                   onClick={handleSubmit} 
-                  className="w-full !mt-8 h-12 text-base font-semibold" 
+                  className="w-full !mt-6 sm:!mt-8 h-11 sm:h-12 text-sm sm:text-base font-semibold" 
                   disabled={isSubmitting || isProcessing}
                 >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
                         Criando...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-5 h-5 mr-2" />
+                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                         Gerar Conteúdo
                       </>
                     )}
@@ -495,13 +533,13 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto p-4 sm:p-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2">
             <Link 
               href="/library" 
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Voltar para a Biblioteca
             </Link>
         </div>

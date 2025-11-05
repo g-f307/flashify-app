@@ -139,15 +139,20 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "",
             "📌 PERGUNTAS (front):",
             "✓ UMA pergunta específica por flashcard (NUNCA duas ou mais perguntas juntas)",
-            "✓ Perguntas claras, diretas e desafiadoras (evite perguntas óbvias)",
+            "✓ Perguntas claras, diretas e COMPLETAMENTE RESPONDÍVEIS com a resposta fornecida",
             "✓ Máximo de 15-20 palavras por pergunta",
-            "✓ Use verbos de ação: 'Explique', 'Calcule', 'Compare', 'Identifique', 'Analise'",
+            "✓ Se perguntar 'Compare A e B', a resposta DEVE mencionar AMBOS explicitamente",
+            "✓ Use verbos de ação: 'Explique', 'Calcule', 'Defina', 'Identifique', 'Analise'",
+            "✓ Para comparações: use 'Qual a diferença entre...' EM VEZ DE 'Compare'",
             "✓ Para cálculos: forneça valores específicos e peça o resultado",
             "",
             "📌 RESPOSTAS (back):",
             "✓ Respostas CONCISAS e OBJETIVAS (máximo 3-4 linhas)",
             "✓ Vá direto ao ponto - sem introduções desnecessárias",
+            "✓ A resposta deve RESPONDER COMPLETAMENTE a pergunta feita",
+            "✓ Se a pergunta menciona dois conceitos, a resposta DEVE abordar AMBOS",
             "✓ Para cálculos: mostre o resultado e uma explicação breve (1-2 linhas)",
+            "✓ Para comparações: mencione EXPLICITAMENTE as diferenças ou semelhanças",
             "✓ Use bullet points quando listar itens múltiplos",
             "✓ Evite parágrafos longos - quebre em frases curtas",
             "",
@@ -167,9 +172,9 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
 {
   "flashcards": [
     {
-      "front": "Qual estrutura de dados usa LIFO (Last In, First Out)?",
-      "back": "Stack (Pilha). O último elemento inserido é o primeiro a ser removido.",
-      "type": "concept"
+      "front": "Qual a diferença entre conexões HTTP persistentes e não persistentes?",
+      "back": "Persistentes: reutilizam mesma conexão TCP. Não persistentes: nova conexão para cada requisição.",
+      "type": "comparison"
     }
   ]
 }
@@ -177,8 +182,8 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
 {
   "flashcards": [
     {
-      "front": "Por que usar uma Stack em vez de uma Queue para validar parênteses balanceados?",
-      "back": "Stack processa do fim para o início (LIFO), permitindo verificar pares mais recentes primeiro.",
+      "front": "Qual a principal vantagem das conexões HTTP persistentes sobre as não persistentes?",
+      "back": "Reduzem latência ao reutilizar a mesma conexão TCP, evitando sobrecarga de estabelecer novas conexões.",
       "type": "comparison"
     }
   ]
@@ -187,8 +192,8 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
 {
   "flashcards": [
     {
-      "front": "Analise: Sistema com 1000 req/s. Stack overflow em 500ms. Qual a profundidade máxima de recursão?",
-      "back": "~500 chamadas. Cálculo: 1000 req/s ÷ 2 (500ms) = 500 operações antes do overflow.",
+      "front": "Analise: Site recebe 1000 req/s. Migrar de HTTP não persistente para persistente reduz latência em quanto?",
+      "back": "~60-70%. Elimina 3-way handshake TCP repetido. De ~150ms para ~50ms por requisição.",
       "type": "example"
     }
   ]
@@ -199,7 +204,10 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "✗ Respostas com mais de 5 linhas",
             "✗ Múltiplas perguntas no mesmo 'front'",
             "✗ Perguntas genéricas como 'O que você sabe sobre X?'",
+            "✗ Perguntas que mencionam conceito A e B, mas resposta só fala de A",
+            "✗ Perguntas de comparação sem mencionar ambos os lados na resposta",
             "✗ Respostas que começam com 'Bem...', 'Basicamente...', 'É importante notar que...'",
+            "✗ Respostas incompletas que não respondem totalmente a pergunta",
         ]
     else:
         instruction = f"""Com base no texto fornecido, gere {num_flashcards} flashcards EFICIENTES de dificuldade {difficulty}.
@@ -221,15 +229,20 @@ Foque em {difficulty_instruction}."""
             "",
             "📌 PERGUNTAS (front):",
             "✓ UMA pergunta específica por flashcard (NUNCA duas ou mais perguntas juntas)",
-            "✓ Perguntas claras, diretas e desafiadoras (evite perguntas óbvias)",
+            "✓ Perguntas claras, diretas e COMPLETAMENTE RESPONDÍVEIS com a resposta fornecida",
             "✓ Máximo de 15-20 palavras por pergunta",
-            "✓ Use verbos de ação: 'Explique', 'Calcule', 'Compare', 'Identifique', 'Analise'",
+            "✓ Se perguntar 'Compare A e B', a resposta DEVE mencionar AMBOS explicitamente",
+            "✓ Use verbos de ação: 'Explique', 'Calcule', 'Defina', 'Identifique', 'Analise'",
+            "✓ Para comparações: use 'Qual a diferença entre...' EM VEZ DE 'Compare'",
             "✓ Para cálculos: forneça valores específicos e peça o resultado",
             "",
             "📌 RESPOSTAS (back):",
             "✓ Respostas CONCISAS e OBJETIVAS (máximo 3-4 linhas)",
             "✓ Vá direto ao ponto - sem introduções desnecessárias",
+            "✓ A resposta deve RESPONDER COMPLETAMENTE a pergunta feita",
+            "✓ Se a pergunta menciona dois conceitos, a resposta DEVE abordar AMBOS",
             "✓ Para cálculos: mostre o resultado e uma explicação breve (1-2 linhas)",
+            "✓ Para comparações: mencione EXPLICITAMENTE as diferenças ou semelhanças",
             "✓ Use bullet points quando listar itens múltiplos",
             "✓ Evite parágrafos longos - quebre em frases curtas",
             "",
@@ -250,9 +263,9 @@ Foque em {difficulty_instruction}."""
 {
   "flashcards": [
     {
-      "front": "Segundo o texto, o que é fotossíntese?",
-      "back": "Processo que converte luz solar em energia química nas plantas.",
-      "type": "concept"
+      "front": "Qual a diferença entre fotossíntese C3 e C4?",
+      "back": "C3: fixa CO₂ diretamente. C4: fixa CO₂ em duas etapas, mais eficiente em climas quentes.",
+      "type": "comparison"
     }
   ]
 }
@@ -260,8 +273,8 @@ Foque em {difficulty_instruction}."""
 {
   "flashcards": [
     {
-      "front": "Como a temperatura afeta a taxa de fotossíntese mencionada no texto?",
-      "back": "Aumenta até 30-35°C (ponto ótimo), depois diminui devido à desnaturação enzimática.",
+      "front": "Por que plantas C4 são mais eficientes que C3 em altas temperaturas?",
+      "back": "C4 concentra CO₂ internamente, reduzindo fotorrespiração que aumenta com calor em C3.",
       "type": "comparison"
     }
   ]
@@ -270,8 +283,8 @@ Foque em {difficulty_instruction}."""
 {
   "flashcards": [
     {
-      "front": "Analise: Se CO₂ aumentar 20% e luz cair 30%, qual impacto na fotossíntese segundo o texto?",
-      "back": "Redução líquida ~15%. Luz é fator limitante mais crítico que CO₂ em condições normais.",
+      "front": "Analise: Se temperatura subir de 25°C para 40°C, qual impacto em rendimento C3 vs C4?",
+      "back": "C3: queda ~40% (fotorrespiração). C4: queda ~10% (mecanismo concentrador protege).",
       "type": "example"
     }
   ]
@@ -282,8 +295,11 @@ Foque em {difficulty_instruction}."""
             "✗ Respostas com mais de 5 linhas",
             "✗ Múltiplas perguntas no mesmo 'front'",
             "✗ Perguntas genéricas como 'O que o texto fala sobre X?'",
+            "✗ Perguntas que mencionam conceito A e B, mas resposta só fala de A",
+            "✗ Perguntas de comparação sem mencionar ambos os lados na resposta",
             "✗ Respostas que começam com 'Bem...', 'Basicamente...', 'O texto menciona que...'",
             "✗ Copiar parágrafos inteiros do texto como resposta",
+            "✗ Respostas incompletas que não respondem totalmente a pergunta",
         ]
 
     try:
