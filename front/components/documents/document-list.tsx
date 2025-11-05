@@ -63,7 +63,7 @@ export function DocumentList({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,280px)] gap-4 sm:justify-start">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="h-60 animate-pulse bg-muted/50"></Card>
         ))}
@@ -102,7 +102,7 @@ export function DocumentList({
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
         {documents.map((doc) => (
           <RecentDocumentCard
             key={doc.id}
