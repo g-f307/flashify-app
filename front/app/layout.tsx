@@ -1,5 +1,3 @@
-"use client"; 
-
 import type React from "react";
 import type { Metadata } from "next";
 import "./globals.css"; 
@@ -11,6 +9,32 @@ import { Toaster } from "@/components/ui/sonner";
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+
+export const metadata: Metadata = {
+  title: {
+    default: "Flashify - Aprenda com IA",
+    template: "%s | Flashify"
+  },
+  description: "Transforme seus estudos com flashcards e quizzes gerados por inteligência artificial",
+  icons: {
+    icon: [
+      { url: "/flashify_logo.svg" },
+    ],
+    apple: [
+      { url: "/flashify_logo.svg" },
+    ],
+  },
+  manifest: "/manifest.json",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
 
 export default function RootLayout({
   children,
