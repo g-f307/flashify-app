@@ -112,9 +112,9 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className="relative">
-                      <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
+                      <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory">
                           {recentDocuments.map((doc) => (
-                              <div key={doc.id} className="flex-shrink-0 w-full basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 py-4">
+                              <div key={doc.id} className="flex-shrink-0 w-[280px] snap-start">
                                   <RecentDocumentCard
                                     document={doc}
                                     onSelect={() => handleDocumentSelect(doc)}
@@ -124,9 +124,9 @@ export default function HomePage() {
                               </div>
                           ))}
 
-                          <div className="flex-shrink-0 w-full basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 flex items-stretch py-4">
+                          <div className="flex-shrink-0 w-[280px] snap-start">
                               <Card
-                                className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:shadow-lg transition-shadow"
+                                className="flex flex-col items-center justify-center h-[280px] w-full cursor-pointer hover:shadow-lg transition-shadow"
                                 onClick={() => router.push("/library")}
                               >
                                 <CardHeader className="text-center p-6">

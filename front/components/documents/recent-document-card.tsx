@@ -66,7 +66,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
             if (onSelect) onSelect();
         }} className="block w-full">
           <Card
-            className={`group relative w-full h-[280px] flex flex-col p-5 border border-transparent transition-all duration-300 ease-out overflow-hidden 
+            className={`group relative w-full h-[280px] sm:w-[280px] flex flex-col p-5 border border-transparent transition-all duration-300 ease-out overflow-hidden 
               ${isClickable 
                 ? "cursor-pointer hover:border-[#48cfea] hover:shadow-xl hover:shadow-[#48cfea]/20 hover:-translate-y-1.5 hover:bg-gradient-to-br hover:from-[#48cfea]/[0.03] hover:to-transparent" 
                 : "cursor-default bg-muted/30 border-muted"
