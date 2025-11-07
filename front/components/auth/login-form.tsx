@@ -35,7 +35,7 @@ export default function LoginForm() {
       toast.success("Login bem-sucedido!", {
         description: "Carregando...",
       });
-      router.push('/')
+      router.push('/dashboard')
     } catch (err: any) {
       toast.error("Falha no login", {
         description: err.message || 'Falha no login. Verifique as seus dados.',

@@ -40,7 +40,7 @@ export default function RegisterForm() {
       toast.success("Registro bem-sucedido!", {
         description: "Carregando...",
       });
-      router.push("/");
+      router.push("/dashboard");
     } catch (error: any) {
       toast.error("Falha no registro", {
         description: error.message || "Por favor, verifique os seus dados e tente novamente.",

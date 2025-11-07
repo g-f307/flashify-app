@@ -57,7 +57,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   const AppLogo = () => (
-    <Link href="/" className="flex items-center justify-center gap-2">
+    <Link href="/dashboard" className="flex items-center justify-center gap-2">
       <Image 
         src="/flashify_logo.svg" 
         alt="Flashify Logo" 
@@ -93,8 +93,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               const Icon = item.icon;
               
               let isActive = false;
-              if (item.href === '/') {
-                isActive = pathname === '/';
+              if (item.href === '/dashboard') {
+                isActive = pathname === '/dashboard';
               } else if (item.href === '/library') {
                 isActive = pathname.startsWith('/library') || 
                            pathname.startsWith('/deck/') || 
@@ -158,7 +158,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
           
           <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/dashboard" className="flex items-center gap-2">
               <Image
                   src="/flashify_logo.svg"
                   alt="Flashify Logo"

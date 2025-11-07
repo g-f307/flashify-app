@@ -9,7 +9,7 @@ const AboutSection = () => {
       icon: <FaClock />,
       title: 'Deixe o trabalho repetitivo para a nossa IA',
       description:
-        'O seu tempo é valioso demais para ser gasto criando cartões de estudo. Deixe que a nossa tecnologia faça o trabalho pesado por você.',
+        'O seu tempo é valioso demais para ser gasto criando decks de estudo manualmente. Deixe que a nossa tecnologia faça o trabalho pesado por você.',
     },
     {
       icon: <FaInfinity />,

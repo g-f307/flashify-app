@@ -10,14 +10,14 @@ const HowItWorksSection = () => {
       icon: <FaUpload />,
       title: 'Envie o seu Conteúdo',
       description:
-        'Faça o upload de um ficheiro PDF, cole um texto diretamente ou tire uma foto das suas anotações. O Flashify é compatível com as suas fontes de estudo preferidas.',
+        'Faça o upload de um arquivo PDF, cole um texto diretamente ou tire uma foto das suas anotações. O Flashify é compatível com as suas fontes de estudo preferidas.',
     },
     {
       number: 2,
       icon: <FaMagic />,
       title: 'Deixe a IA Trabalhar',
       description:
-        'Com um clique, a nossa Inteligência Artificial analisa o seu material, identifica os conceitos-chave e gera automaticamente flashcards e quizzes completos para si.',
+        'Com um clique, a nossa Inteligência Artificial analisa o seu material, identifica os conceitos chave e gera automaticamente flashcards e quizzes completos para você.',
     },
     {
       number: 3,

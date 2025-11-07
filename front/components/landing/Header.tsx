@@ -120,8 +120,9 @@ const Header = () => {
               className="bg-accent text-accent-foreground hover:bg-accent/90 
                          transition-all duration-300 rounded-full 
                          font-semibold px-8"
+              onClick={() => window.location.href = '/login'}
             >
-              LOG IN
+              ENTRAR
             </Button>
           </div>
 
@@ -163,8 +164,9 @@ const Header = () => {
                   className="bg-accent text-accent-foreground hover:bg-accent/90 
                              transition-all duration-300 rounded-full 
                              font-semibold px-8"
+                  onClick={() => window.location.href = '/login'}
                 >
-                  LOG IN
+                  ENTRAR
                 </Button>
               </div>
             </motion.div>

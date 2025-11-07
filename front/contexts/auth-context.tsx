@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       showAuthLoading("Login realizado com sucesso!");
       
       setTimeout(() => {
-        router.push('/');
+        router.push('/dashboard');
         
         setTimeout(() => {
           hideLoading();
@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       showAuthLoading("Login realizado com sucesso!");
       
       setTimeout(() => {
-        router.push('/');
+        router.push('/dashboard');
         
         setTimeout(() => {
           hideLoading();
@@ -108,7 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       showAuthLoading("Bem-vindo ao Flashify!");
       
       setTimeout(() => {
-        router.push('/');
+        router.push('/dashboard');
         
         setTimeout(() => {
           hideLoading();

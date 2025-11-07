@@ -32,7 +32,7 @@ const ContactSection = () => {
               </h2>
               <p className="text-muted-foreground leading-relaxed">
                 Estamos em constante evolução e a sua experiência é a nossa maior fonte de
-                inspiração. Partilhe as suas ideias, sugestões ou relate qualquer dificuldade que
+                inspiração. Compartilhe suas ideias, sugestões ou relate qualquer dificuldade que
                 tenha encontrado.
               </p>
             </div>
@@ -56,7 +56,7 @@ const ContactSection = () => {
                 <div className="animate-fadeInScale delay-200">
                   <Input
                     type="email"
-                    placeholder="Email"
+                    placeholder="E-mail"
                     className="w-full px-4 py-3 rounded-lg border border-border 
                              focus:border-accent transition-smooth
                              hover:border-accent/50"
