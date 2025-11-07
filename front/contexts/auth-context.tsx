@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (error) {
           console.error("Falha ao buscar utilizador, a limpar token", error);
           clearToken();
-          router.push('/login'); 
+          router.push('/dashboard'); 
         }
       }
       setLoading(false);
