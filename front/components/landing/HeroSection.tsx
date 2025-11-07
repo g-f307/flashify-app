@@ -13,7 +13,7 @@ const HeroSection = () => {
   return (
     <section
       id="hero"
-      className="relative min-h-screen pt-24 md:pt-48 pb-16 overflow-hidden bg-gradient-hero"
+      className="relative min-h-[125vh] pt-24 md:pt-48 pb-16 overflow-hidden bg-gradient-hero"
     >
       <div className="container mx-auto px-4 py-20">
         
