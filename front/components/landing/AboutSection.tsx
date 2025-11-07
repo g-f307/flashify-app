@@ -1,4 +1,4 @@
-// Caminho: components/landing/AboutSection.tsx (Corrigido)
+// Caminho: components/landing/AboutSection.tsx (Atualizado com Transições)
 
 import { FaClock, FaInfinity, FaBrain } from 'react-icons/fa';
 import SimpleWaveDivider from './SimpleWaveDivider';
@@ -26,13 +26,12 @@ const AboutSection = () => {
   ];
 
   return (
-    // Fundo cinza-claro (bg-muted) e padding (pb-32 md:pb-40) estão corretos
     <section 
       id="why" 
       className="relative bg-muted pt-16 md:pt-20 pb-32 md:pb-40"
     >
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
+        <div className="text-center mb-16 animate-fadeInUp">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">POR QUE USAR O FLASHIFY?</h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             O Flashify é uma plataforma que transforma o seu material de estudo em flashcards e quizzes utilizando
@@ -44,28 +43,28 @@ const AboutSection = () => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="bg-background p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-border"
+              className="bg-background p-8 rounded-xl shadow-lg border border-border
+                         hover-lift hover-glow transition-smooth
+                         animate-fadeInScale opacity-0"
+              style={{ animationDelay: `${index * 0.15}s`, animationFillMode: 'forwards' }}
             >
               <div className="flex justify-center mb-6">
                 
-                {/* ===========================================
-                    A CORREÇÃO ESTÁ AQUI:
-                    - O gradiente 'bg-gradient-to-br from-primary to-accent'
-                      foi substituído por 'bg-accent' (amarelo sólido).
-                    - 'text-white' foi mudado para 'text-accent-foreground' por consistência.
-                   =========================================== */}
-                <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center text-3xl text-accent-foreground shadow-lg">
+                <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center 
+                              text-3xl text-accent-foreground shadow-lg
+                              transition-smooth hover:scale-110 hover:rotate-12">
                   {feature.icon}
                 </div>
               </div>
-              <h3 className="text-xl font-bold mb-4 text-center text-foreground">{feature.title}</h3>
+              <h3 className="text-xl font-bold mb-4 text-center text-foreground transition-colors hover:text-accent">
+                {feature.title}
+              </h3>
               <p className="text-muted-foreground text-center leading-relaxed">{feature.description}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Divisor de onda (MANTIDO E CORRETO) */}
       <SimpleWaveDivider position="bottom" color="#FFFFFF" flip={true} />
     </section>
   );

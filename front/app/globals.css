@@ -139,7 +139,6 @@
     }
   }
   .animate-gradient {
-    /* 🔽 ALTERAÇÃO AQUI: Aumentado de 3s para 8s 🔽 */
     animation: gradient 10s ease-in-out infinite;
   }
 }
@@ -199,16 +198,12 @@
 }
 
 /* ================================================ */
-/* COMEÇO DO TEMA DA LANDING PAGE (ADICIONAR ISTO) */
+/* COMEÇO DO TEMA DA LANDING PAGE */
 /* ================================================ */
 
 @layer base {
-  /* Este é o "escopo" do tema da landing page.
-    Todas as variáveis aqui dentro só vão funcionar
-    se forem "filhas" de um elemento com esta classe.
-  */
   .landing-page-theme {
-    /* Paleta Flashify (do seu CSS isolado) */
+    /* Paleta Flashify */
     --primary: 191 85% 68%; /* #6BDEF3 - Azul principal */
     --primary-foreground: 210 17% 23%; /* #2C3E50 - Texto escuro */
     
@@ -298,13 +293,207 @@
       opacity: 1;
     }
   }
+
+  /* NOVAS ANIMAÇÕES ADICIONADAS */
+  
+  /* Fade in com slide da esquerda */
+  @keyframes fadeInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Fade in com slide da direita */
+  @keyframes fadeInRight {
+    from {
+      opacity: 0;
+      transform: translateX(40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Fade in com escala */
+  @keyframes fadeInScale {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Pulso suave */
+  @keyframes pulse-smooth {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+
+  /* Bounce suave */
+  @keyframes bounce-smooth {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Rotação suave */
+  @keyframes rotate-smooth {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Brilho que se move */
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  /* Classes de animação */
+  .animate-fadeInUp {
+    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-fadeInLeft {
+    animation: fadeInLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-fadeInRight {
+    animation: fadeInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-fadeInScale {
+    animation: fadeInScale 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-pulse-smooth {
+    animation: pulse-smooth 3s ease-in-out infinite;
+  }
+
+  .animate-bounce-smooth {
+    animation: bounce-smooth 2s ease-in-out infinite;
+  }
+
+  .animate-rotate-smooth {
+    animation: rotate-smooth 20s linear infinite;
+  }
+
+  /* Transições suaves */
+  .transition-smooth {
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .transition-fast {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .transition-slow {
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Efeito de brilho ao passar o mouse */
+  .hover-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hover-shimmer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left 0.5s;
+  }
+
+  .hover-shimmer:hover::before {
+    left: 100%;
+  }
+
+  /* Efeito de elevação ao passar o mouse */
+  .hover-lift {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+                box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-8px);
+  }
+
+  /* Efeito de zoom suave */
+  .hover-zoom {
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .hover-zoom:hover {
+    transform: scale(1.05);
+  }
+
+  /* Efeito de glow ao passar o mouse */
+  .hover-glow {
+    transition: box-shadow 0.3s ease-in-out;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 20px hsla(191 85% 68% / 0.4), 
+                0 0 40px hsla(191 85% 68% / 0.2);
+  }
+
+  /* Delays para animações em sequência */
+  .delay-100 {
+    animation-delay: 0.1s;
+  }
+
+  .delay-200 {
+    animation-delay: 0.2s;
+  }
+
+  .delay-300 {
+    animation-delay: 0.3s;
+  }
+
+  .delay-400 {
+    animation-delay: 0.4s;
+  }
+
+  .delay-500 {
+    animation-delay: 0.5s;
+  }
 }
 
 input, textarea, select {
   font-size: 16px !important;
 }
-
-
 
 /* ================================================ */
 /* FIM DO TEMA DA LANDING PAGE                   */

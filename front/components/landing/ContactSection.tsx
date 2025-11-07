@@ -1,17 +1,12 @@
-// Caminho: components/landing/ContactSection.tsx (Corrigido)
+// Caminho: components/landing/ContactSection.tsx (Atualizado com Transições)
 "use client"; 
 
 import { MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-
-// Importa o HeroWaveDivider (onda complexa)
 import HeroWaveDivider from "./HeroWaveDivider";
 
-/**
- * Seção de Contato/Feedback
- */
 const ContactSection = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +14,6 @@ const ContactSection = () => {
   };
 
   return (
-    // Fundo cinza-claro (bg-muted) e padding (pb-60) estão corretos
     <section 
       id="contact" 
       className="relative bg-muted pt-32 md:pt-40 pb-60"
@@ -28,8 +22,9 @@ const ContactSection = () => {
         <div className="max-w-4xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-start">
             {/* Informações */}
-            <div className="animate-fadeInUp">
-              <div className="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center mb-6">
+            <div className="animate-fadeInLeft">
+              <div className="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center mb-6
+                            transition-smooth hover:scale-110 hover:rotate-12">
                 <MessageSquare className="w-8 h-8 text-accent-foreground" />
               </div>
               <h2 className="text-4xl font-bold text-foreground mb-6">
@@ -42,40 +37,48 @@ const ContactSection = () => {
               </p>
             </div>
 
-            {/* Formulário (com cores 'accent' corretas) */}
+            {/* Formulário */}
             <div
-              className="bg-card rounded-3xl p-8 shadow-card animate-fadeInUp"
-              style={{ animationDelay: "0.1s" }}
+              className="bg-card rounded-3xl p-8 shadow-card 
+                         hover-lift transition-smooth animate-fadeInRight"
             >
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* ... (Inputs e Textarea) ... */}
-                <div>
+                <div className="animate-fadeInScale delay-100">
                   <Input
                     type="text"
                     placeholder="Nome"
-                    className="w-full px-4 py-3 rounded-lg border border-border focus:border-accent transition-colors"
+                    className="w-full px-4 py-3 rounded-lg border border-border 
+                             focus:border-accent transition-smooth
+                             hover:border-accent/50"
                     required
                   />
                 </div>
-                <div>
+                <div className="animate-fadeInScale delay-200">
                   <Input
                     type="email"
                     placeholder="Email"
-                    className="w-full px-4 py-3 rounded-lg border border-border focus:border-accent transition-colors"
+                    className="w-full px-4 py-3 rounded-lg border border-border 
+                             focus:border-accent transition-smooth
+                             hover:border-accent/50"
                     required
                   />
                 </div>
-                <div>
+                <div className="animate-fadeInScale delay-300">
                   <Textarea
                     placeholder="A sua mensagem..."
                     rows={5}
-                    className="w-full px-4 py-3 rounded-lg border border-border focus:border-accent transition-colors resize-none"
+                    className="w-full px-4 py-3 rounded-lg border border-border 
+                             focus:border-accent transition-smooth resize-none
+                             hover:border-accent/50"
                     required
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold py-6 rounded-full shadow-button hover:shadow-xl transition-all"
+                  className="w-full bg-accent hover:bg-accent/90 text-accent-foreground 
+                           font-bold py-6 rounded-full shadow-button hover:shadow-xl 
+                           transition-smooth hover:scale-105 hover-shimmer
+                           animate-fadeInScale delay-400"
                 >
                   ENVIAR FEEDBACK
                 </Button>
@@ -85,12 +88,6 @@ const ContactSection = () => {
         </div>
       </div>
 
-      {/* ===========================================
-          A CORREÇÃO ESTÁ AQUI:
-          - A cor foi mudada de 'fill-slate-900' para 'fill-card'.
-          - 'fill-card' usa a variável '--card' que no seu 
-            tema da landing page é BRANCA.
-         =========================================== */}
       <HeroWaveDivider position="bottom" color="fill-card" />
     </section>
   );
