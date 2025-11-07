@@ -23,7 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 
 const sidebarItems = [
-    { href: "/", label: "Início", icon: Home },
+    { href: "/dashboard", label: "Início", icon: Home },
     { href: "/library", label: "Biblioteca", icon: Library },
     { href: "/create", label: "Criar Deck", icon: Plus },
     { href: "/progress", label: "Progresso", icon: TrendingUp },

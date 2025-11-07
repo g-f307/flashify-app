@@ -28,6 +28,7 @@
   --ring: 240 5.9% 10%;
   --radius: 0.5rem;
   --glow: 45 100% 50%; /* Amarelo para brilho no modo claro */
+  --gradient-hero: linear-gradient(135deg, hsl(191 85% 68%), hsl(191 69% 87%));
 }
 
 .dark {
@@ -196,3 +197,115 @@
     border-color: hsl(var(--primary) / 0.5);
     box-shadow: 0 4px 12px hsl(var(--primary) / 0.1);
 }
+
+/* ================================================ */
+/* COMEÇO DO TEMA DA LANDING PAGE (ADICIONAR ISTO) */
+/* ================================================ */
+
+@layer base {
+  /* Este é o "escopo" do tema da landing page.
+    Todas as variáveis aqui dentro só vão funcionar
+    se forem "filhas" de um elemento com esta classe.
+  */
+  .landing-page-theme {
+    /* Paleta Flashify (do seu CSS isolado) */
+    --primary: 191 85% 68%; /* #6BDEF3 - Azul principal */
+    --primary-foreground: 210 17% 23%; /* #2C3E50 - Texto escuro */
+    
+    --secondary: 191 69% 87%; /* #C4E9F2 - Azul claro */
+    --secondary-foreground: 210 17% 23%;
+    
+    --accent: 45 100% 50%; /* #FFC300 - Laranja destaque */
+    --accent-foreground: 0 0% 100%;
+    
+    --highlight: 51 100% 50%; /* #FFD700 - Amarelo */
+    --highlight-foreground: 210 17% 23%;
+    
+    --background: 0 0% 100%;
+    --foreground: 210 17% 23%; /* #2C3E50 */
+    
+    --card: 0 0% 100%;
+    --card-foreground: 210 17% 23%;
+    
+    --muted: 0 0% 95%; /* #F2F2F2 */
+    --muted-foreground: 0 0% 50%; /* #808080 */
+    
+    --border: 0 0% 93%; /* #ECECEC */
+    --input: 0 0% 93%;
+    --ring: 191 85% 68%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 17% 23%;
+    
+    --radius: 1rem;
+    
+    /* Gradientes personalizados */
+    --gradient-hero: linear-gradient(135deg, hsl(191 85% 68%), hsl(191 69% 87%));
+    --gradient-wave: linear-gradient(180deg, hsl(191 85% 68%), hsl(191 85% 75%));
+    
+    /* Sombras personalizadas */
+    --shadow-card: 0 4px 20px hsla(191 85% 68% / 0.15);
+    --shadow-card-hover: 0 8px 30px hsla(191 85% 68% / 0.25);
+    --shadow-button: 0 4px 15px hsla(45 100% 50% / 0.3);
+  }
+}
+
+/* Animações personalizadas da Landing Page */
+@layer utilities {
+  /* Fade in com slide up */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Animação para os ícones caindo */
+  @keyframes fallIn {
+    from {
+      opacity: 0;
+      transform: translateY(-80px) rotate(-15deg);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) rotate(0);
+    }
+  }
+
+  /* Animação para o card sair */
+  @keyframes sendToBack {
+    to {
+      transform: translateY(30px) scale(0.8);
+      opacity: 0;
+    }
+  }
+
+  /* Animação de chegada do deck */
+  @keyframes deckArrive {
+    from {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+}
+
+input, textarea, select {
+  font-size: 16px !important;
+}
+
+
+
+/* ================================================ */
+/* FIM DO TEMA DA LANDING PAGE                   */
+/* ================================================ */
