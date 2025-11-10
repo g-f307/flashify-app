@@ -1,3 +1,5 @@
+// front/app/(app)/layout.tsx - ATUALIZAR A SIDEBAR
+
 "use client";
 
 import { useState, ReactNode, useEffect } from "react";
@@ -17,10 +19,14 @@ import {
   Library,
   TrendingUp,
   Menu,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { Progress } from "@/components/ui/progress";
+import { apiClient, GenerationLimitInfo } from "@/lib/api";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const sidebarItems = [
     { href: "/dashboard", label: "Início", icon: Home },
@@ -30,16 +36,112 @@ const sidebarItems = [
     { href: "/settings", label: "Configurações", icon: Settings },
 ];
 
+// Componente para a barra de limite
+function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | null }) {
+  if (!limitInfo) return null;
+
+  const { used, remaining, limit } = limitInfo;
+  const percentage = (used / limit) * 100;
+  
+  const getStatusColor = () => {
+    if (percentage >= 90) return "text-destructive";
+    if (percentage >= 70) return "text-orange-500";
+    return "text-[#6BDEF3]";
+  };
+
+  const getProgressColor = () => {
+    if (percentage >= 90) return "[&>div]:bg-destructive";
+    if (percentage >= 70) return "[&>div]:bg-orange-500";
+    return "[&>div]:bg-gradient-to-r [&>div]:from-[#FFC300] [&>div]:to-[#6BDEF3]";
+  };
+
+  const getMessage = () => {
+    if (remaining === 0) return "Limite atingido hoje";
+    if (remaining === 1) return "1 geração restante";
+    return `${remaining} gerações restantes`;
+  };
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="px-4 py-3 border-t border-border dark:border-zinc-800 space-y-2 cursor-help hover:bg-accent/50 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className={cn("w-3.5 h-3.5", getStatusColor())} />
+                <span className="text-xs font-medium text-foreground">
+                  Gerações
+                </span>
+              </div>
+              <span className={cn("text-xs font-bold", getStatusColor())}>
+                {used}/{limit}
+              </span>
+            </div>
+            
+            <Progress 
+              value={percentage} 
+              className={cn("h-1.5", getProgressColor())}
+            />
+            
+            <p className="text-[10px] text-muted-foreground">
+              {getMessage()}
+            </p>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-xs">
+          <div className="space-y-2">
+            <p className="font-semibold">Limite Diário de Gerações</p>
+            <p className="text-xs text-muted-foreground">
+              Você pode criar até <strong>{limit} decks</strong> por dia.
+              {remaining > 0 
+                ? ` Ainda restam ${remaining} ${remaining === 1 ? 'geração' : 'gerações'} hoje.`
+                : " Volte amanhã para criar mais decks!"
+              }
+            </p>
+            {limitInfo.hours_until_reset > 0 && (
+              <p className="text-xs text-muted-foreground border-t pt-2">
+                ⏰ Renova em {limitInfo.hours_until_reset}h
+              </p>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<GenerationLimitInfo | null>(null);
 
   const getInitials = (name: string | undefined) => {
     if (!name) return "?";
     return name.charAt(0).toUpperCase();
   };
+
+  // Buscar informações de limite
+  useEffect(() => {
+    const fetchLimitInfo = async () => {
+      if (!user) return;
+      
+      try {
+        const info = await apiClient.getGenerationLimitStatus();
+        setLimitInfo(info);
+      } catch (error) {
+        console.error("Erro ao carregar limite:", error);
+      }
+    };
+
+    fetchLimitInfo();
+
+    // Atualizar a cada 5 minutos
+    const interval = setInterval(fetchLimitInfo, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [user]);
 
   if (loading) {
     return (
@@ -50,7 +152,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Se não há usuário, retorna null (AuthProvider já redirecionou)
   if (!user) {
     return null;
   }
@@ -123,6 +224,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             })}
           </ul>
         </nav>
+
+        {/* Barra de Limite de Gerações */}
+        <GenerationLimitBar limitInfo={limitInfo} />
 
         <div className="p-4 mt-auto border-t border-border dark:border-zinc-800">
           <div className="flex items-center gap-3">

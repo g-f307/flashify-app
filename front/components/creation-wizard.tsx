@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { apiClient, Document } from "@/lib/api";
+import { apiClient, Document, GenerationLimitInfo, LimitExceededError } from "@/lib/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import ContentLoader from "@/components/content-loader"; 
+import ContentLoader from "@/components/content-loader";
+import { GenerationLimitAlert } from "@/components/generation-limit-alert";
+import { LimitReachedDialog } from "@/components/limit-reached-dialog";
 import {
   Loader2,
   ArrowLeft,
@@ -66,6 +68,12 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   const [processingDocument, setProcessingDocument] = useState<Document | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   
+  // 🆕 Estados de limite
+  const [limitInfo, setLimitInfo] = useState<GenerationLimitInfo | null>(null);
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
+  const [limitDialogInfo, setLimitDialogInfo] = useState<LimitExceededError | null>(null);
+  const [loadingLimit, setLoadingLimit] = useState(true);
+  
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [data, setData] = useState<WizardData>({
@@ -78,6 +86,22 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     difficulty: "Médio",
     num_questions: 5,
   });
+
+  // 🆕 CARREGAR INFORMAÇÕES DE LIMITE AO MONTAR
+  useEffect(() => {
+    const fetchLimitInfo = async () => {
+      try {
+        const info = await apiClient.getGenerationLimitStatus();
+        setLimitInfo(info);
+      } catch (error) {
+        console.error("Erro ao carregar informações de limite:", error);
+      } finally {
+        setLoadingLimit(false);
+      }
+    };
+
+    fetchLimitInfo();
+  }, []);
 
   const handleNext = () => setStep((s) => Math.min(s + 1, steps.length));
   const handleBack = () => setStep((s) => Math.max(s - 1, 1));
@@ -138,11 +162,43 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     };
   }, []);
 
+  // 🆕 FUNÇÃO AUXILIAR PARA LIDAR COM ERRO DE LIMITE
+  const handleLimitError = (error: any) => {
+    if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
+      setLimitDialogInfo(error.limitInfo);
+      setShowLimitDialog(true);
+      
+      // Atualiza as informações de limite
+      setLimitInfo({
+        used: error.limitInfo.used,
+        remaining: 0,
+        limit: error.limitInfo.limit,
+        hours_until_reset: error.limitInfo.hours_until_reset
+      });
+    } else {
+      toast.error("Falha ao criar deck", { 
+        description: error.message || "Tente novamente mais tarde." 
+      });
+    }
+  };
+
   const handleSubmit = async () => {
     if (!data.name.trim()) return toast.error("Por favor, dê um nome ao seu deck.");
     if (data.inputType === 'text' && !data.text.trim()) return toast.error("O conteúdo de texto não pode estar vazio.");
     if (data.inputType === 'upload' && !data.file) return toast.error("Por favor, selecione um arquivo para upload.");
-    if (fileError) return toast.error(fileError); 
+    if (fileError) return toast.error(fileError);
+
+    // 🆕 Verifica limite antes de submeter
+    if (limitInfo && limitInfo.remaining === 0) {
+      setLimitDialogInfo({
+        message: "Limite diário atingido",
+        limit: limitInfo.limit,
+        used: limitInfo.used,
+        hours_until_reset: limitInfo.hours_until_reset
+      });
+      setShowLimitDialog(true);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -168,6 +224,15 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         document = await apiClient.createDocumentFromText({ ...baseParams, text: data.text });
       }
 
+      // 🆕 Atualiza informações de limite após sucesso
+      if (limitInfo) {
+        setLimitInfo({
+          ...limitInfo,
+          used: limitInfo.used + 1,
+          remaining: limitInfo.remaining - 1
+        });
+      }
+
       setIsSubmitting(false);
       setIsProcessing(true);
       setProcessingDocument(document);
@@ -177,7 +242,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
 
     } catch (error: any) {
       setIsSubmitting(false);
-      toast.error("Falha ao criar deck", { description: error.message || "Tente novamente mais tarde." });
+      handleLimitError(error);
     }
   };
 
@@ -512,7 +577,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                 <Button 
                   onClick={handleSubmit} 
                   className="w-full !mt-6 sm:!mt-8 h-11 sm:h-12 text-sm sm:text-base font-semibold" 
-                  disabled={isSubmitting || isProcessing}
+                  disabled={isSubmitting || isProcessing || (limitInfo?.remaining === 0)}
                 >
                     {isSubmitting ? (
                       <>
@@ -533,18 +598,46 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 sm:px-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2">
-            <Link 
-              href="/library" 
-              className="inline-flex items-center text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-              Voltar para a Biblioteca
-            </Link>
-        </div>
-        {!isProcessing && <WizardProgress/>}
-        <Card className="relative overflow-hidden">{renderStepContent()}</Card>
-    </div>
-  )
+    <>
+      <div className="w-full max-w-3xl mx-auto px-4 sm:px-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2">
+              <Link 
+                href="/library" 
+                className="inline-flex items-center text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                Voltar para a Biblioteca
+              </Link>
+          </div>
+
+          {!isProcessing && <WizardProgress/>}
+          <Card className="relative overflow-hidden">{renderStepContent()}</Card>
+
+          {/* 🆕 ALERTA DE LIMITE - Aparece depois do wizard, na parte inferior */}
+          {!isProcessing && (
+            <>
+              {loadingLimit ? (
+                <div className="flex items-center justify-center p-3 sm:p-4 bg-muted/50 rounded-lg mt-4 sm:mt-6">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
+                  <span className="text-xs sm:text-sm text-muted-foreground">Carregando informações...</span>
+                </div>
+              ) : limitInfo && (
+                <div className="mt-4 sm:mt-6">
+                  <GenerationLimitAlert limitInfo={limitInfo} />
+                </div>
+              )}
+            </>
+          )}
+      </div>
+
+      {/* 🆕 DIALOG DE LIMITE ATINGIDO */}
+      {limitDialogInfo && (
+        <LimitReachedDialog
+          isOpen={showLimitDialog}
+          onClose={() => setShowLimitDialog(false)}
+          limitInfo={limitDialogInfo}
+        />
+      )}
+    </>
+  );
 }

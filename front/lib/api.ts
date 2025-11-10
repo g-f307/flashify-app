@@ -139,6 +139,21 @@ export interface DeckStats {
   mastery_history: { date: string; mastery: number }[];
 }
 
+export interface GenerationLimitInfo {
+  used: number;
+  remaining: number;
+  limit: number;
+  hours_until_reset: number;
+}
+
+// 🆕 NOVO TIPO PARA ERRO DE LIMITE
+export interface LimitExceededError {
+  message: string;
+  limit: number;
+  used: number;
+  hours_until_reset: number;
+}
+
 type UploadDocumentParams = {
   file: File;
   title: string;
@@ -208,6 +223,31 @@ class ApiClient {
     if (res.status === 401) {
       this.auth?.logout();
       throw new Error("Sessão expirada. Por favor, faça login novamente.");
+    }
+
+    // 🆕 TRATAMENTO ESPECIAL PARA 429 (Too Many Requests)
+    if (res.status === 429) {
+      const errorData = await res.json().catch(() => ({ 
+        detail: { 
+          message: "Limite diário atingido",
+          limit: 10,
+          used: 10,
+          hours_until_reset: 24
+        } 
+      }));
+      
+      const limitError: LimitExceededError = typeof errorData.detail === 'string' 
+        ? {
+            message: "Limite diário de gerações atingido",
+            limit: 10,
+            used: 10,
+            hours_until_reset: 24
+          }
+        : errorData.detail;
+      
+      const error = new Error("LIMIT_EXCEEDED");
+      (error as any).limitInfo = limitError;
+      throw error;
     }
 
     if (!res.ok) {
@@ -507,7 +547,11 @@ class ApiClient {
       })
     });
   }
-  
+
+    async getGenerationLimitStatus(): Promise<GenerationLimitInfo> {
+    return this.request<GenerationLimitInfo>('/documents/generation-limit');
+  }
+
 }
 
 export const apiClient = new ApiClient();

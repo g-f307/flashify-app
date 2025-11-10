@@ -36,7 +36,7 @@ class User(SQLModel, table=True):
     provider: AuthProvider = Field(default=AuthProvider.LOCAL)
     profile_picture_url: Optional[str] = Field(default=None)
     
-    # 🆕 CAMPOS PARA TRACKING DE E-MAILS
+    # 🆕 CAMPOS PARA TRACKING DE E-MAILS (já existentes)
     last_login_at: Optional[datetime] = Field(
         sa_column=Column(DateTime(timezone=True), nullable=True),
         default=None
@@ -49,6 +49,16 @@ class User(SQLModel, table=True):
             nullable=False
         ),
         default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    # 🆕 NOVOS CAMPOS PARA LIMITE DE GERAÇÕES
+    daily_generation_count: int = Field(
+        sa_column=Column(Integer, server_default="0", nullable=False),
+        default=0
+    )
+    last_generation_reset: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
     )
 
     # Relações existentes

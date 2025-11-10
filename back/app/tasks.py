@@ -2,7 +2,7 @@
 
 import traceback
 from pathlib import Path
-from sqlmodel import Session
+from sqlmodel import Session, select  # ✅ ADICIONAR select aqui
 from .worker import celery_app
 from .database import engine
 from . import crud, models, schemas
@@ -39,7 +39,7 @@ def process_document(
             return
 
         try:
-            # --- PASSO 1: EXTRAÇÃO DE TEXTO (AGORA CONDICIONAL) ---
+            # --- PASSO 1: EXTRAÇÃO DE TEXTO ---
             db_document.current_step = "iniciando processamento"
             session.add(db_document)
             session.commit()
@@ -47,7 +47,6 @@ def process_document(
 
             extracted_text = db_document.extracted_text
 
-            # Só extrai de um ficheiro se o texto ainda não existir no documento
             if not extracted_text:
                 db_document.current_step = "extraindo texto"
                 session.add(db_document)
@@ -137,8 +136,13 @@ def process_document(
             db_document.processing_progress = 100
             session.add(db_document)
             session.commit()
+            
+            # 🆕 INCREMENTAR CONTADOR APENAS QUANDO GERAÇÃO FOR BEM-SUCEDIDA
+            crud.increment_user_generation_count(session, db_document.user_id)
+            
             print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
             print(f"[TASK] Documento {document_id} processado com sucesso.")
+            print(f"[TASK] ✅ Contador de gerações incrementado para usuário {db_document.user_id}")
 
         except Exception as e:
             session.rollback()

@@ -61,6 +61,21 @@ def upload_document(
     difficulty: str = Form("Médio"),
     num_questions: int = Form(5),
 ):
+    # 🆕 VERIFICAR LIMITE ANTES DE PROCESSAR
+    can_generate, remaining = crud.can_user_generate_deck(session, current_user)
+    
+    if not can_generate:
+        generation_info = crud.get_user_generation_info(session, current_user)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": "Limite diário de gerações atingido",
+                "limit": generation_info["limit"],
+                "used": generation_info["used"],
+                "hours_until_reset": generation_info["hours_until_reset"]
+            }
+        )
+    
     if not file.content_type in ["image/jpeg", "image/png", "application/pdf"]:
         raise HTTPException(status_code=400, detail="Tipo de arquivo inválido.")
 
@@ -98,6 +113,21 @@ def create_document_from_text(
     current_user: CurrentUser,
     session: Session = Depends(get_session)
 ):
+    # 🆕 VERIFICAR LIMITE ANTES DE PROCESSAR
+    can_generate, remaining = crud.can_user_generate_deck(session, current_user)
+    
+    if not can_generate:
+        generation_info = crud.get_user_generation_info(session, current_user)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": "Limite diário de gerações atingido",
+                "limit": generation_info["limit"],
+                "used": generation_info["used"],
+                "hours_until_reset": generation_info["hours_until_reset"]
+            }
+        )
+    
     if not text_input.text.strip():
         raise HTTPException(status_code=400, detail="Texto não pode estar vazio")
     
@@ -124,6 +154,17 @@ def create_document_from_text(
     )
     
     return db_document
+
+# 🆕 NOVO ENDPOINT PARA VERIFICAR STATUS DO LIMITE
+@router.get("/generation-limit", response_model=dict)
+def get_generation_limit_status(
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    """
+    Retorna informações sobre o limite de gerações do usuário.
+    """
+    return crud.get_user_generation_info(session, current_user)
 
 @router.get("/", response_model=list[schemas.DocumentCardData])
 def get_user_documents(

@@ -2,8 +2,10 @@
 from sqlmodel import Session, select, func, distinct
 from . import models, schemas, security
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import selectinload
+
+DAILY_GENERATION_LIMIT = 10
 
 def get_or_create_google_user(
     session: Session,
@@ -333,3 +335,77 @@ def get_quiz_attempts_for_user(session: Session, user_id: int) -> list[models.Qu
         .order_by(models.QuizAttempt.completed_at.desc())
     )
     return session.exec(statement).all()
+
+def check_and_reset_daily_limit(session: Session, user: models.User) -> None:
+    """
+    Verifica se precisa resetar o contador diário do usuário.
+    Reseta se passou mais de 24h desde o último reset.
+    """
+    now = datetime.now(timezone.utc)
+    
+    # Se nunca foi resetado, inicializa
+    if user.last_generation_reset is None:
+        user.last_generation_reset = now
+        user.daily_generation_count = 0
+        session.add(user)
+        session.commit()
+        return
+    
+    # Verifica se passou 24h
+    time_since_reset = now - user.last_generation_reset
+    if time_since_reset >= timedelta(hours=24):
+        user.last_generation_reset = now
+        user.daily_generation_count = 0
+        session.add(user)
+        session.commit()
+
+def can_user_generate_deck(session: Session, user: models.User) -> tuple[bool, int]:
+    """
+    Verifica se o usuário pode gerar um novo deck.
+    Retorna (pode_gerar, gerações_restantes)
+    """
+    # Primeiro, verifica e reseta se necessário
+    check_and_reset_daily_limit(session, user)
+    
+    # Atualiza o usuário após possível reset
+    session.refresh(user)
+    
+    can_generate = user.daily_generation_count < DAILY_GENERATION_LIMIT
+    remaining = max(0, DAILY_GENERATION_LIMIT - user.daily_generation_count)
+    
+    return can_generate, remaining
+
+def increment_user_generation_count(session: Session, user_id: int) -> None:
+    """
+    Incrementa o contador de gerações do usuário.
+    Deve ser chamado APENAS quando a geração for bem-sucedida.
+    """
+    user = session.get(models.User, user_id)
+    if user:
+        user.daily_generation_count += 1
+        session.add(user)
+        session.commit()
+
+def get_user_generation_info(session: Session, user: models.User) -> dict:
+    """
+    Retorna informações sobre o limite de gerações do usuário.
+    """
+    check_and_reset_daily_limit(session, user)
+    session.refresh(user)
+    
+    remaining = max(0, DAILY_GENERATION_LIMIT - user.daily_generation_count)
+    
+    # Calcula quanto tempo falta para o reset
+    if user.last_generation_reset:
+        next_reset = user.last_generation_reset + timedelta(hours=24)
+        time_until_reset = next_reset - datetime.now(timezone.utc)
+        hours_until_reset = int(time_until_reset.total_seconds() / 3600)
+    else:
+        hours_until_reset = 24
+    
+    return {
+        "used": user.daily_generation_count,
+        "remaining": remaining,
+        "limit": DAILY_GENERATION_LIMIT,
+        "hours_until_reset": hours_until_reset
+    }
