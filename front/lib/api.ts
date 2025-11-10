@@ -77,23 +77,21 @@ export interface ChatResponse {
   conversation_id: number;
 }
 
-// NOVA INTERFACE PARA ESTATÍSTICAS
 export interface ProgressStats {
   cards_studied_week: number;
   streak_days: number;
-  flashcard_accuracy: number; // ✅ Renomeado
-  flashcard_weekly_activity: number[]; // ✅ Renomeado
-  quizzes_completed_week: number; // ✅ Novo
-  quiz_average_score: number; // ✅ Novo
+  flashcard_accuracy: number;
+  flashcard_weekly_activity: number[];
+  quizzes_completed_week: number;
+  quiz_average_score: number;
 }
 
 export interface FolderWithDocuments extends Folder {
   documents: Document[];
 }
 
-// Atualize a interface LibraryData para usar o novo tipo
 export interface LibraryData {
-  folders: FolderWithDocuments[]; // <-- MUDANÇA AQUI
+  folders: FolderWithDocuments[];
   root_documents: Document[];
 }
 
@@ -153,7 +151,6 @@ type UploadDocumentParams = {
   num_questions: number;
 };
 
-// Agrupa todos os parâmetros para criação a partir de texto
 type CreateFromTextParams = {
   text: string;
   title: string;
@@ -163,8 +160,6 @@ type CreateFromTextParams = {
   difficulty: string;
   num_questions: number;
 };
-
-// --- CLASSE DO CLIENTE API ---
 
 class ApiClient {
   
@@ -186,13 +181,10 @@ class ApiClient {
     return null;
   }
 
-  // --- CORREÇÃO: Método request ajustado para usar a classe Headers ---
   private async request<T>(
     endpoint: string,
-    // Define um tipo de opções customizado que inclui a nossa flag
     options: RequestInit & { useJsonContentType?: boolean } = {}
   ): Promise<T> {
-    // Separa a nossa flag customizada do resto das opções que irão para o fetch
     const { useJsonContentType = true, ...fetchOptions } = options;
 
     const token = this.getToken();
@@ -202,7 +194,6 @@ class ApiClient {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    // Adiciona o Content-Type apenas se for JSON e o corpo não for FormData
     if (useJsonContentType && !(fetchOptions.body instanceof FormData)) {
       headers["Content-Type"] = "application/json";
     }
@@ -230,8 +221,6 @@ class ApiClient {
 
     return res.json();
   }
-
-  // --- MÉTODOS DE AUTENTICAÇÃO (sem alteração) ---
 
   async login(data: LoginRequest): Promise<Token> {
     const formData = new URLSearchParams();
@@ -279,8 +268,6 @@ class ApiClient {
     return this.request<User>('/users/me');
   }
 
-  // --- MÉTODOS DE PASTAS E DOCUMENTOS (sem alteração) ---
-
   async getFolders(): Promise<Folder[]> {
     return this.request<Folder[]>('/folders/');
   }
@@ -307,7 +294,6 @@ class ApiClient {
     });
   }
 
-  // --- MÉTODO DE CRIAÇÃO POR TEXTO ATUALIZADO ---
   async createDocumentFromText(params: CreateFromTextParams): Promise<Document> {
     return this.request<Document>('/documents/text', {
       method: 'POST',
@@ -315,7 +301,6 @@ class ApiClient {
         text: params.text,
         title: params.title,
         folder_id: params.folderId,
-        // Adicionando novos campos
         content_type: params.contentType,
         num_flashcards: params.num_flashcards,
         difficulty: params.difficulty,
@@ -366,8 +351,6 @@ class ApiClient {
     });
   }
 
-  // --- MÉTODOS DE FLASHCARDS E CHAT (sem alteração) ---
-
   async getFlashcardDetails(flashcardId: number): Promise<Flashcard> {
     return this.request<Flashcard>(`/flashcards/${flashcardId}`);
   }
@@ -415,7 +398,6 @@ class ApiClient {
     });
   }
 
-  // 🔽 NOVA FUNÇÃO PARA ENVIAR O FEEDBACK DE ESTUDO 🔽
   async logStudyForFlashcard(flashcardId: number, accuracy: number): Promise<void> {
     try {
       await this.request<void>(`/flashcards/${flashcardId}/log_study`, {
@@ -424,7 +406,6 @@ class ApiClient {
       });
     } catch (error) {
       console.error("Falha ao registar o estudo do flashcard:", error);
-      // Lançar o erro permite que o componente que chamou saiba que falhou
       throw error;
     }
   }
@@ -433,14 +414,11 @@ class ApiClient {
     return this.request<Flashcard[]>('/progress/review-flashcards');
   }
 
-  // NOVO MÉTODO PARA BUSCAR ESTATÍSTICAS
   async getProgressStats(): Promise<ProgressStats> {
-    // getTimezoneOffset() retorna a diferença em minutos (ex: 240 para UTC-4)
     const timezoneOffset = new Date().getTimezoneOffset();
     return this.request<ProgressStats>(`/progress/stats?utc_offset_minutes=${timezoneOffset}`);
   }
 
-  // Busca todas as pastas e os decks na raiz
   async getLibraryData(): Promise<LibraryData> {
     return this.request<LibraryData>('/folders/library');
   }
@@ -456,7 +434,6 @@ class ApiClient {
     });
   }
 
-  // Renomeia uma pasta
   async updateFolder(folderId: number, name: string): Promise<Folder> {
     return this.request<Folder>(`/folders/${folderId}`, {
       method: 'PUT',
@@ -464,7 +441,6 @@ class ApiClient {
     });
   }
 
-  // Deleta uma pasta
   async deleteFolder(folderId: number, deleteDecks: boolean): Promise<void> {
     let endpoint = `/folders/${folderId}`;
     if (deleteDecks) {
@@ -476,7 +452,6 @@ class ApiClient {
     });
   }
 
-  // Move um deck para uma pasta (ou para a raiz, se folderId for null)
   async moveDocumentToFolder(documentId: number, folderId: number | null): Promise<Document> {
     return this.request<Document>(`/documents/${documentId}/move`, {
       method: 'PATCH',
@@ -484,12 +459,10 @@ class ApiClient {
     });
   }
 
-  // Adicione este novo método para buscar estatísticas
   async getDocumentStats(documentId: number): Promise<DeckStats> {
     return this.request<DeckStats>(`/stats/document/${documentId}`);
   }
 
-  // Adicione este novo método para submeter o resultado do quiz
   async submitQuizResult(
     quizId: number, 
     score: number, 
@@ -502,6 +475,35 @@ class ApiClient {
         score,
         correct_answers: correctAnswers,
         total_questions: totalQuestions,
+      })
+    });
+  }
+
+  // 🆕 Novos métodos para adicionar conteúdo
+  async addFlashcardsToDocument(
+    documentId: number,
+    numFlashcards: number,
+    difficulty: string
+  ): Promise<Flashcard[]> {
+    return this.request<Flashcard[]>(`/documents/${documentId}/add-flashcards`, {
+      method: 'POST',
+      body: JSON.stringify({
+        num_flashcards: numFlashcards,
+        difficulty
+      })
+    });
+  }
+
+  async addQuestionsToQuiz(
+    documentId: number,
+    numQuestions: number,
+    difficulty: string
+  ): Promise<Quiz> {
+    return this.request<Quiz>(`/documents/${documentId}/add-questions`, {
+      method: 'POST',
+      body: JSON.stringify({
+        num_questions: numQuestions,
+        difficulty
       })
     });
   }

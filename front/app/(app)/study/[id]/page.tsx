@@ -1,3 +1,4 @@
+// front/app/(app)/study/[id]/page.tsx
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
@@ -20,55 +21,61 @@ export default function StudyPage() {
 
   const flipAudioRef = useRef<HTMLAudioElement | null>(null);
   
-  useEffect(() => {
-    const fetchStudyData = async () => {
-      if (!documentId) return;
+  const fetchStudyData = async () => {
+    if (!documentId) return;
 
-      try {
-        setLoading(true);
-        setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-        if (documentId === 'review') {
-          const reviewFlashcards = await apiClient.getReviewFlashcards();
-          if (reviewFlashcards.length === 0) {
-             toast.info("Você não tem cards para rever no momento!");
-             router.push('/library');
-             return;
-          }
-          setFlashcards(reviewFlashcards);
-          setDocument({
-            id: 0,
-            file_path: "Sessão de Revisão Inteligente",
-            status: 'COMPLETED',
-            user_id: 0,
-            created_at: new Date().toISOString(),
-            total_flashcards: reviewFlashcards.length,
-            studied_flashcards: 0,
-            generates_flashcards: true,
-            generates_quizzes: false,
-            has_quiz: false,
-          });
-        } else {
-          const docIdNumber = parseInt(documentId, 10);
-          if (isNaN(docIdNumber)) {
-            throw new Error("ID do documento inválido.");
-          }
-          const [docData, flashcardsData] = await Promise.all([
-            apiClient.getDocument(docIdNumber),
-            apiClient.getDocumentFlashcards(docIdNumber),
-          ]);
-          setDocument(docData);
-          setFlashcards(flashcardsData);
+      if (documentId === 'review') {
+        const reviewFlashcards = await apiClient.getReviewFlashcards();
+        if (reviewFlashcards.length === 0) {
+           toast.info("Você não tem cards para rever no momento!");
+           router.push('/library');
+           return;
         }
-      } catch (err: any) {
-        setError(err.message || "Falha ao carregar a sessão de estudo.");
-      } finally {
-        setLoading(false);
+        setFlashcards(reviewFlashcards);
+        setDocument({
+          id: 0,
+          file_path: "Sessão de Revisão Inteligente",
+          status: 'COMPLETED',
+          user_id: 0,
+          created_at: new Date().toISOString(),
+          total_flashcards: reviewFlashcards.length,
+          studied_flashcards: 0,
+          generates_flashcards: true,
+          generates_quizzes: false,
+          has_quiz: false,
+        });
+      } else {
+        const docIdNumber = parseInt(documentId, 10);
+        if (isNaN(docIdNumber)) {
+          throw new Error("ID do documento inválido.");
+        }
+        const [docData, flashcardsData] = await Promise.all([
+          apiClient.getDocument(docIdNumber),
+          apiClient.getDocumentFlashcards(docIdNumber),
+        ]);
+        setDocument(docData);
+        setFlashcards(flashcardsData);
       }
-    };
+    } catch (err: any) {
+      setError(err.message || "Falha ao carregar a sessão de estudo.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchStudyData();
   }, [documentId, router]);
+
+  const handleContentAdded = () => {
+    // Recarrega os flashcards quando novos são adicionados
+    toast.success("Novos flashcards carregados!");
+    fetchStudyData();
+  };
 
   if (loading) {
     return (
@@ -108,6 +115,7 @@ export default function StudyPage() {
             </Button>
           }
           flipAudioRef={flipAudioRef}
+          onContentAdded={handleContentAdded}
         />
       )}
     </>

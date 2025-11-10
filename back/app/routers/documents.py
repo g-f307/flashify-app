@@ -15,11 +15,20 @@ from ..tasks import process_document
 from ..ai_generator import generate_flashcards_from_text, generate_quiz_from_text
 from pydantic import BaseModel, Field
 
+
 router = APIRouter(prefix="/documents", tags=["Documents"])
 CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
 
 UPLOAD_DIRECTORY = Path("uploads")
 UPLOAD_DIRECTORY.mkdir(exist_ok=True)
+
+class AddFlashcardsRequest(BaseModel):
+    num_flashcards: int = Field(ge=1, le=20)
+    difficulty: str = "Médio"
+
+class AddQuestionsRequest(BaseModel):
+    num_questions: int = Field(ge=1, le=15)
+    difficulty: str = "Médio"
 
 class TextInput(BaseModel):
     text: str
@@ -313,3 +322,174 @@ def generate_flashcards_for_existing_document(
         document_id=document_id
     )
     return db_flashcards
+
+@router.post("/{document_id}/add-flashcards", response_model=List[models.Flashcard], status_code=status.HTTP_201_CREATED)
+def add_more_flashcards(
+    document_id: int,
+    request: AddFlashcardsRequest,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    """
+    Adiciona mais flashcards a um documento existente, evitando duplicatas.
+    """
+    db_document = crud.get_document(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+        
+    if not db_document.extracted_text:
+        raise HTTPException(status_code=400, detail="Documento não tem texto para gerar flashcards.")
+    
+    # Verifica limite total
+    current_count = len(db_document.flashcards)
+    max_flashcards = 20
+    
+    if current_count >= max_flashcards:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Este deck já atingiu o limite máximo de {max_flashcards} flashcards."
+        )
+    
+    # Ajusta quantidade se exceder o limite
+    requested_count = request.num_flashcards
+    available_slots = max_flashcards - current_count
+    
+    if requested_count > available_slots:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Você pode adicionar no máximo {available_slots} flashcards. Atualmente existem {current_count} de {max_flashcards}."
+        )
+
+    # Coleta os flashcards existentes para evitar duplicatas
+    existing_flashcards_text = [
+        f"Pergunta: {fc.front}\nResposta: {fc.back}" 
+        for fc in db_document.flashcards
+    ]
+    existing_content = "\n\n---\n\n".join(existing_flashcards_text)
+
+    # Monta um prompt especial para evitar duplicatas
+    enhanced_text = f"""
+IMPORTANTE: Você já gerou os seguintes flashcards para este conteúdo. NÃO REPITA NENHUM DELES:
+
+{existing_content}
+
+---
+
+Agora, com base no MESMO CONTEÚDO ORIGINAL abaixo, gere {requested_count} NOVOS flashcards INÉDITOS que NÃO tenham sido abordados nos flashcards acima:
+
+{db_document.extracted_text}
+"""
+
+    try:
+        new_flashcards_data = generate_flashcards_from_text(
+            text=enhanced_text,
+            num_flashcards=requested_count,
+            difficulty=request.difficulty
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar novos flashcards: {str(e)}")
+
+    if not new_flashcards_data:
+        raise HTTPException(status_code=500, detail="A IA não conseguiu gerar novos flashcards.")
+
+    # Cria os novos flashcards
+    db_flashcards = crud.create_flashcards_for_document(
+        session=session,
+        flashcards_data=new_flashcards_data,
+        document_id=document_id
+    )
+    
+    return db_flashcards
+
+
+@router.post("/{document_id}/add-questions", response_model=schemas.Quiz, status_code=status.HTTP_201_CREATED)
+def add_more_questions(
+    document_id: int,
+    request: AddQuestionsRequest,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    """
+    Adiciona mais perguntas ao quiz de um documento existente, evitando duplicatas.
+    """
+    db_document = crud.get_document(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+        
+    if not db_document.extracted_text:
+        raise HTTPException(status_code=400, detail="Documento não tem texto para gerar quiz.")
+    
+    if not db_document.quiz:
+        raise HTTPException(status_code=400, detail="Este documento não possui um quiz. Crie um primeiro.")
+    
+    # Verifica limite total
+    current_count = len(db_document.quiz.questions)
+    max_questions = 15
+    
+    if current_count >= max_questions:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Este quiz já atingiu o limite máximo de {max_questions} perguntas."
+        )
+    
+    # Ajusta quantidade se exceder o limite
+    requested_count = request.num_questions
+    available_slots = max_questions - current_count
+    
+    if requested_count > available_slots:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Você pode adicionar no máximo {available_slots} perguntas. Atualmente existem {current_count} de {max_questions}."
+        )
+
+    # Coleta as perguntas existentes para evitar duplicatas
+    existing_questions_text = []
+    for question in db_document.quiz.questions:
+        answers_text = "\n".join([f"  - {ans.text}" for ans in question.answers])
+        existing_questions_text.append(
+            f"Pergunta: {question.text}\nAlternativas:\n{answers_text}"
+        )
+    
+    existing_content = "\n\n---\n\n".join(existing_questions_text)
+
+    # Monta um prompt especial para evitar duplicatas
+    enhanced_text = f"""
+IMPORTANTE: Você já gerou as seguintes perguntas para este conteúdo. NÃO REPITA NENHUMA DELAS:
+
+{existing_content}
+
+---
+
+Agora, com base no MESMO CONTEÚDO ORIGINAL abaixo, gere {requested_count} NOVAS perguntas INÉDITAS que NÃO tenham sido abordadas no quiz acima:
+
+{db_document.extracted_text}
+"""
+
+    try:
+        new_quiz_data = generate_quiz_from_text(
+            text=enhanced_text,
+            num_questions=requested_count,
+            difficulty=request.difficulty
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar novas perguntas: {str(e)}")
+
+    if not new_quiz_data or 'questions' not in new_quiz_data:
+        raise HTTPException(status_code=500, detail="A IA não conseguiu gerar novas perguntas.")
+
+    # Adiciona as novas perguntas ao quiz existente
+    for question_data in new_quiz_data['questions']:
+        answers_to_create = [
+            models.Answer(**ans) for ans in question_data['answers']
+        ]
+        question_obj = models.Question(
+            text=question_data['text'],
+            answers=answers_to_create,
+            quiz_id=db_document.quiz.id
+        )
+        session.add(question_obj)
+    
+    session.commit()
+    session.refresh(db_document.quiz)
+    
+    return db_document.quiz

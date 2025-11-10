@@ -28,6 +28,7 @@ interface FlashcardStudyFinalProps {
   onBack: () => void;
   backButton?: React.ReactNode;
   flipAudioRef: React.RefObject<HTMLAudioElement>;
+  onContentAdded?: () => void; // 🆕 Nova prop
 }
 
 export function FlashcardStudyFinal({ 
@@ -35,7 +36,8 @@ export function FlashcardStudyFinal({
   initialFlashcards, 
   onBack, 
   backButton,
-  flipAudioRef 
+  flipAudioRef,
+  onContentAdded
 }: FlashcardStudyFinalProps) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>(initialFlashcards);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -257,10 +259,12 @@ export function FlashcardStudyFinal({
       <PerformanceReportResponsive
         stats={performanceStats}
         totalCards={flashcards.length}
+        documentId={document.id} // 🆕 Passa o documentId
         onRestart={handleRestart}
         onContinueReview={handleContinueReview}
         onPracticeQuestions={handlePracticeQuestions}
         onBack={onBack}
+        onContentAdded={onContentAdded} // 🆕 Passa o callback
       />
     );
   }

@@ -154,22 +154,30 @@ export default function QuizPage() {
     }
 
     if (showResults) {
-        const score = Math.round((correctAnswersCount / questions.length) * 100);
+    const score = Math.round((correctAnswersCount / questions.length) * 100);
 
-        return (
-            <>
-                {showConfetti && <Confetti recycle={false} onConfettiComplete={() => setShowConfetti(false)} />}
-                
-                <QuizPerformanceReport
-                    score={score}
-                    correctAnswersCount={correctAnswersCount}
-                    totalQuestions={questions.length}
-                    onRestart={() => window.location.reload()} 
-                    onBack={() => router.back()} 
-                />
-            </>
-        )
-    }
+    const handleContentAdded = () => {
+        // Recarrega o quiz quando novas perguntas são adicionadas
+        toast.success("Novas perguntas carregadas!");
+        window.location.reload();
+    };
+
+    return (
+        <>
+            {showConfetti && <Confetti recycle={false} onConfettiComplete={() => setShowConfetti(false)} />}
+            
+            <QuizPerformanceReport
+                score={score}
+                correctAnswersCount={correctAnswersCount}
+                totalQuestions={questions.length}
+                documentId={documentId}
+                onRestart={() => window.location.reload()} 
+                onBack={() => router.back()} 
+                onContentAdded={handleContentAdded}
+            />
+        </>
+    )
+}
 
     if (!currentQuestion) {
         return null;
