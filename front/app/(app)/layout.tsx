@@ -1,4 +1,4 @@
-// front/app/(app)/layout.tsx - ATUALIZAR A SIDEBAR
+// front/app/(app)/layout.tsx - ATUALIZADO
 
 "use client";
 
@@ -19,6 +19,7 @@ import {
   Library,
   TrendingUp,
   Menu,
+  Clock,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,7 +37,7 @@ const sidebarItems = [
     { href: "/settings", label: "Configurações", icon: Settings },
 ];
 
-// Componente para a barra de limite
+// 🎨 COMPONENTE ATUALIZADO COM DESIGN MINIMALISTA - OTIMIZADO PARA MODO ESCURO
 function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | null }) {
   if (!limitInfo) return null;
 
@@ -44,64 +45,110 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
   const percentage = (used / limit) * 100;
   
   const getStatusColor = () => {
-    if (percentage >= 90) return "text-destructive";
-    if (percentage >= 70) return "text-orange-500";
-    return "text-[#6BDEF3]";
+    if (percentage >= 90) return "text-red-500 dark:text-red-400";
+    if (percentage >= 70) return "text-orange-500 dark:text-orange-400";
+    return "text-primary dark:text-[#6BDEF3]";
   };
 
   const getProgressColor = () => {
-    if (percentage >= 90) return "[&>div]:bg-destructive";
-    if (percentage >= 70) return "[&>div]:bg-orange-500";
-    return "[&>div]:bg-gradient-to-r [&>div]:from-[#FFC300] [&>div]:to-[#6BDEF3]";
+    if (percentage >= 90) return "[&>div]:bg-red-500 dark:[&>div]:bg-red-400";
+    if (percentage >= 70) return "[&>div]:bg-orange-500 dark:[&>div]:bg-orange-400";
+    return "[&>div]:bg-primary dark:[&>div]:bg-[#6BDEF3]";
+  };
+
+  const getStatusIcon = () => {
+    if (percentage >= 90) return "🚫";
+    if (percentage >= 70) return "⚠️";
+    return "✨";
   };
 
   const getMessage = () => {
-    if (remaining === 0) return "Limite atingido hoje";
-    if (remaining === 1) return "1 geração restante";
-    return `${remaining} gerações restantes`;
+    if (remaining === 0) return "Limite atingido";
+    if (remaining === 1) return "Última geração";
+    return `${remaining} restantes`;
   };
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="px-4 py-3 border-t border-border dark:border-zinc-800 space-y-2 cursor-help hover:bg-accent/50 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className={cn("w-3.5 h-3.5", getStatusColor())} />
-                <span className="text-xs font-medium text-foreground">
-                  Gerações
+          <button className="w-full px-3 py-2.5 border-t border-border/30 dark:border-zinc-800/50 hover:bg-accent/30 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <div className="space-y-2">
+              {/* Header minimalista */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm">{getStatusIcon()}</span>
+                  {/* --- ALTERAÇÃO AQUI --- */}
+                  <span className="text-xs font-medium text-sidebar-foreground">
+                    Gerações
+                  </span>
+                </div>
+                <span className={cn("text-xs font-bold tabular-nums", getStatusColor())}>
+                  {used}/{limit}
                 </span>
               </div>
-              <span className={cn("text-xs font-bold", getStatusColor())}>
-                {used}/{limit}
-              </span>
+              
+              {/* Barra de progresso minimalista */}
+              <Progress 
+                value={percentage} 
+                className={cn("h-1 bg-muted/50 dark:bg-zinc-800/50", getProgressColor())}
+              />
+              
+              {/* --- ALTERAÇÃO AQUI --- */}
+              <p className="text-[10px] text-sidebar-foreground text-left">
+                {getMessage()}
+              </p>
+            </div>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent 
+          side="right" 
+          align="center"
+          className="max-w-[280px] p-3 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-sm border-border/50 dark:border-zinc-800/50"
+          sideOffset={8}
+        >
+          <div className="space-y-2.5">
+            {/* Título com ícone */}
+            <div className="flex items-center gap-2">
+              <span className="text-base">{getStatusIcon()}</span>
+              <p className="font-semibold text-sm text-foreground">Limite Diário</p>
             </div>
             
-            <Progress 
-              value={percentage} 
-              className={cn("h-1.5", getProgressColor())}
-            />
+            {/* Descrição */}
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {remaining > 0 ? (
+                <>
+                  Você ainda pode criar{" "}
+                  <strong className={getStatusColor()}>
+                    {remaining} {remaining === 1 ? 'deck' : 'decks'}
+                  </strong>{" "}
+                  hoje.
+                </>
+              ) : (
+                <>
+                  Você atingiu o limite de{" "}
+                  <strong className={getStatusColor()}>{limit} decks</strong> por dia.
+                </>
+              )}
+            </p>
             
-            <p className="text-[10px] text-muted-foreground">
-              {getMessage()}
-            </p>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="right" className="max-w-xs">
-          <div className="space-y-2">
-            <p className="font-semibold">Limite Diário de Gerações</p>
-            <p className="text-xs text-muted-foreground">
-              Você pode criar até <strong>{limit} decks</strong> por dia.
-              {remaining > 0 
-                ? ` Ainda restam ${remaining} ${remaining === 1 ? 'geração' : 'gerações'} hoje.`
-                : " Volte amanhã para criar mais decks!"
-              }
-            </p>
+            {/* Tempo até reset */}
             {limitInfo.hours_until_reset > 0 && (
-              <p className="text-xs text-muted-foreground border-t pt-2">
-                ⏰ Renova em {limitInfo.hours_until_reset}h
-              </p>
+              <div className="flex items-center gap-1.5 pt-2 border-t border-border/30 dark:border-zinc-800/50">
+                <Clock className="w-3 h-3 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
+                  Renova em <strong className="text-foreground">{limitInfo.hours_until_reset}h</strong>
+                </p>
+              </div>
+            )}
+            
+            {/* Dica quando limite atingido */}
+            {remaining === 0 && (
+              <div className="pt-2 border-t border-border/30 dark:border-zinc-800/50">
+                <p className="text-xs text-muted-foreground italic">
+                  💡 Revise seus decks enquanto aguarda!
+                </p>
+              </div>
             )}
           </div>
         </TooltipContent>
@@ -225,7 +272,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </ul>
         </nav>
 
-        {/* Barra de Limite de Gerações */}
+        {/* Barra de Limite de Gerações - ATUALIZADA */}
         <GenerationLimitBar limitInfo={limitInfo} />
 
         <div className="p-4 mt-auto border-t border-border dark:border-zinc-800">
