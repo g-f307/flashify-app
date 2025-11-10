@@ -1,4 +1,3 @@
-# back/app/routers/auth.py
 import httpx
 import os
 from typing import Annotated
@@ -6,14 +5,16 @@ from ..models import AuthProvider
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, SQLModel
+from datetime import datetime, timezone
 
 from .. import crud, models, schemas, security
 from ..database import get_session
+from ..email_service import email_service  # 🆕 IMPORTAR
 
 router = APIRouter(tags=["Authentication"])
 
 @router.post("/users", response_model=schemas.UserRead, status_code=status.HTTP_201_CREATED)
-def create_new_user(user: schemas.UserCreate, session: Session = Depends(get_session)):
+async def create_new_user(user: schemas.UserCreate, session: Session = Depends(get_session)):
     db_user_email = crud.get_user_by_email(session=session, email=user.email)
     if db_user_email:
         raise HTTPException(
@@ -28,7 +29,19 @@ def create_new_user(user: schemas.UserCreate, session: Session = Depends(get_ses
             detail="Nome de usuário já registrado."
         )
     
-    return crud.create_user(session=session, user_create=user)
+    created_user = crud.create_user(session=session, user_create=user)
+    
+    # 🆕 ENVIAR E-MAIL DE BOAS-VINDAS (assíncrono, não bloqueia)
+    try:
+        await email_service.send_welcome_email(
+            email=created_user.email,
+            username=created_user.username
+        )
+    except Exception as e:
+        # Log do erro, mas não falha o registro
+        print(f"⚠️ Falha ao enviar e-mail de boas-vindas: {e}")
+    
+    return created_user
 
 @router.post("/token", response_model=schemas.Token)
 def login_for_access_token(
@@ -43,11 +56,18 @@ def login_for_access_token(
             detail="Nome de usuário/email ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
+    
+    # 🆕 ATUALIZAR ÚLTIMO LOGIN E RESETAR FLAG DE INATIVIDADE
+    user.last_login_at = datetime.now(timezone.utc)
+    user.inactivity_email_sent = False
+    session.add(user)
+    session.commit()
+    
     access_token = security.create_access_token(subject=user.email)
     
     return {"access_token": access_token, "token_type": "bearer"}
 
+# 🆕 ATUALIZAR TAMBÉM O LOGIN DO GOOGLE
 class GoogleAuthCode(SQLModel):
     code: str
 
@@ -92,11 +112,7 @@ async def auth_google(
 
     user_info = user_info_response.json()
     email = user_info.get("email")
-
-    # 🔽 CORREÇÃO APLICADA AQUI 🔽
-    # Usamos a variável 'email' que foi definida acima.
     username = user_info.get("name", email.split('@')[0] if email else "user")
-    
     profile_picture_url = user_info.get("picture")
 
     if not email:
@@ -108,6 +124,22 @@ async def auth_google(
         username=username,
         profile_picture_url=profile_picture_url
     )
+    
+    # 🆕 ATUALIZAR ÚLTIMO LOGIN
+    db_user.last_login_at = datetime.now(timezone.utc)
+    db_user.inactivity_email_sent = False
+    session.add(db_user)
+    session.commit()
+    
+    # 🆕 SE FOR NOVO USUÁRIO (acabou de ser criado), ENVIAR E-MAIL DE BOAS-VINDAS
+    if not db_user.last_login_at or (datetime.now(timezone.utc) - db_user.created_at).seconds < 60:
+        try:
+            await email_service.send_welcome_email(
+                email=db_user.email,
+                username=db_user.username
+            )
+        except Exception as e:
+            print(f"⚠️ Falha ao enviar e-mail de boas-vindas: {e}")
     
     jwt_token = security.create_access_token(subject=db_user.email)
     return {"access_token": jwt_token, "token_type": "bearer"}

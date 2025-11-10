@@ -74,6 +74,18 @@ services:
     depends_on:
       - backend
     restart: always
+  
+  celery-beat:
+    build: ./back
+    command: celery -A app.worker beat --loglevel=info
+    depends_on:
+      - redis
+      - db
+    env_file:
+      - ./back/.env
+    volumes:
+      - ./back:/app
+    restart: unless-stopped
 
 volumes:
   postgres_data:

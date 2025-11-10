@@ -124,17 +124,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     showAuthLoading("Fazendo logout...");
     
-    clearToken();
     setUser(null);
+    clearToken();
     
     setTimeout(() => {
       showAuthLoading("Logout realizado com sucesso!");
       
       setTimeout(() => {
-        hideLoading();
-        router.push('/login'); 
-      }, 800);
-    }, 500);
+        router.push('/');
+        
+        setTimeout(() => {
+          hideLoading();
+        }, 300);
+      }, 600);
+    }, 400);
   };
 
   return (

@@ -41,19 +41,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return name.charAt(0).toUpperCase();
   };
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/');
-    }
-  }, [user, loading, router]);
-
-  if (loading || !user) {
+  if (loading) {
     return (
-        <LoadingScreen 
-          message="Carregando sua sessão..." 
-          fullScreen={true}
-        />
+      <LoadingScreen 
+        message="Carregando sua sessão..." 
+        fullScreen={true}
+      />
     );
+  }
+
+  // Se não há usuário, retorna null (AuthProvider já redirecionou)
+  if (!user) {
+    return null;
   }
 
   const AppLogo = () => (

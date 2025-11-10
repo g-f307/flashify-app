@@ -35,8 +35,23 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     provider: AuthProvider = Field(default=AuthProvider.LOCAL)
     profile_picture_url: Optional[str] = Field(default=None)
+    
+    # 🆕 CAMPOS PARA TRACKING DE E-MAILS
+    last_login_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
+    inactivity_email_sent: bool = Field(default=False)
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False
+        ),
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
 
-    # Adicione esta relação para que um usuário possa ter muitas pastas
+    # Relações existentes
     folders: List["Folder"] = Relationship(back_populates="user")
     documents: List["Document"] = Relationship(back_populates="user")
     quiz_attempts: List["QuizAttempt"] = Relationship(back_populates="user")
