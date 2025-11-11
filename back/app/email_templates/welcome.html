@@ -1,170 +1,174 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+    </style>
+    <![endif]-->
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-            background: #f4f4f4;
+        /* Reset básico para e-mails */
+        body, table, td, a {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
         }
         
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background-color: #f4f4f4;
+        }
+        
+        /* Estilos gerais */
         .wrapper {
+            width: 100%;
+            background-color: #f4f4f4;
+            padding: 20px 0;
+        }
+        
+        .email-container {
             max-width: 600px;
-            margin: 20px auto;
-            background: white;
+            margin: 0 auto;
+            background-color: #ffffff;
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         }
-
+        
         .header {
             background: linear-gradient(135deg, #6BDEF3 0%, #5AC8E0 100%);
-            padding: 40px 30px;
+            padding: 40px 20px;
             text-align: center;
-            position: relative;
-        }
-        
-        .header::after {
-            content: '';
-            position: absolute;
-            bottom: -20px;
-            left: 0;
-            right: 0;
-            height: 40px;
-            background: white;
-            border-radius: 50% 50% 0 0;
         }
         
         .logo-img {
             max-width: 80px;
             height: auto;
             margin-bottom: 15px;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
         }
-
+        
         .header h1 {
-            color: white;
+            color: #ffffff;
             margin: 0;
             font-size: 28px;
             font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            line-height: 1.3;
         }
-
+        
         .content {
-            padding: 40px 40px 30px;
+            padding: 30px 20px;
             font-size: 16px;
+            line-height: 1.6;
+            color: #333333;
         }
         
         .greeting {
             font-size: 24px;
-            color: #333;
+            color: #333333;
             margin-bottom: 10px;
             font-weight: 600;
         }
         
         .intro {
-            color: #666;
-            margin-bottom: 30px;
-        }
-        
-        .features-container {
-            background: transparent;
-            border-radius: 0;
-            padding: 30px 0;
-            margin: 30px 0;
-        }
-        
-        .features-title {
-            text-align: left;
-            color: #333;
-            font-size: 18px;
-            font-weight: 600;
+            color: #666666;
             margin-bottom: 20px;
         }
         
+        .features-container {
+            padding: 20px 0;
+            margin: 20px 0;
+        }
+        
+        .features-title {
+            color: #333333;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
         .feature {
-            margin: 12px 0;
-            padding: 0 0 0 35px;
+            margin: 10px 0;
+            padding-left: 30px;
             position: relative;
-            background: transparent;
-            border-radius: 0;
-            box-shadow: none;
-            transition: none;
-            color: #555;
+            color: #555555;
             font-size: 15px;
+            line-height: 1.5;
         }
         
         .feature::before {
             content: "✓";
             color: #6BDEF3;
-            background: transparent;
             font-weight: bold;
             position: absolute;
             left: 0;
-            top: 2px;
-            transform: none;
+            top: 0;
             font-size: 18px;
-            width: auto;
-            height: auto;
-            border-radius: 0;
-            display: inline;
         }
         
         .button-container {
             text-align: center;
-            margin: 35px 0;
+            margin: 30px 0;
         }
         
         .button {
             display: inline-block;
             padding: 16px 40px;
             background: linear-gradient(135deg, #FFC300 0%, #FFD700 100%);
-            color: #000 !important;
+            color: #000000 !important;
             text-decoration: none;
             border-radius: 50px;
             font-weight: 700;
             font-size: 16px;
             box-shadow: 0 4px 15px rgba(255, 195, 0, 0.4);
-            transition: all 0.3s ease;
-            border: none;
-        }
-        
-        .button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 195, 0, 0.5);
         }
         
         .divider {
             border: 0;
             height: 2px;
             background: linear-gradient(90deg, transparent, #6BDEF3, transparent);
-            margin: 35px 0;
+            margin: 30px 0;
         }
         
         .social-section {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border-radius: 12px;
-            padding: 25px;
-            margin: 30px 0;
+            padding: 20px;
+            margin: 20px 0;
             text-align: center;
         }
         
         .social-title {
-            color: #333;
+            color: #333333;
             font-size: 18px;
             font-weight: 600;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
         
         .social-subtitle {
-            color: #666;
+            color: #666666;
             font-size: 14px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
         .social-links {
@@ -173,8 +177,8 @@
         
         .social-link {
             display: inline-block;
-            margin: 10px;
-            padding: 12px 24px;
+            margin: 8px 5px;
+            padding: 12px 20px;
             text-decoration: none;
             border-radius: 50px;
             font-weight: 600;
@@ -186,23 +190,23 @@
             width: 20px;
             height: 20px;
             vertical-align: middle;
-            margin-right: 8px;
+            margin-right: 6px;
         }
         
         .whatsapp {
             background: #25D366;
-            color: white !important;
+            color: #ffffff !important;
         }
         
         .telegram {
             background: #0088cc;
-            color: white !important;
+            color: #ffffff !important;
         }
         
         .footer {
             text-align: center;
-            padding: 30px 20px;
-            color: #888;
+            padding: 20px;
+            color: #888888;
             font-size: 12px;
             background: #f8f9fa;
             border-top: 1px solid #e0e0e0;
@@ -210,74 +214,150 @@
         
         .footer p {
             margin: 5px 0;
+            line-height: 1.5;
         }
         
         .footer-email {
             color: #6BDEF3;
             font-weight: 600;
         }
+        
+        /* Media Queries para Mobile */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                width: 100% !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+            }
+            
+            .wrapper {
+                padding: 0 !important;
+            }
+            
+            .header {
+                padding: 30px 15px !important;
+            }
+            
+            .header h1 {
+                font-size: 22px !important;
+            }
+            
+            .content {
+                padding: 20px 15px !important;
+            }
+            
+            .greeting {
+                font-size: 20px !important;
+            }
+            
+            .button {
+                padding: 14px 30px !important;
+                font-size: 15px !important;
+                display: block !important;
+                max-width: 250px !important;
+                margin: 0 auto !important;
+            }
+            
+            .social-section {
+                padding: 15px !important;
+            }
+            
+            .social-link {
+                display: block !important;
+                margin: 8px auto !important;
+                max-width: 200px !important;
+            }
+            
+            .feature {
+                font-size: 14px !important;
+                padding-left: 25px !important;
+            }
+            
+            .features-title {
+                font-size: 16px !important;
+            }
+        }
+        
+        /* Outlook específico */
+        @media screen and (max-width: 525px) {
+            .wrapper {
+                width: 100% !important;
+                min-width: 100% !important;
+            }
+        }
     </style>
 </head>
-<body>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4;">
     <div class="wrapper">
-    
-        <div class="header">
-            <img src="{{ logo_url }}" alt="Flashify Logo" class="logo-img">
-            <h1>Bem-vindo ao Flashify! 🎉</h1>
-        </div>
-        
-        <div class="content">
-            <div class="greeting">Olá, {{ username }}! 🎉</div>
-            
-            <p class="intro">Bem-vindo(a) ao <strong>Flashify</strong>! Estamos muito felizes em tê-lo(a) conosco. Prepare-se para revolucionar sua forma de estudar!</p>
-            
-            <div class="features-container">
-                <div class="features-title">O que você pode fazer:</div>
-                <div class="feature">Criar flashcards automaticamente a partir de qualquer texto ou PDF</div>
-                <div class="feature">Gerar quizzes inteligentes com IA</div>
-                <div class="feature">Organizar seus estudos em pastas personalizadas</div>
-                <div class="feature">Acompanhar seu progresso e estatísticas em tempo real</div>
-            </div>
-            
-            <div class="button-container">
-                <a href="{{ frontend_url }}/dashboard" class="button">
-                    Acessar
-                </a>
-            </div>
-            
-            <hr class="divider">
-            
-            <div class="social-section">
-                <div class="social-title">📱 Junte-se à nossa comunidade!</div>
-                <div class="social-subtitle">Receba dicas, novidades e suporte direto</div>
-                <div class="social-links">
-                    <a href="{{ whatsapp_link }}" class="social-link whatsapp">
-                        <img src="{{ whatsapp_icon_url }}" alt="WhatsApp" width="20" height="20">
-                        WhatsApp
-                    </a>
-                    <a href="{{ telegram_link }}" class="social-link telegram">
-                        <img src="{{ telegram_icon_url }}" alt="Telegram" width="20" height="20">
-                        Telegram
-                    </a>
-                </div>
-            </div>
-            
-            <p style="color: #666; text-align: center; margin-top: 30px;">
-                Se tiver qualquer dúvida, estamos aqui para ajudar!
-            </p>
-            
-            <p style="text-align: center; margin-top: 20px;">
-                Bons estudos! 📚<br>
-                <strong>Equipe Flashify</strong>
-            </p>
-        </div>
-        
-        <div class="footer">
-            <p><strong>© 2025 Flashify.</strong> Todos os direitos reservados.</p>
-            <p>Este e-mail foi enviado para <span class="footer-email">{{ email }}</span></p>
-            <p style="margin-top: 10px; color: #aaa;">Você está recebendo este e-mail porque se cadastrou no Flashify</p>
-        </div>
-        
-    </div> 
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0;">
+            <tr>
+                <td align="center" style="padding: 20px 10px;">
+                    <table role="presentation" class="email-container" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; max-width: 600px;">
+                        
+                        <!-- HEADER -->
+                        <tr>
+                            <td class="header">
+                                <img src="{{ logo_url }}" alt="Flashify Logo" class="logo-img" width="80">
+                                <h1>Bem-vindo ao Flashify! 🎉</h1>
+                            </td>
+                        </tr>
+                        
+                        <!-- CONTENT -->
+                        <tr>
+                            <td class="content">
+                                <div class="greeting">Olá, {{ username }}! 🎉</div>
+                                
+                                <p class="intro">Bem-vindo(a) ao <strong>Flashify</strong>! Estamos muito felizes em tê-lo(a) conosco. Prepare-se para revolucionar sua forma de estudar!</p>
+                                
+                                <div class="features-container">
+                                    <div class="features-title">O que você pode fazer:</div>
+                                    <div class="feature">Criar flashcards automaticamente a partir de qualquer texto ou PDF</div>
+                                    <div class="feature">Gerar quizzes inteligentes com IA</div>
+                                    <div class="feature">Organizar seus estudos em pastas personalizadas</div>
+                                    <div class="feature">Acompanhar seu progresso e estatísticas em tempo real</div>
+                                </div>
+                                
+                                <div class="button-container">
+                                    <a href="{{ frontend_url }}/dashboard" class="button">Acessar</a>
+                                </div>
+                                
+                                <hr class="divider">
+                                
+                                <div class="social-section">
+                                    <div class="social-title">📱 Junte-se à nossa comunidade!</div>
+                                    <div class="social-subtitle">Receba dicas, novidades e suporte direto</div>
+                                    <div class="social-links">
+                                        <a href="{{ whatsapp_link }}" class="social-link whatsapp">
+                                            <img src="{{ whatsapp_icon_url }}" alt="WhatsApp" width="20" height="20">
+                                            WhatsApp
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <p style="color: #666666; text-align: center; margin-top: 20px;">
+                                    Se tiver qualquer dúvida, estamos aqui para ajudar!
+                                </p>
+                                
+                                <p style="text-align: center; margin-top: 15px;">
+                                    Bons estudos! 📚<br>
+                                    <strong>Equipe Flashify</strong>
+                                </p>
+                            </td>
+                        </tr>
+                        
+                        <!-- FOOTER -->
+                        <tr>
+                            <td class="footer">
+                                <p><strong>© 2025 Flashify.</strong> Todos os direitos reservados.</p>
+                                <p>Este e-mail foi enviado para <span class="footer-email">{{ email }}</span></p>
+                                <p style="margin-top: 10px; color: #aaa;">Você está recebendo este e-mail porque se cadastrou no Flashify</p>
+                            </td>
+                        </tr>
+                        
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
 </body>
 </html>

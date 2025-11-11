@@ -47,10 +47,8 @@ class EmailService:
             "email": email,
             "frontend_url": frontend_url,
             "whatsapp_link": os.getenv("WHATSAPP_LINK", "https://wa.me/5592000000000"),
-            "telegram_link": os.getenv("TELEGRAM_LINK", "https://t.me/flashify"),
             "logo_url": f"{email_assets_url}/logo.svg",
             "whatsapp_icon_url": f"{email_assets_url}/whatsapp-icon.png",
-            "telegram_icon_url": f"{email_assets_url}/telegram-icon.png",
         }
         
         # Adiciona quaisquer parâmetros extras
