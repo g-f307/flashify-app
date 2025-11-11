@@ -1,32 +1,29 @@
-// front/app/(app)/layout.tsx - ATUALIZADO
+// front/app/(app)/layout.tsx - CORRIGIDO
 
 "use client";
 
-import { useState, ReactNode, useEffect } from "react";
+import { useState, ReactNode } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useGenerationLimit } from "@/contexts/generation-limit-context"; // 🆕 IMPORTAR
 import Link from "next/link";
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle"; 
-import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import {
-  Brain,
   Plus,
   Settings,
-  User,
   Home,
   Library,
   TrendingUp,
   Menu,
   Clock,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Progress } from "@/components/ui/progress";
-import { apiClient, GenerationLimitInfo } from "@/lib/api";
+import { GenerationLimitInfo } from "@/lib/api";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const sidebarItems = [
@@ -37,7 +34,6 @@ const sidebarItems = [
     { href: "/settings", label: "Configurações", icon: Settings },
 ];
 
-// 🎨 COMPONENTE ATUALIZADO COM DESIGN MINIMALISTA - OTIMIZADO PARA MODO ESCURO
 function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | null }) {
   if (!limitInfo) return null;
 
@@ -74,11 +70,9 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
         <TooltipTrigger asChild>
           <button className="w-full px-3 py-2.5 border-t border-border/30 dark:border-zinc-800/50 hover:bg-accent/30 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             <div className="space-y-2">
-              {/* Header minimalista */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm">{getStatusIcon()}</span>
-                  {/* --- ALTERAÇÃO AQUI --- */}
                   <span className="text-xs font-medium text-sidebar-foreground">
                     Gerações
                   </span>
@@ -88,13 +82,11 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
                 </span>
               </div>
               
-              {/* Barra de progresso minimalista */}
               <Progress 
                 value={percentage} 
                 className={cn("h-1 bg-muted/50 dark:bg-zinc-800/50", getProgressColor())}
               />
               
-              {/* --- ALTERAÇÃO AQUI --- */}
               <p className="text-[10px] text-sidebar-foreground text-left">
                 {getMessage()}
               </p>
@@ -108,13 +100,11 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
           sideOffset={8}
         >
           <div className="space-y-2.5">
-            {/* Título com ícone */}
             <div className="flex items-center gap-2">
               <span className="text-base">{getStatusIcon()}</span>
               <p className="font-semibold text-sm text-foreground">Limite Diário</p>
             </div>
             
-            {/* Descrição */}
             <p className="text-xs text-muted-foreground leading-relaxed">
               {remaining > 0 ? (
                 <>
@@ -132,7 +122,6 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
               )}
             </p>
             
-            {/* Tempo até reset */}
             {limitInfo.hours_until_reset > 0 && (
               <div className="flex items-center gap-1.5 pt-2 border-t border-border/30 dark:border-zinc-800/50">
                 <Clock className="w-3 h-3 text-muted-foreground" />
@@ -142,7 +131,6 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
               </div>
             )}
             
-            {/* Dica quando limite atingido */}
             {remaining === 0 && (
               <div className="pt-2 border-t border-border/30 dark:border-zinc-800/50">
                 <p className="text-xs text-muted-foreground italic">
@@ -159,36 +147,16 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [limitInfo, setLimitInfo] = useState<GenerationLimitInfo | null>(null);
+  
+  // 🆕 USAR O CONTEXT - Isso faz a mágica acontecer!
+  const { limitInfo } = useGenerationLimit();
 
   const getInitials = (name: string | undefined) => {
     if (!name) return "?";
     return name.charAt(0).toUpperCase();
   };
-
-  // Buscar informações de limite
-  useEffect(() => {
-    const fetchLimitInfo = async () => {
-      if (!user) return;
-      
-      try {
-        const info = await apiClient.getGenerationLimitStatus();
-        setLimitInfo(info);
-      } catch (error) {
-        console.error("Erro ao carregar limite:", error);
-      }
-    };
-
-    fetchLimitInfo();
-
-    // Atualizar a cada 5 minutos
-    const interval = setInterval(fetchLimitInfo, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [user]);
 
   if (loading) {
     return (
@@ -272,7 +240,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </ul>
         </nav>
 
-        {/* Barra de Limite de Gerações - ATUALIZADA */}
+        {/* 🎯 Agora limitInfo vem do Context e atualiza automaticamente! */}
         <GenerationLimitBar limitInfo={limitInfo} />
 
         <div className="p-4 mt-auto border-t border-border dark:border-zinc-800">

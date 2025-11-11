@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { LoadingProvider } from "@/components/providers/loading-provider";
+import { GenerationLimitProvider } from "@/contexts/generation-limit-context";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from "@/components/ui/sonner"; 
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
@@ -54,7 +55,11 @@ export default function RootLayout({
           >
             <LoadingProvider>
               <AuthProvider>
-                {children}
+                {/* ⚠️ IMPORTANTE: Provider DEVE estar aqui, 
+                    envolvendo o children que contém o (app)/layout.tsx */}
+                <GenerationLimitProvider>
+                  {children}
+                </GenerationLimitProvider>
                 <Toaster /> 
               </AuthProvider>
             </LoadingProvider>

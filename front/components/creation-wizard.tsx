@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { apiClient, Document, GenerationLimitInfo, LimitExceededError } from "@/lib/api";
+import { apiClient, Document, LimitExceededError } from "@/lib/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import ContentLoader from "@/components/content-loader";
 import { GenerationLimitAlert } from "@/components/generation-limit-alert";
 import { LimitReachedDialog } from "@/components/limit-reached-dialog";
+import { useGenerationLimit } from "@/contexts/generation-limit-context";
 import {
   Loader2,
   ArrowLeft,
@@ -68,11 +69,12 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   const [processingDocument, setProcessingDocument] = useState<Document | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   
-  // 🆕 Estados de limite
-  const [limitInfo, setLimitInfo] = useState<GenerationLimitInfo | null>(null);
+  // 🆕 USAR O CONTEXT EM VEZ DE ESTADO LOCAL
+  const { limitInfo, loading: loadingLimit, refreshLimitInfo, incrementUsage } = useGenerationLimit();
+  
+  // Estados de limite (apenas para dialog)
   const [showLimitDialog, setShowLimitDialog] = useState(false);
   const [limitDialogInfo, setLimitDialogInfo] = useState<LimitExceededError | null>(null);
-  const [loadingLimit, setLoadingLimit] = useState(true);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -86,22 +88,6 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     difficulty: "Médio",
     num_questions: 5,
   });
-
-  // 🆕 CARREGAR INFORMAÇÕES DE LIMITE AO MONTAR
-  useEffect(() => {
-    const fetchLimitInfo = async () => {
-      try {
-        const info = await apiClient.getGenerationLimitStatus();
-        setLimitInfo(info);
-      } catch (error) {
-        console.error("Erro ao carregar informações de limite:", error);
-      } finally {
-        setLoadingLimit(false);
-      }
-    };
-
-    fetchLimitInfo();
-  }, []);
 
   const handleNext = () => setStep((s) => Math.min(s + 1, steps.length));
   const handleBack = () => setStep((s) => Math.max(s - 1, 1));
@@ -125,6 +111,9 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
             createdItems.push('Quiz');
         }
         
+        // 🎯 ATUALIZAR O LIMITE REAL APENAS QUANDO CONCLUIR COM SUCESSO
+        await refreshLimitInfo();
+        
         toast.success(`Deck "${data.name}" processado!`, {
           description: `${createdItems.join(' e ')} foram gerados com sucesso.`,
           duration: 4000,
@@ -137,6 +126,10 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
+        
+        // 🔄 REVERTER a atualização otimista em caso de falha
+        await refreshLimitInfo();
+        
         setIsProcessing(false); 
         toast.error("Falha ao processar o deck", {
           description: document.current_step || "Houve um erro durante o processamento.",
@@ -148,6 +141,10 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      
+      // 🔄 REVERTER em caso de erro também
+      await refreshLimitInfo();
+      
       setIsProcessing(false);
       toast.error("Não foi possível verificar o estado do deck.");
     }
@@ -162,19 +159,13 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     };
   }, []);
 
-  // 🆕 FUNÇÃO AUXILIAR PARA LIDAR COM ERRO DE LIMITE
   const handleLimitError = (error: any) => {
     if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
       setLimitDialogInfo(error.limitInfo);
       setShowLimitDialog(true);
       
-      // Atualiza as informações de limite
-      setLimitInfo({
-        used: error.limitInfo.used,
-        remaining: 0,
-        limit: error.limitInfo.limit,
-        hours_until_reset: error.limitInfo.hours_until_reset
-      });
+      // 🆕 Atualiza o context também (sincronização extra)
+      refreshLimitInfo();
     } else {
       toast.error("Falha ao criar deck", { 
         description: error.message || "Tente novamente mais tarde." 
@@ -188,7 +179,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     if (data.inputType === 'upload' && !data.file) return toast.error("Por favor, selecione um arquivo para upload.");
     if (fileError) return toast.error(fileError);
 
-    // 🆕 Verifica limite antes de submeter
+    // Verifica limite antes de submeter
     if (limitInfo && limitInfo.remaining === 0) {
       setLimitDialogInfo({
         message: "Limite diário atingido",
@@ -224,14 +215,13 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         document = await apiClient.createDocumentFromText({ ...baseParams, text: data.text });
       }
 
-      // 🆕 Atualiza informações de limite após sucesso
-      if (limitInfo) {
-        setLimitInfo({
-          ...limitInfo,
-          used: limitInfo.used + 1,
-          remaining: limitInfo.remaining - 1
-        });
-      }
+      // 🆕 ATUALIZAR O CONTEXT - Isso vai refletir na sidebar IMEDIATAMENTE!
+      incrementUsage(); // Atualização otimista (feedback imediato)
+      
+      // 🆕 Atualizar do servidor em background (garante sincronização)
+      refreshLimitInfo().catch(err => {
+        console.error('Erro ao atualizar limite:', err);
+      });
 
       setIsSubmitting(false);
       setIsProcessing(true);
@@ -613,7 +603,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
           {!isProcessing && <WizardProgress/>}
           <Card className="relative overflow-hidden">{renderStepContent()}</Card>
 
-          {/* 🆕 ALERTA DE LIMITE - Aparece depois do wizard, na parte inferior */}
+          {/* Alerta de Limite - Agora usando o Context */}
           {!isProcessing && (
             <>
               {loadingLimit ? (
@@ -630,7 +620,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
           )}
       </div>
 
-      {/* 🆕 DIALOG DE LIMITE ATINGIDO */}
+      {/* Dialog de Limite Atingido */}
       {limitDialogInfo && (
         <LimitReachedDialog
           isOpen={showLimitDialog}
