@@ -37,19 +37,36 @@ class EmailService:
     """Serviço centralizado para envio de e-mails"""
     
     @staticmethod
+    def _get_email_context(username: str, email: EmailStr, **kwargs) -> dict:
+        """Prepara o contexto comum para todos os templates de e-mail"""
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:4000")
+        email_assets_url = os.getenv("EMAIL_ASSETS_BASE_URL", f"{frontend_url}/email-assets")
+        
+        context = {
+            "username": username,
+            "email": email,
+            "frontend_url": frontend_url,
+            "whatsapp_link": os.getenv("WHATSAPP_LINK", "https://wa.me/5592000000000"),
+            "telegram_link": os.getenv("TELEGRAM_LINK", "https://t.me/flashify"),
+            "logo_url": f"{email_assets_url}/logo.svg",
+            "whatsapp_icon_url": f"{email_assets_url}/whatsapp-icon.png",
+            "telegram_icon_url": f"{email_assets_url}/telegram-icon.png",
+        }
+        
+        # Adiciona quaisquer parâmetros extras
+        context.update(kwargs)
+        
+        return context
+    
+    @staticmethod
     async def send_welcome_email(email: EmailStr, username: str) -> bool:
         """
         Envia e-mail de boas-vindas após cadastro
         """
         try:
             template = template_env.get_template("welcome.html")
-            html_content = template.render(
-                username=username,
-                email=email,
-                frontend_url=os.getenv("FRONTEND_URL", "http://localhost:4000"),
-                whatsapp_link=os.getenv("WHATSAPP_LINK", "https://wa.me/5592000000000"),
-                telegram_link=os.getenv("TELEGRAM_LINK", "https://t.me/flashify")
-            )
+            context = EmailService._get_email_context(username, email)
+            html_content = template.render(**context)
             
             message = MessageSchema(
                 subject="Bem-vindo(a) ao Flashify! 🎉",
@@ -73,15 +90,14 @@ class EmailService:
         """
         try:
             template = template_env.get_template("inactivity_reminder.html")
-            html_content = template.render(
-                username=username,
-                email=email,
+            context = EmailService._get_email_context(
+                username, 
+                email,
                 days_inactive=days_inactive,
                 dashboard_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:4000')}/dashboard",
-                create_deck_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:4000')}/create",
-                whatsapp_link=os.getenv("WHATSAPP_LINK", "https://wa.me/5592000000000"),
-                telegram_link=os.getenv("TELEGRAM_LINK", "https://t.me/flashify")
+                create_deck_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:4000')}/create"
             )
+            html_content = template.render(**context)
             
             message = MessageSchema(
                 subject=f"Sentimos sua falta! 😊 - Volte ao Flashify",
@@ -110,15 +126,14 @@ class EmailService:
         """
         try:
             template = template_env.get_template("incomplete_deck.html")
-            html_content = template.render(
-                username=username,
-                email=email,
+            context = EmailService._get_email_context(
+                username,
+                email,
                 document_title=document_title,
                 deck_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:4000')}/deck/{document_id}",
-                library_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:4000')}/library",
-                whatsapp_link=os.getenv("WHATSAPP_LINK", "https://wa.me/5592000000000"),
-                telegram_link=os.getenv("TELEGRAM_LINK", "https://t.me/flashify")
+                library_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:4000')}/library"
             )
+            html_content = template.render(**context)
             
             message = MessageSchema(
                 subject="Seu deck está esperando! 📚",

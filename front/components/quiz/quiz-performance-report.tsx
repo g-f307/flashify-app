@@ -192,7 +192,7 @@ export function QuizPerformanceReport({
                 >
                   <Button
                     onClick={onRestart}
-                    className="w-full py-4 rounded-lg text-base font-medium shadow-lg"
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-lg text-base font-medium shadow-lg glow-on-hover"
                     size="lg"
                   >
                     <RotateCcw className="w-4 h-4 mr-2" />
@@ -202,8 +202,7 @@ export function QuizPerformanceReport({
                   {canAddMore && (
                     <Button
                       onClick={() => setIsAddModalOpen(true)}
-                      variant="outline"
-                      className="w-full py-4 rounded-lg text-base font-medium"
+                      className="w-full bg-cyan-400 hover:bg-cyan-500 text-gray-900 py-4 rounded-lg text-base font-medium shadow-lg hover:shadow-cyan-400/50 transition-all duration-300"
                       size="lg"
                       disabled={isAdding}
                     >
