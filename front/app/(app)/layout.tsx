@@ -1,12 +1,11 @@
-// front/app/(app)/layout.tsx - CORRIGIDO
-
+// front/app/(app)/layout.tsx
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useState, ReactNode, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
-import { useGenerationLimit } from "@/contexts/generation-limit-context"; // 🆕 IMPORTAR
+import { useGenerationLimit } from "@/contexts/generation-limit-context";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { usePathname } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle"; 
 import Image from "next/image";
@@ -147,17 +146,25 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
+  const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // 🆕 USAR O CONTEXT - Isso faz a mágica acontecer!
   const { limitInfo } = useGenerationLimit();
+
+  // Protege as rotas - redireciona se não estiver autenticado
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/');
+    }
+  }, [user, loading, router]);
 
   const getInitials = (name: string | undefined) => {
     if (!name) return "?";
     return name.charAt(0).toUpperCase();
   };
 
+  // Mostra loading enquanto verifica autenticação
   if (loading) {
     return (
       <LoadingScreen 
@@ -167,6 +174,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Se não há usuário, não renderiza nada (o useEffect vai redirecionar)
   if (!user) {
     return null;
   }
@@ -240,7 +248,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </ul>
         </nav>
 
-        {/* 🎯 Agora limitInfo vem do Context e atualiza automaticamente! */}
         <GenerationLimitBar limitInfo={limitInfo} />
 
         <div className="p-4 mt-auto border-t border-border dark:border-zinc-800">

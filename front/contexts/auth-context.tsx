@@ -1,9 +1,10 @@
+// front/contexts/auth-context.tsx
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { apiClient, User, LoginRequest, RegisterRequest } from "@/lib/api";
 import { setToken, clearToken, getToken } from "@/lib/auth";
-import { useRouter } from "next/navigation"; 
+import { useRouter, usePathname } from "next/navigation"; 
 import { useLoading } from "@/components/providers/loading-provider";
 
 export interface AuthContextType {
@@ -20,27 +21,55 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter(); 
+  const router = useRouter();
+  const pathname = usePathname();
   const { showAuthLoading, hideLoading } = useLoading();
 
   useEffect(() => {
     const initializeAuth = async () => {
       const token = getToken();
-      if (token) {
-        try {
-          const userData = await apiClient.getCurrentUser();
-          setUser(userData);
-        } catch (error) {
-          console.error("Falha ao buscar utilizador, a limpar token", error);
-          clearToken();
-          router.push('/dashboard'); 
-        }
+      
+      // Se não há token, usuário não está autenticado
+      if (!token) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      try {
+        // Tenta buscar dados do usuário para validar o token
+        const userData = await apiClient.getCurrentUser();
+        setUser(userData);
+        
+        // Se está na landing page e está autenticado, redireciona
+        if (pathname === '/') {
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        console.error("Token inválido ou expirado, limpando autenticação", error);
+        
+        // Token inválido/expirado - limpa tudo
+        clearToken();
+        setUser(null);
+        
+        // Se está em rota protegida, mostra loading e redireciona
+        const publicRoutes = ['/', '/login', '/register'];
+        if (!publicRoutes.includes(pathname)) {
+          showAuthLoading("Sessão expirada. Redirecionando...");
+          
+          setTimeout(() => {
+            router.push('/');
+            setTimeout(() => {
+              hideLoading();
+            }, 500);
+          }, 1500);
+        }
+      } finally {
+        setLoading(false);
+      }
     };
 
     initializeAuth();
-  }, [router]);
+  }, []); // Remove pathname e router das dependências para evitar loops
 
   const login = async (credentials: LoginRequest) => {
     showAuthLoading("Fazendo login...");
