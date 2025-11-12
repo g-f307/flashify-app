@@ -1,9 +1,6 @@
-# back/app/email_service.py
-
 import os
+import resend
 from pathlib import Path
-from typing import List, Optional
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from jinja2 import Environment, FileSystemLoader
 from pydantic import EmailStr
 from dotenv import load_dotenv
@@ -13,24 +10,9 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# 🆕 VERIFICAR SE EMAILS ESTÃO HABILITADOS
+# 🆕 Configuração do Resend
 ENABLE_EMAILS = os.getenv("ENABLE_EMAILS", "false").lower() == "true"
-
-# Configuração do serviço de e-mail (mantém igual)
-conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-    MAIL_FROM=os.getenv("MAIL_FROM"),
-    MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
-    MAIL_SERVER=os.getenv("MAIL_SERVER"),
-    MAIL_STARTTLS=os.getenv("MAIL_STARTTLS", "True").lower() == "true",
-    MAIL_SSL_TLS=os.getenv("MAIL_SSL_TLS", "False").lower() == "true",
-    USE_CREDENTIALS=os.getenv("MAIL_USE_CREDENTIALS", "True").lower() == "true",
-    VALIDATE_CERTS=os.getenv("MAIL_VALIDATE_CERTS", "True").lower() == "true",
-    TEMPLATE_FOLDER=Path(__file__).parent / "email_templates"
-)
-
-fast_mail = FastMail(conf)
+resend.api_key = os.getenv("RESEND_API_KEY")
 
 # Configurar Jinja2 para templates
 template_env = Environment(
@@ -38,7 +20,7 @@ template_env = Environment(
 )
 
 class EmailService:
-    """Serviço centralizado para envio de e-mails"""
+    """Serviço centralizado para envio de e-mails via Resend"""
     
     @staticmethod
     def _get_email_context(username: str, email: EmailStr, **kwargs) -> dict:
@@ -62,25 +44,28 @@ class EmailService:
     async def send_welcome_email(email: EmailStr, username: str) -> bool:
         """Envia e-mail de boas-vindas após cadastro"""
         
-        # 🆕 VERIFICAÇÃO: Se emails estão desabilitados, apenas loga e retorna sucesso
         if not ENABLE_EMAILS:
             logger.info(f"📧 [MODO TESTE] E-mail de boas-vindas NÃO enviado para {email} (emails desabilitados)")
-            return True  # Retorna True para não quebrar o fluxo
+            return True
+        
+        if not resend.api_key:
+            logger.error("❌ RESEND_API_KEY não configurada!")
+            return False
         
         try:
             template = template_env.get_template("welcome.html")
             context = EmailService._get_email_context(username, email)
             html_content = template.render(**context)
             
-            message = MessageSchema(
-                subject="Bem-vindo(a) ao Flashify! 🎉",
-                recipients=[email],
-                body=html_content,
-                subtype=MessageType.html
-            )
+            params = {
+                "from": "Flashify <noreply@flashify.cloud>",
+                "to": [email],
+                "subject": "Bem-vindo(a) ao Flashify! 🎉",
+                "html": html_content,
+            }
             
-            await fast_mail.send_message(message)
-            logger.info(f"✅ E-mail de boas-vindas enviado para {email}")
+            response = resend.Emails.send(params)
+            logger.info(f"✅ E-mail de boas-vindas enviado para {email} (ID: {response.get('id', 'N/A')})")
             return True
             
         except Exception as e:
@@ -91,13 +76,16 @@ class EmailService:
     async def send_inactivity_reminder(email: EmailStr, username: str, days_inactive: int) -> bool:
         """Envia e-mail lembrando usuário inativo"""
         
-        # 🆕 VERIFICAÇÃO
         if not ENABLE_EMAILS:
             logger.info(f"📧 [MODO TESTE] E-mail de inatividade NÃO enviado para {email} (emails desabilitados)")
             return True
         
+        if not resend.api_key:
+            logger.error("❌ RESEND_API_KEY não configurada!")
+            return False
+        
         try:
-            template = template_env.get_template("inactivity_reminder.html")
+            template = template_env.get_template("inatividade.html")
             context = EmailService._get_email_context(
                 username, 
                 email,
@@ -107,15 +95,15 @@ class EmailService:
             )
             html_content = template.render(**context)
             
-            message = MessageSchema(
-                subject=f"Sentimos sua falta! 😊 - Volte ao Flashify",
-                recipients=[email],
-                body=html_content,
-                subtype=MessageType.html
-            )
+            params = {
+                "from": "Flashify <noreply@flashify.cloud>",
+                "to": [email],
+                "subject": f"Sentimos sua falta! 😊 - Volte ao Flashify",
+                "html": html_content,
+            }
             
-            await fast_mail.send_message(message)
-            logger.info(f"✅ E-mail de inatividade enviado para {email}")
+            response = resend.Emails.send(params)
+            logger.info(f"✅ E-mail de inatividade enviado para {email} (ID: {response.get('id', 'N/A')})")
             return True
             
         except Exception as e:
@@ -131,13 +119,16 @@ class EmailService:
     ) -> bool:
         """Envia e-mail lembrando deck em processamento/falho"""
         
-        # 🆕 VERIFICAÇÃO
         if not ENABLE_EMAILS:
             logger.info(f"📧 [MODO TESTE] E-mail de deck incompleto NÃO enviado para {email} (emails desabilitados)")
             return True
         
+        if not resend.api_key:
+            logger.error("❌ RESEND_API_KEY não configurada!")
+            return False
+        
         try:
-            template = template_env.get_template("incomplete_deck.html")
+            template = template_env.get_template("deck_incompleto.html")
             context = EmailService._get_email_context(
                 username,
                 email,
@@ -147,15 +138,15 @@ class EmailService:
             )
             html_content = template.render(**context)
             
-            message = MessageSchema(
-                subject="Seu deck está esperando! 📚",
-                recipients=[email],
-                body=html_content,
-                subtype=MessageType.html
-            )
+            params = {
+                "from": "Flashify <noreply@flashify.cloud>",
+                "to": [email],
+                "subject": "Seu deck está esperando! 📚",
+                "html": html_content,
+            }
             
-            await fast_mail.send_message(message)
-            logger.info(f"✅ E-mail de deck incompleto enviado para {email}")
+            response = resend.Emails.send(params)
+            logger.info(f"✅ E-mail de deck incompleto enviado para {email} (ID: {response.get('id', 'N/A')})")
             return True
             
         except Exception as e:
