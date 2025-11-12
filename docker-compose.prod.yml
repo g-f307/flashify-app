@@ -39,6 +39,9 @@ services:
     networks:
       - proxy-net
       - internal-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
   celery-worker:
     build: ./back
@@ -58,6 +61,30 @@ services:
     networks:
       - proxy-net
       - internal-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+  celery-beat:
+    build: ./back
+    container_name: flashify-beat
+    command: celery -A app.worker beat --loglevel=info
+    env_file:
+      - ./back/.env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./back/gcp-credentials.json:/app/gcp-credentials.json
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: always
+    networks:
+      - internal-net
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
   frontend:
     build:

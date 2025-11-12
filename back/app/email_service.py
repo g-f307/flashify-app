@@ -1,4 +1,5 @@
 # back/app/email_service.py
+
 import os
 from pathlib import Path
 from typing import List, Optional
@@ -12,7 +13,10 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Configuração do serviço de e-mail
+# 🆕 VERIFICAR SE EMAILS ESTÃO HABILITADOS
+ENABLE_EMAILS = os.getenv("ENABLE_EMAILS", "false").lower() == "true"
+
+# Configuração do serviço de e-mail (mantém igual)
 conf = ConnectionConfig(
     MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
     MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
@@ -51,16 +55,18 @@ class EmailService:
             "whatsapp_icon_url": f"{email_assets_url}/whatsapp-icon.png",
         }
         
-        # Adiciona quaisquer parâmetros extras
         context.update(kwargs)
-        
         return context
     
     @staticmethod
     async def send_welcome_email(email: EmailStr, username: str) -> bool:
-        """
-        Envia e-mail de boas-vindas após cadastro
-        """
+        """Envia e-mail de boas-vindas após cadastro"""
+        
+        # 🆕 VERIFICAÇÃO: Se emails estão desabilitados, apenas loga e retorna sucesso
+        if not ENABLE_EMAILS:
+            logger.info(f"📧 [MODO TESTE] E-mail de boas-vindas NÃO enviado para {email} (emails desabilitados)")
+            return True  # Retorna True para não quebrar o fluxo
+        
         try:
             template = template_env.get_template("welcome.html")
             context = EmailService._get_email_context(username, email)
@@ -83,9 +89,13 @@ class EmailService:
     
     @staticmethod
     async def send_inactivity_reminder(email: EmailStr, username: str, days_inactive: int) -> bool:
-        """
-        Envia e-mail lembrando usuário inativo
-        """
+        """Envia e-mail lembrando usuário inativo"""
+        
+        # 🆕 VERIFICAÇÃO
+        if not ENABLE_EMAILS:
+            logger.info(f"📧 [MODO TESTE] E-mail de inatividade NÃO enviado para {email} (emails desabilitados)")
+            return True
+        
         try:
             template = template_env.get_template("inactivity_reminder.html")
             context = EmailService._get_email_context(
@@ -119,9 +129,13 @@ class EmailService:
         document_title: str,
         document_id: int
     ) -> bool:
-        """
-        Envia e-mail lembrando deck em processamento/falho
-        """
+        """Envia e-mail lembrando deck em processamento/falho"""
+        
+        # 🆕 VERIFICAÇÃO
+        if not ENABLE_EMAILS:
+            logger.info(f"📧 [MODO TESTE] E-mail de deck incompleto NÃO enviado para {email} (emails desabilitados)")
+            return True
+        
         try:
             template = template_env.get_template("incomplete_deck.html")
             context = EmailService._get_email_context(

@@ -55,8 +55,6 @@ export default function RootLayout({
           >
             <LoadingProvider>
               <AuthProvider>
-                {/* ⚠️ IMPORTANTE: Provider DEVE estar aqui, 
-                    envolvendo o children que contém o (app)/layout.tsx */}
                 <GenerationLimitProvider>
                   {children}
                 </GenerationLimitProvider>
