@@ -227,6 +227,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   
   const { limitInfo } = useGenerationLimit();
 
+  // ✅ ADICIONA classe app-layout ao body
+  useEffect(() => {
+    document.body.classList.add('app-layout');
+    return () => {
+      document.body.classList.remove('app-layout');
+    };
+  }, []);
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/');

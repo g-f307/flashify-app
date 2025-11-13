@@ -63,21 +63,31 @@
 }
 
 @layer base {
-  /* ✅ CORREÇÃO CRÍTICA: Previne scroll duplo */
-  html,
+  /* ✅ CORREÇÃO CRÍTICA: Diferentes comportamentos para app e landing */
+  html {
+    height: 100%;
+  }
+  
   body {
     height: 100%;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  
+  /* ✅ Scroll normal para landing page */
+  body:not(.app-layout) {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  /* ✅ Sem scroll para app (sidebar fixa) */
+  body.app-layout {
     overflow: hidden;
   }
   
-  /* Permite scroll apenas no root do Next.js */
-  #__next {
+  /* Permite scroll apenas no root do Next.js quando no app */
+  body.app-layout #__next {
     height: 100%;
-  }
-  
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
   }
 }
 
@@ -508,7 +518,7 @@ input, textarea, select {
   font-size: 16px !important;
 }
 
-/* ✅ CORREÇÃO: Remove overflow da landing page */
+/* ✅ Zoom 0.8 para landing page */
 .landing-page-theme {
   zoom: 0.8;
 }
