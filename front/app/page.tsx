@@ -1,29 +1,54 @@
-// Caminho: app/(landing)/page.tsx
+// front/app/page.tsx
 "use client";
 
 import { useEffect } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/landing/Header';
 import HeroSection from '@/components/landing/HeroSection';
 import AboutSection from '@/components/landing/AboutSection';
 import HowItWorksSection from '@/components/landing/HowItWorksSection';
 import ContactSection from '@/components/landing/ContactSection';
 import Footer from '@/components/landing/Footer';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 
 export default function LandingPage() {
-  // Força o tema claro na landing page
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  // ✅ Força o tema claro na landing page
   useEffect(() => {
-    // Remove a classe 'dark' do elemento HTML
     document.documentElement.classList.remove('dark');
-    
-    // Adiciona atributo data-theme para garantir
     document.documentElement.setAttribute('data-theme', 'light');
     
-    // Cleanup
     return () => {
       document.documentElement.removeAttribute('data-theme');
     };
   }, []);
 
+  // ✅ Redireciona usuário autenticado ANTES de renderizar
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/dashboard');
+    }
+  }, [user, loading, router]);
+
+  // ✅ Mostra loading enquanto verifica autenticação
+  if (loading) {
+    return (
+      <LoadingScreen 
+        message="Carregando..." 
+        fullScreen={true}
+      />
+    );
+  }
+
+  // ✅ Não renderiza landing se usuário está autenticado
+  if (user) {
+    return null;
+  }
+
+  // ✅ Só renderiza landing se não há usuário
   return (
     <div className="landing-page-theme light" data-theme="light">
       <main className="w-full">

@@ -21,6 +21,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // ✅ Novo estado
   const router = useRouter();
   const pathname = usePathname();
   const { showAuthLoading, hideLoading } = useLoading();
@@ -29,29 +30,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const initializeAuth = async () => {
       const token = getToken();
       
-      // Se não há token, usuário não está autenticado
       if (!token) {
         setLoading(false);
         return;
       }
 
       try {
-        // Tenta buscar dados do usuário para validar o token
         const userData = await apiClient.getCurrentUser();
         setUser(userData);
         
-        // Se está na landing page e está autenticado, redireciona
+        // ✅ Redireciona ANTES de renderizar a landing page
         if (pathname === '/') {
-          router.push('/dashboard');
+          router.replace('/dashboard'); // ✅ Usa replace ao invés de push
         }
       } catch (error) {
         console.error("Token inválido ou expirado, limpando autenticação", error);
         
-        // Token inválido/expirado - limpa tudo
         clearToken();
         setUser(null);
         
-        // Se está em rota protegida, mostra loading e redireciona
         const publicRoutes = ['/', '/login', '/register'];
         if (!publicRoutes.includes(pathname)) {
           showAuthLoading("Sessão expirada. Redirecionando...");
@@ -69,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initializeAuth();
-  }, []); // Remove pathname e router das dependências para evitar loops
+  }, [pathname]); // ✅ Adiciona pathname como dependência
 
   const login = async (credentials: LoginRequest) => {
     showAuthLoading("Fazendo login...");
@@ -150,19 +147,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // ✅ CORREÇÃO PRINCIPAL: Logout sem piscar
   const logout = () => {
+    setIsLoggingOut(true); // ✅ Marca que está fazendo logout
     showAuthLoading("Fazendo logout...");
-    
-    setUser(null);
-    clearToken();
     
     setTimeout(() => {
       showAuthLoading("Logout realizado com sucesso!");
       
       setTimeout(() => {
+        // ✅ Limpa dados DEPOIS de iniciar navegação
+        setUser(null);
+        clearToken();
+        
         router.push('/');
         
         setTimeout(() => {
+          setIsLoggingOut(false); // ✅ Reset do estado
           hideLoading();
         }, 300);
       }, 600);
@@ -171,7 +172,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, register, googleLogin }}>
-      {children}
+      {/* ✅ Não renderiza children se estiver fazendo logout */}
+      {!isLoggingOut && children}
     </AuthContext.Provider>
   );
 };
