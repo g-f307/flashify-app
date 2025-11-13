@@ -1,4 +1,3 @@
-// front/app/(app)/layout.tsx
 "use client";
 
 import { useState, ReactNode, useEffect } from "react";
@@ -154,7 +153,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   
   const { limitInfo } = useGenerationLimit();
 
-  // Protege as rotas - redireciona se não estiver autenticado
   useEffect(() => {
     if (!loading && !user) {
       router.push('/');
@@ -166,7 +164,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return name.charAt(0).toUpperCase();
   };
 
-  // Mostra loading enquanto verifica autenticação
   if (loading) {
     return (
       <LoadingScreen 
@@ -176,7 +173,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Se não há usuário, não renderiza nada (o useEffect vai redirecionar)
   if (!user) {
     return null;
   }
@@ -197,7 +193,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -212,7 +208,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <AppLogo />
         </div>
 
-        <nav className="flex-1 p-4">
+        <nav className="flex-1 p-4 overflow-y-auto">
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
               const Icon = item.icon;
@@ -276,7 +272,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-h-0">
+      <main className="flex-1 flex flex-col overflow-hidden">
         <header className="lg:hidden flex items-center p-4 border-b border-slate-200 dark:border-slate-800 bg-background flex-shrink-0">
           <div className="flex-1 flex justify-start">
             <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-accent rounded-lg">
@@ -304,10 +300,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-4 lg:p-8">
-            {children}
-          </div>
+        {/* ✅ CORREÇÃO: Scroll apenas no container de conteúdo */}
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+          {children}
         </div>
       </main>
     </div>
