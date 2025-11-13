@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Menu,
   Clock,
+  MessageCircle, 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,6 +31,7 @@ const sidebarItems = [
     { href: "/library", label: "Biblioteca", icon: Library },
     { href: "/create", label: "Criar Deck", icon: Plus },
     { href: "/progress", label: "Progresso", icon: TrendingUp },
+    { href: "/support", label: "Suporte", icon: MessageCircle }, 
     { href: "/settings", label: "Configurações", icon: Settings },
 ];
 
@@ -274,8 +276,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="lg:hidden flex items-center p-4 border-b border-slate-200 dark:border-slate-800 bg-background">
+      <main className="flex-1 flex flex-col min-h-0">
+        <header className="lg:hidden flex items-center p-4 border-b border-slate-200 dark:border-slate-800 bg-background flex-shrink-0">
           <div className="flex-1 flex justify-start">
             <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-accent rounded-lg">
               <Menu className="w-5 h-5" />
@@ -301,8 +303,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <ThemeToggle />
           </div>
         </header>
-        <div className="flex-1 p-4 lg:p-8 overflow-auto">
+        
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 lg:p-8">
             {children}
+          </div>
         </div>
       </main>
     </div>
