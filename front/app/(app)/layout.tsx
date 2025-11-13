@@ -1,3 +1,4 @@
+// front/app/(app)/layout.tsx
 "use client";
 
 import { useState, ReactNode, useEffect } from "react";
@@ -17,6 +18,8 @@ import {
   Menu,
   Clock,
   MessageCircle, 
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,6 +27,13 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Progress } from "@/components/ui/progress";
 import { GenerationLimitInfo } from "@/lib/api";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 const sidebarItems = [
     { href: "/dashboard", label: "Início", icon: Home },
@@ -35,6 +45,8 @@ const sidebarItems = [
 ];
 
 function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | null }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   if (!limitInfo) return null;
 
   const { used, remaining, limit } = limitInfo;
@@ -64,62 +76,124 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
     return `${remaining} restantes`;
   };
 
+  const getDetailedMessage = () => {
+    if (remaining > 0) {
+      return `Você ainda pode criar ${remaining} ${remaining === 1 ? 'deck' : 'decks'} hoje.`;
+    } else {
+      return `Você atingiu o limite de ${limit} decks por dia.`;
+    }
+  };
+
   return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button className="w-full px-3 py-2.5 border-t border-border/30 dark:border-zinc-800/50 hover:bg-accent/30 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm">{getStatusIcon()}</span>
-                  <span className="text-xs font-medium text-sidebar-foreground">
-                    Gerações
+    <>
+      {/* ✅ VERSÃO DESKTOP - Com Tooltip */}
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className="hidden lg:block w-full px-3 py-2.5 border-t border-border/30 dark:border-zinc-800/50 hover:bg-accent/30 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{getStatusIcon()}</span>
+                    <span className="text-xs font-medium text-sidebar-foreground">
+                      Gerações
+                    </span>
+                  </div>
+                  <span className={cn("text-xs font-bold tabular-nums", getStatusColor())}>
+                    {used}/{limit}
                   </span>
                 </div>
+                
+                <Progress 
+                  value={percentage} 
+                  className={cn("h-1 bg-muted/50 dark:bg-zinc-800/50", getProgressColor())}
+                />
+                
+                <p className="text-[10px] text-sidebar-foreground text-left">
+                  {getMessage()}
+                </p>
+              </div>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent 
+            side="right" 
+            align="center"
+            className="max-w-[280px] p-3 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-sm border-border/50 dark:border-zinc-800/50"
+            sideOffset={8}
+          >
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-base">{getStatusIcon()}</span>
+                <p className="font-semibold text-sm text-foreground">Limite Diário</p>
+              </div>
+              
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {getDetailedMessage()}
+              </p>
+              
+              {limitInfo.hours_until_reset > 0 && (
+                <div className="flex items-center gap-1.5 pt-2 border-t border-border/30 dark:border-zinc-800/50">
+                  <Clock className="w-3 h-3 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">
+                    Renova em <strong className="text-foreground">{limitInfo.hours_until_reset}h</strong>
+                  </p>
+                </div>
+              )}
+              
+              {remaining === 0 && (
+                <div className="pt-2 border-t border-border/30 dark:border-zinc-800/50">
+                  <p className="text-xs text-muted-foreground italic">
+                    💡 Revise seus decks enquanto aguarda!
+                  </p>
+                </div>
+              )}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      {/* ✅ VERSÃO MOBILE - Expansível */}
+      <div className="lg:hidden w-full border-t border-border/30 dark:border-zinc-800/50">
+        <button 
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full px-3 py-2.5 hover:bg-accent/30 transition-colors duration-200 focus:outline-none"
+        >
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">{getStatusIcon()}</span>
+                <span className="text-xs font-medium text-sidebar-foreground">
+                  Gerações
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
                 <span className={cn("text-xs font-bold tabular-nums", getStatusColor())}>
                   {used}/{limit}
                 </span>
+                {isExpanded ? (
+                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                )}
               </div>
-              
-              <Progress 
-                value={percentage} 
-                className={cn("h-1 bg-muted/50 dark:bg-zinc-800/50", getProgressColor())}
-              />
-              
-              <p className="text-[10px] text-sidebar-foreground text-left">
-                {getMessage()}
-              </p>
-            </div>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent 
-          side="right" 
-          align="center"
-          className="max-w-[280px] p-3 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-sm border-border/50 dark:border-zinc-800/50"
-          sideOffset={8}
-        >
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-base">{getStatusIcon()}</span>
-              <p className="font-semibold text-sm text-foreground">Limite Diário</p>
             </div>
             
+            <Progress 
+              value={percentage} 
+              className={cn("h-1 bg-muted/50 dark:bg-zinc-800/50", getProgressColor())}
+            />
+            
+            <p className="text-[10px] text-sidebar-foreground text-left">
+              {getMessage()}
+            </p>
+          </div>
+        </button>
+        
+        {/* ✅ PAINEL EXPANDIDO NO MOBILE */}
+        {isExpanded && (
+          <div className="px-3 pb-3 space-y-2 bg-muted/30 dark:bg-zinc-800/30 animate-in slide-in-from-top duration-200">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              {remaining > 0 ? (
-                <>
-                  Você ainda pode criar{" "}
-                  <strong className={getStatusColor()}>
-                    {remaining} {remaining === 1 ? 'deck' : 'decks'}
-                  </strong>{" "}
-                  hoje.
-                </>
-              ) : (
-                <>
-                  Você atingiu o limite de{" "}
-                  <strong className={getStatusColor()}>{limit} decks</strong> por dia.
-                </>
-              )}
+              {getDetailedMessage()}
             </p>
             
             {limitInfo.hours_until_reset > 0 && (
@@ -139,9 +213,9 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
               </div>
             )}
           </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -300,7 +374,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         
-        {/* ✅ CORREÇÃO: Scroll apenas no container de conteúdo */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
           {children}
         </div>

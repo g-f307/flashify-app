@@ -21,7 +21,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isLoggingOut, setIsLoggingOut] = useState(false); // ✅ Novo estado
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const { showAuthLoading, hideLoading } = useLoading();
@@ -39,9 +39,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userData = await apiClient.getCurrentUser();
         setUser(userData);
         
-        // ✅ Redireciona ANTES de renderizar a landing page
         if (pathname === '/') {
-          router.replace('/dashboard'); // ✅ Usa replace ao invés de push
+          router.replace('/dashboard');
         }
       } catch (error) {
         console.error("Token inválido ou expirado, limpando autenticação", error);
@@ -66,7 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initializeAuth();
-  }, [pathname]); // ✅ Adiciona pathname como dependência
+  }, [pathname]);
 
   const login = async (credentials: LoginRequest) => {
     showAuthLoading("Fazendo login...");
@@ -78,13 +77,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       showAuthLoading("Login realizado com sucesso!");
       
-      setTimeout(() => {
-        router.push('/dashboard');
-        
-        setTimeout(() => {
-          hideLoading();
-        }, 1500); 
-      }, 1000);
+      // ✅ CORREÇÃO: Aguarda mais tempo antes de esconder o loading
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      router.push('/dashboard');
+      
+      // ✅ CORREÇÃO: Só esconde o loading após garantir que a navegação começou
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      hideLoading();
       
     } catch (error) {
       hideLoading();
@@ -102,13 +102,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       showAuthLoading("Login realizado com sucesso!");
       
-      setTimeout(() => {
-        router.push('/dashboard');
-        
-        setTimeout(() => {
-          hideLoading();
-        }, 1500); 
-      }, 1000);
+      // ✅ CORREÇÃO: Aguarda mais tempo antes de esconder o loading
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      router.push('/dashboard');
+      
+      // ✅ CORREÇÃO: Só esconde o loading após garantir que a navegação começou
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      hideLoading();
       
     } catch (error) {
       hideLoading();
@@ -133,13 +134,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       showAuthLoading("Bem-vindo ao Flashify!");
       
-      setTimeout(() => {
-        router.push('/dashboard');
-        
-        setTimeout(() => {
-          hideLoading();
-        }, 1500); 
-      }, 1200);
+      // ✅ CORREÇÃO: Aguarda mais tempo antes de esconder o loading
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
+      router.push('/dashboard');
+      
+      // ✅ CORREÇÃO: Só esconde o loading após garantir que a navegação começou
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      hideLoading();
       
     } catch (error) {
       hideLoading();
@@ -147,23 +149,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // ✅ CORREÇÃO PRINCIPAL: Logout sem piscar
   const logout = () => {
-    setIsLoggingOut(true); // ✅ Marca que está fazendo logout
+    setIsLoggingOut(true);
     showAuthLoading("Fazendo logout...");
     
     setTimeout(() => {
       showAuthLoading("Logout realizado com sucesso!");
       
       setTimeout(() => {
-        // ✅ Limpa dados DEPOIS de iniciar navegação
         setUser(null);
         clearToken();
         
         router.push('/');
         
         setTimeout(() => {
-          setIsLoggingOut(false); // ✅ Reset do estado
+          setIsLoggingOut(false);
           hideLoading();
         }, 300);
       }, 600);
@@ -172,7 +172,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, register, googleLogin }}>
-      {/* ✅ Não renderiza children se estiver fazendo logout */}
       {!isLoggingOut && children}
     </AuthContext.Provider>
   );
