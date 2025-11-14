@@ -27,13 +27,6 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Progress } from "@/components/ui/progress";
 import { GenerationLimitInfo } from "@/lib/api";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
 
 const sidebarItems = [
     { href: "/dashboard", label: "Início", icon: Home },
@@ -86,7 +79,6 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
 
   return (
     <>
-      {/* ✅ VERSÃO DESKTOP - Com Tooltip */}
       <TooltipProvider delayDuration={300}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -152,7 +144,6 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
         </Tooltip>
       </TooltipProvider>
 
-      {/* ✅ VERSÃO MOBILE - Expansível */}
       <div className="lg:hidden w-full border-t border-border/30 dark:border-zinc-800/50">
         <button 
           onClick={() => setIsExpanded(!isExpanded)}
@@ -189,7 +180,6 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
           </div>
         </button>
         
-        {/* ✅ PAINEL EXPANDIDO NO MOBILE */}
         {isExpanded && (
           <div className="px-3 pb-3 space-y-2 bg-muted/30 dark:bg-zinc-800/30 animate-in slide-in-from-top duration-200">
             <p className="text-xs text-muted-foreground leading-relaxed">
@@ -227,7 +217,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   
   const { limitInfo } = useGenerationLimit();
 
-  // ✅ ADICIONA classe app-layout ao body
   useEffect(() => {
     document.body.classList.add('app-layout');
     return () => {
@@ -286,7 +275,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="p-4 lg:p-6 border-b border-border dark:border-zinc-800">
+        <div className="p-4 lg:p-6 border-b border-border dark:border-zinc-800 flex-shrink-0">
           <AppLogo />
         </div>
 
@@ -330,7 +319,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         <GenerationLimitBar limitInfo={limitInfo} />
 
-        <div className="p-4 mt-auto border-t border-border dark:border-zinc-800">
+        <div className="p-4 mt-auto border-t border-border dark:border-zinc-800 flex-shrink-0">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
               <AvatarImage src={user?.profile_picture_url} alt={user?.username} />
@@ -355,7 +344,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="lg:hidden flex items-center p-4 border-b border-slate-200 dark:border-slate-800 bg-background flex-shrink-0">
+        {/* ✅ CORREÇÃO: Header mobile com altura fixa */}
+        <header className="lg:hidden flex items-center p-4 border-b border-slate-200 dark:border-slate-800 bg-background flex-shrink-0 h-16">
           <div className="flex-1 flex justify-start">
             <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-accent rounded-lg">
               <Menu className="w-5 h-5" />
@@ -382,8 +372,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {children}
+        {/* ✅ CORREÇÃO CRÍTICA: Container com scroll e padding extra no bottom para mobile */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="p-4 lg:p-8 pb-24 lg:pb-8 safe-area-bottom">
+            {children}
+          </div>
         </div>
       </main>
     </div>

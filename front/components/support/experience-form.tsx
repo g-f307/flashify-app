@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form"; // Importa o Controller
+import { useForm, Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,7 +28,6 @@ export function ExperienceForm({ onBack }: Props) {
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedRating, setSelectedRating] = useState<number>(0);
   
-  // Obtém o 'control' do useForm
   const { register, handleSubmit, watch, setValue, control, formState: { errors } } = useForm<ExperienceFormData>();
 
   const onSubmit = async (data: ExperienceFormData) => {
@@ -98,7 +97,8 @@ export function ExperienceForm({ onBack }: Props) {
         </p>
       </div>
       
-      <div>
+      {/* ✅ CORREÇÃO: Container do formulário com max-height e scroll */}
+      <div className="max-h-[calc(100vh-16rem)] lg:max-h-none overflow-y-auto pr-2">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Avaliação Geral */}
           <div className="space-y-3">
@@ -112,7 +112,7 @@ export function ExperienceForm({ onBack }: Props) {
                   type="button"
                   onClick={() => {
                     setSelectedRating(star);
-                    setValue('rating', star.toString(), { shouldValidate: true }); // Adiciona validação
+                    setValue('rating', star.toString(), { shouldValidate: true });
                   }}
                   className={cn(
                     "transition-all duration-200 hover:scale-110",
@@ -130,7 +130,6 @@ export function ExperienceForm({ onBack }: Props) {
               <span>Muito ruim</span>
               <span>Excelente</span>
             </div>
-            {/* Registra o campo para que o RHF saiba dele */}
             <input type="hidden" {...register('rating', { required: true })} />
             {errors.rating && (
               <p className="text-sm text-red-500 text-center">Selecione uma avaliação</p>
@@ -146,7 +145,6 @@ export function ExperienceForm({ onBack }: Props) {
               onValueChange={(value) => setValue('easeOfUse', value)}
               className="grid grid-cols-1 sm:grid-cols-3 gap-3"
             >
-              {/* ... opções de facilidade ... */}
               <div>
                 <RadioGroupItem 
                   value="muito_facil" 
@@ -228,7 +226,6 @@ export function ExperienceForm({ onBack }: Props) {
               onValueChange={(value) => setValue('wouldRecommend', value)}
               className="grid grid-cols-1 sm:grid-cols-3 gap-3"
             >
-              {/* ... opções de recomendação ... */}
               <div>
                 <RadioGroupItem 
                   value="sim" 
@@ -281,7 +278,6 @@ export function ExperienceForm({ onBack }: Props) {
             <Label htmlFor="feedback" className="text-base font-semibold">
               Quer compartilhar mais alguma coisa? (opcional)
             </Label>
-            {/* Substitui Textarea por Controller */}
             <Controller
               name="feedback"
               control={control}

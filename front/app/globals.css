@@ -5,17 +5,17 @@
 @tailwind utilities;
 
 :root {
-  --background: 240 100% 99%; /* #F2F2F2 */
-  --foreground: 210 29% 29%; /* #2C3E50 */
-  --sidebar: 0 0% 100%; /* #FFFFFF */
-  --sidebar-foreground: 210 29% 29%; /* #2C3E50 */
+  --background: 240 100% 99%;
+  --foreground: 210 29% 29%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 210 29% 29%;
   --card: 0 0% 100%;
   --card-foreground: 210 29% 29%;
   --popover: 0 0% 100%;
   --popover-foreground: 210 29% 29%;
-  --primary: 45 100% 50%; /* #FFC300 */
+  --primary: 45 100% 50%;
   --primary-foreground: 210 29% 29%;
-  --secondary: 190 79% 70%; /* #6BDEF3 */
+  --secondary: 190 79% 70%;
   --secondary-foreground: 210 29% 29%;
   --muted: 240 5% 96.1%;
   --muted-foreground: 240 3.8% 46.1%;
@@ -27,22 +27,22 @@
   --input: 240 5.9% 90%;
   --ring: 240 5.9% 10%;
   --radius: 0.5rem;
-  --glow: 45 100% 50%; /* Amarelo para brilho no modo claro */
+  --glow: 45 100% 50%;
   --gradient-hero: linear-gradient(135deg, hsl(191 85% 68%), hsl(191 69% 87%));
 }
 
 .dark {
-  --background: 224 14% 11%; /* #1A1D23 */
-  --foreground: 240 5% 88%; /* #E0E0E0 */
-  --sidebar: 222 11% 19%; /* #2A2F38 */
-  --sidebar-foreground: 240 5% 88%; /* #E0E0E0 */
+  --background: 224 14% 11%;
+  --foreground: 240 5% 88%;
+  --sidebar: 222 11% 19%;
+  --sidebar-foreground: 240 5% 88%;
   --card: 222 11% 19%;
   --card-foreground: 240 5% 88%;
   --popover: 222 11% 19%;
   --popover-foreground: 240 5% 88%;
-  --primary: 51 100% 50%; /* #FFD700 */
+  --primary: 51 100% 50%;
   --primary-foreground: 224 14% 11%;
-  --secondary: 190 79% 60%; /* #4AC7E8 */
+  --secondary: 190 79% 60%;
   --secondary-foreground: 224 14% 11%;
   --muted: 222 11% 19%;
   --muted-foreground: 240 5% 63%;
@@ -53,41 +53,48 @@
   --border: 222 11% 19%;
   --input: 222 11% 19%;
   --ring: 51 100% 50%;
-  --glow: 51 100% 50%; /* Amarelo para brilho no modo escuro */
+  --glow: 51 100% 50%;
 }
 
-/* Theme variables */
 :root {
   --font-sans: system-ui, sans-serif;
   --font-mono: monospace;
 }
 
 @layer base {
-  /* ✅ CORREÇÃO CRÍTICA: Diferentes comportamentos para app e landing */
+  /* ✅ CORREÇÃO CRÍTICA: Sistema de scroll otimizado para mobile */
   html {
     height: 100%;
   }
   
   body {
-    height: 100%;
+    min-height: 100%;
+    height: auto;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-  }
-  
-  /* ✅ Scroll normal para landing page */
-  body:not(.app-layout) {
-    overflow-y: auto;
     overflow-x: hidden;
   }
   
-  /* ✅ Sem scroll para app (sidebar fixa) */
-  body.app-layout {
-    overflow: hidden;
+  /* ✅ Scroll normal para páginas não-app */
+  body:not(.app-layout) {
+    overflow-y: auto;
   }
   
-  /* Permite scroll apenas no root do Next.js quando no app */
+  /* ✅ CORREÇÃO: App layout com altura fixa usando dvh (dynamic viewport height) */
+  body.app-layout {
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh; /* Usa dynamic viewport height para mobile (considera teclado virtual) */
+  }
+  
   body.app-layout #__next {
     height: 100%;
+  }
+
+  /* ✅ CORREÇÃO: Auth pages com scroll funcional */
+  body:has(.auth-page-container) {
+    min-height: 100vh;
+    overflow-y: auto;
   }
 }
 
@@ -104,29 +111,38 @@
   .backface-hidden {
     backface-visibility: hidden;
   }
+  
+  /* ✅ NOVA: Safe area para mobile */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+  
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
 }
 
-  .glow-on-hover {
-    transition: box-shadow 0.3s ease-in-out;
-  }
+.glow-on-hover {
+  transition: box-shadow 0.3s ease-in-out;
+}
 
-  .glow-on-hover:hover {
-    box-shadow: 0 0 20px hsl(var(--glow) / 0.4), 0 0 30px hsl(var(--glow) / 0.2);
-  }
+.glow-on-hover:hover {
+  box-shadow: 0 0 20px hsl(var(--glow) / 0.4), 0 0 30px hsl(var(--glow) / 0.2);
+}
 
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
 
-/* Estilos específicos para a barra de rolagem horizontal da seção de conjuntos recentes */
 .custom-scroll-horizontal::-webkit-scrollbar {
-  height: 8px; /* Altura da barra de rolagem horizontal */
-  width: 0; /* Remove a largura da barra de rolagem vertical para este elemento */
+  height: 8px;
+  width: 0;
 }
 
 .custom-scroll-horizontal::-webkit-scrollbar-track {
@@ -143,9 +159,8 @@
   background: hsl(var(--primary) / 0.8);
 }
 
-/* Garante que a barra de rolagem vertical não apareça se o conteúdo se estender */
 .custom-scroll-horizontal {
-  overflow-y: hidden; /* Oculta a barra de rolagem vertical para este contêiner */
+  overflow-y: hidden;
 }
 
 @layer utilities {
@@ -165,7 +180,6 @@
   }
 }
 
-/* Utility classes for text truncation */
 .line-clamp-1 {
   overflow: hidden;
   display: -webkit-box;
@@ -199,80 +213,62 @@
   left: 0;
   width: 100%;
   height: 100%;
-  border-radius: inherit; /* Usa o mesmo arredondamento do card */
+  border-radius: inherit;
   box-shadow: 0 0 0 0 rgba(var(--primary-foreground), 0);
   transition: box-shadow 0.4s ease-in-out;
-  pointer-events: none; /* Garante que o brilho não interfere com cliques */
+  pointer-events: none;
 }
 
 .glow-on-hover:hover:before {
   box-shadow: 0 0 15px 5px rgba(var(--primary), 0.3);
 }
 
-/* Opcional: Efeito no card-enhanced que você já tinha */
 .card-enhanced {
-    border: 1px solid transparent;
+  border: 1px solid transparent;
 }
 
 .card-enhanced:hover {
-    border-color: hsl(var(--primary) / 0.5);
-    box-shadow: 0 4px 12px hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.5);
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.1);
 }
 
 /* ================================================ */
-/* COMEÇO DO TEMA DA LANDING PAGE */
+/* TEMA DA LANDING PAGE */
 /* ================================================ */
 
 @layer base {
   .landing-page-theme {
-    /* Paleta Flashify */
-    --primary: 191 85% 68%; /* #6BDEF3 - Azul principal */
-    --primary-foreground: 210 17% 23%; /* #2C3E50 - Texto escuro */
-    
-    --secondary: 191 69% 87%; /* #C4E9F2 - Azul claro */
+    --primary: 191 85% 68%;
+    --primary-foreground: 210 17% 23%;
+    --secondary: 191 69% 87%;
     --secondary-foreground: 210 17% 23%;
-    
-    --accent: 45 100% 50%; /* #FFC300 - Laranja destaque */
+    --accent: 45 100% 50%;
     --accent-foreground: 0 0% 100%;
-    
-    --highlight: 51 100% 50%; /* #FFD700 - Amarelo */
+    --highlight: 51 100% 50%;
     --highlight-foreground: 210 17% 23%;
-    
     --background: 0 0% 100%;
-    --foreground: 210 17% 23%; /* #2C3E50 */
-    
+    --foreground: 210 17% 23%;
     --card: 0 0% 100%;
     --card-foreground: 210 17% 23%;
-    
-    --muted: 0 0% 95%; /* #F2F2F2 */
-    --muted-foreground: 0 0% 50%; /* #808080 */
-    
-    --border: 0 0% 93%; /* #ECECEC */
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 50%;
+    --border: 0 0% 93%;
     --input: 0 0% 93%;
     --ring: 191 85% 68%;
-    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    
     --popover: 0 0% 100%;
     --popover-foreground: 210 17% 23%;
-    
     --radius: 1rem;
-    
-    /* Gradientes personalizados */
     --gradient-hero: linear-gradient(135deg, hsl(191 85% 68%), hsl(191 69% 87%));
     --gradient-wave: linear-gradient(180deg, hsl(191 85% 68%), hsl(191 85% 75%));
-    
-    /* Sombras personalizadas */
     --shadow-card: 0 4px 20px hsla(191 85% 68% / 0.15);
     --shadow-card-hover: 0 8px 30px hsla(191 85% 68% / 0.25);
     --shadow-button: 0 4px 15px hsla(45 100% 50% / 0.3);
   }
 }
 
-/* Animações personalizadas da Landing Page */
 @layer utilities {
-  /* Fade in com slide up */
   @keyframes fadeInUp {
     from {
       opacity: 0;
@@ -284,7 +280,6 @@
     }
   }
 
-  /* Animação para os ícones caindo */
   @keyframes fallIn {
     from {
       opacity: 0;
@@ -296,7 +291,6 @@
     }
   }
 
-  /* Animação para o card sair */
   @keyframes sendToBack {
     to {
       transform: translateY(30px) scale(0.8);
@@ -304,7 +298,6 @@
     }
   }
 
-  /* Animação de chegada do deck */
   @keyframes deckArrive {
     from {
       transform: scale(0.8);
@@ -316,9 +309,6 @@
     }
   }
 
-  /* NOVAS ANIMAÇÕES ADICIONADAS */
-  
-  /* Fade in com slide da esquerda */
   @keyframes fadeInLeft {
     from {
       opacity: 0;
@@ -330,7 +320,6 @@
     }
   }
 
-  /* Fade in com slide da direita */
   @keyframes fadeInRight {
     from {
       opacity: 0;
@@ -342,7 +331,6 @@
     }
   }
 
-  /* Fade in com escala */
   @keyframes fadeInScale {
     from {
       opacity: 0;
@@ -354,7 +342,6 @@
     }
   }
 
-  /* Pulso suave */
   @keyframes pulse-smooth {
     0%, 100% {
       transform: scale(1);
@@ -364,7 +351,6 @@
     }
   }
 
-  /* Bounce suave */
   @keyframes bounce-smooth {
     0%, 100% {
       transform: translateY(0);
@@ -374,7 +360,6 @@
     }
   }
 
-  /* Rotação suave */
   @keyframes rotate-smooth {
     from {
       transform: rotate(0deg);
@@ -384,7 +369,6 @@
     }
   }
 
-  /* Brilho que se move */
   @keyframes shimmer {
     0% {
       background-position: -1000px 0;
@@ -394,7 +378,6 @@
     }
   }
 
-  /* Classes de animação */
   .animate-fadeInUp {
     animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
@@ -423,7 +406,6 @@
     animation: rotate-smooth 20s linear infinite;
   }
 
-  /* Transições suaves */
   .transition-smooth {
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -436,7 +418,6 @@
     transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  /* Efeito de brilho ao passar o mouse */
   .hover-shimmer {
     position: relative;
     overflow: hidden;
@@ -462,7 +443,6 @@
     left: 100%;
   }
 
-  /* Efeito de elevação ao passar o mouse */
   .hover-lift {
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
                 box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -472,7 +452,6 @@
     transform: translateY(-8px);
   }
 
-  /* Efeito de zoom suave */
   .hover-zoom {
     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -481,7 +460,6 @@
     transform: scale(1.05);
   }
 
-  /* Efeito de glow ao passar o mouse */
   .hover-glow {
     transition: box-shadow 0.3s ease-in-out;
   }
@@ -491,7 +469,6 @@
                 0 0 40px hsla(191 85% 68% / 0.2);
   }
 
-  /* Delays para animações em sequência */
   .delay-100 {
     animation-delay: 0.1s;
   }
@@ -518,11 +495,7 @@ input, textarea, select {
   font-size: 16px !important;
 }
 
-/* ✅ Zoom 0.8 para landing page */
+/* ✅ Zoom 0.8 para landing page (mantido conforme solicitado) */
 .landing-page-theme {
   zoom: 0.8;
 }
-
-/* ================================================ */
-/* FIM DO TEMA DA LANDING PAGE                   */
-/* ================================================ */

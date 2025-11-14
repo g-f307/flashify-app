@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bug, MessageSquare, Lightbulb, ArrowLeft, Send } from "lucide-react";
+import { Bug, MessageSquare, Lightbulb, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import { BugReportForm } from "@/components/support/bug-report-form";
 import { ExperienceForm } from "@/components/support/experience-form";
