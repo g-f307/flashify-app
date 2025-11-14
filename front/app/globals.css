@@ -62,39 +62,33 @@
 }
 
 @layer base {
-  /* ✅ CORREÇÃO CRÍTICA: Sistema de scroll otimizado para mobile */
-  html {
+  /* ✅ CORREÇÃO REAL: Remover todos os overflows problemáticos */
+  html, body {
+    width: 100%;
     height: 100%;
+    margin: 0;
+    padding: 0;
   }
   
   body {
-    min-height: 100%;
-    height: auto;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+  }
+  
+  /* ✅ Para páginas não-app, scroll normal */
+  body:not(.app-layout) {
+    overflow-y: auto;
     overflow-x: hidden;
   }
   
-  /* ✅ Scroll normal para páginas não-app */
-  body:not(.app-layout) {
-    overflow-y: auto;
-  }
-  
-  /* ✅ CORREÇÃO: App layout com altura fixa usando dvh (dynamic viewport height) */
+  /* ✅ Para app layout, permitir scroll natural */
   body.app-layout {
     overflow: hidden;
-    height: 100vh;
-    height: 100dvh; /* Usa dynamic viewport height para mobile (considera teclado virtual) */
   }
   
   body.app-layout #__next {
+    width: 100%;
     height: 100%;
-  }
-
-  /* ✅ CORREÇÃO: Auth pages com scroll funcional */
-  body:has(.auth-page-container) {
-    min-height: 100vh;
-    overflow-y: auto;
   }
 }
 
@@ -110,16 +104,6 @@
   }
   .backface-hidden {
     backface-visibility: hidden;
-  }
-  
-  /* ✅ NOVA: Safe area para mobile */
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 1rem);
-  }
-  
-  .min-h-screen-safe {
-    min-height: 100vh;
-    min-height: 100dvh;
   }
 }
 

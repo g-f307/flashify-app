@@ -264,7 +264,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-full w-full bg-background overflow-hidden">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -343,9 +343,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* ✅ CORREÇÃO: Header mobile com altura fixa */}
-        <header className="lg:hidden flex items-center p-4 border-b border-slate-200 dark:border-slate-800 bg-background flex-shrink-0 h-16">
+      {/* ✅ CORREÇÃO REAL: Main com flex-1 e overflow-auto direto */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-auto">
+        <header className="lg:hidden flex items-center p-4 border-b border-slate-200 dark:border-slate-800 bg-background flex-shrink-0">
           <div className="flex-1 flex justify-start">
             <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-accent rounded-lg">
               <Menu className="w-5 h-5" />
@@ -372,11 +372,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         
-        {/* ✅ CORREÇÃO CRÍTICA: Container com scroll e padding extra no bottom para mobile */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="p-4 lg:p-8 pb-24 lg:pb-8 safe-area-bottom">
-            {children}
-          </div>
+        {/* ✅ Conteúdo com padding adequado */}
+        <div className="p-4 lg:p-8">
+          {children}
         </div>
       </main>
     </div>

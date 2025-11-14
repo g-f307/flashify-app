@@ -63,9 +63,11 @@ export default function SupportPage() {
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -20 }}
-        className="max-w-4xl mx-auto"
+        className="max-w-4xl mx-auto overflow-hidden"
       >
-        {renderForm()}
+        <div className="min-h-0">
+          {renderForm()}
+        </div>
       </motion.div>
     );
   }

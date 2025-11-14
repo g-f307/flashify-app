@@ -97,8 +97,8 @@ export function ExperienceForm({ onBack }: Props) {
         </p>
       </div>
       
-      {/* ✅ CORREÇÃO: Container do formulário com max-height e scroll */}
-      <div className="max-h-[calc(100vh-16rem)] lg:max-h-none overflow-y-auto pr-2">
+      {/* ✅ CORREÇÃO CRÍTICA: Contenção de layout */}
+      <div className="isolate">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Avaliação Geral */}
           <div className="space-y-3">
@@ -141,55 +141,58 @@ export function ExperienceForm({ onBack }: Props) {
             <Label className="text-base font-semibold">
               O Flashify é fácil de usar? <span className="text-red-500">*</span>
             </Label>
-            <RadioGroup 
-              onValueChange={(value) => setValue('easeOfUse', value)}
-              className="grid grid-cols-1 sm:grid-cols-3 gap-3"
-            >
-              <div>
-                <RadioGroupItem 
-                  value="muito_facil" 
-                  id="muito_facil" 
-                  className="peer sr-only" 
-                />
-                <Label
-                  htmlFor="muito_facil"
-                  className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                >
-                  <span className="text-2xl mb-2">😊</span>
-                  <span className="text-sm font-medium">Muito fácil</span>
-                </Label>
-              </div>
-              
-              <div>
-                <RadioGroupItem 
-                  value="normal" 
-                  id="normal" 
-                  className="peer sr-only" 
-                />
-                <Label
-                  htmlFor="normal"
-                  className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                >
-                  <span className="text-2xl mb-2">😐</span>
-                  <span className="text-sm font-medium">Normal</span>
-                </Label>
-              </div>
-              
-              <div>
-                <RadioGroupItem 
-                  value="dificil" 
-                  id="dificil" 
-                  className="peer sr-only" 
-                />
-                <Label
-                  htmlFor="dificil"
-                  className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                >
-                  <span className="text-2xl mb-2">😕</span>
-                  <span className="text-sm font-medium">Difícil</span>
-                </Label>
-              </div>
-            </RadioGroup>
+            {/* ✅ CORREÇÃO: Adiciona contain */}
+            <div className="contain-layout">
+              <RadioGroup 
+                onValueChange={(value) => setValue('easeOfUse', value)}
+                className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+              >
+                <div>
+                  <RadioGroupItem 
+                    value="muito_facil" 
+                    id="muito_facil" 
+                    className="peer sr-only" 
+                  />
+                  <Label
+                    htmlFor="muito_facil"
+                    className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                  >
+                    <span className="text-2xl mb-2">😊</span>
+                    <span className="text-sm font-medium">Muito fácil</span>
+                  </Label>
+                </div>
+                
+                <div>
+                  <RadioGroupItem 
+                    value="normal" 
+                    id="normal" 
+                    className="peer sr-only" 
+                  />
+                  <Label
+                    htmlFor="normal"
+                    className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                  >
+                    <span className="text-2xl mb-2">😐</span>
+                    <span className="text-sm font-medium">Normal</span>
+                  </Label>
+                </div>
+                
+                <div>
+                  <RadioGroupItem 
+                    value="dificil" 
+                    id="dificil" 
+                    className="peer sr-only" 
+                  />
+                  <Label
+                    htmlFor="dificil"
+                    className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                  >
+                    <span className="text-2xl mb-2">😕</span>
+                    <span className="text-sm font-medium">Difícil</span>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
           </div>
 
           {/* Funcionalidade mais usada */}
@@ -197,24 +200,27 @@ export function ExperienceForm({ onBack }: Props) {
             <Label className="text-base font-semibold">
               Qual funcionalidade você mais usa? <span className="text-red-500">*</span>
             </Label>
-            <RadioGroup 
-              onValueChange={(value) => setValue('mostUsedFeature', value)}
-              className="space-y-2"
-            >
-              {[
-                { value: 'flashcards', label: '📚 Estudar com Flashcards' },
-                { value: 'quiz', label: '🎯 Fazer Quizzes' },
-                { value: 'upload', label: '📄 Upload de PDFs/Imagens' },
-                { value: 'folders', label: '📁 Organização em Pastas' },
-                { value: 'progress', label: '📊 Acompanhar Progresso' },
-                { value: 'outros', label: '✨ Outros' }
-              ].map(({ value, label }) => (
-                <div key={value} className="flex items-center space-x-2">
-                  <RadioGroupItem value={value} id={value} />
-                  <Label htmlFor={value} className="cursor-pointer">{label}</Label>
-                </div>
-              ))}
-            </RadioGroup>
+            {/* ✅ CORREÇÃO: Adiciona contain */}
+            <div className="contain-layout">
+              <RadioGroup 
+                onValueChange={(value) => setValue('mostUsedFeature', value)}
+                className="space-y-2"
+              >
+                {[
+                  { value: 'flashcards', label: '📚 Estudar com Flashcards' },
+                  { value: 'quiz', label: '🎯 Fazer Quizzes' },
+                  { value: 'upload', label: '📄 Upload de PDFs/Imagens' },
+                  { value: 'folders', label: '📁 Organização em Pastas' },
+                  { value: 'progress', label: '📊 Acompanhar Progresso' },
+                  { value: 'outros', label: '✨ Outros' }
+                ].map(({ value, label }) => (
+                  <div key={value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={value} id={value} />
+                    <Label htmlFor={value} className="cursor-pointer">{label}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
           </div>
 
           {/* Recomendaria? */}
@@ -222,55 +228,58 @@ export function ExperienceForm({ onBack }: Props) {
             <Label className="text-base font-semibold">
               Você recomendaria o Flashify para outras pessoas? <span className="text-red-500">*</span>
             </Label>
-            <RadioGroup 
-              onValueChange={(value) => setValue('wouldRecommend', value)}
-              className="grid grid-cols-1 sm:grid-cols-3 gap-3"
-            >
-              <div>
-                <RadioGroupItem 
-                  value="sim" 
-                  id="sim" 
-                  className="peer sr-only" 
-                />
-                <Label
-                  htmlFor="sim"
-                  className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-green-500 [&:has([data-state=checked])]:border-green-500 [&:has([data-state=checked])]:bg-green-500/10 cursor-pointer"
-                >
-                  <span className="text-2xl mb-2">👍</span>
-                  <span className="text-sm font-medium">Sim, com certeza!</span>
-                </Label>
-              </div>
-              
-              <div>
-                <RadioGroupItem 
-                  value="talvez" 
-                  id="talvez" 
-                  className="peer sr-only" 
-                />
-                <Label
-                  htmlFor="talvez"
-                  className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-yellow-500 [&:has([data-state=checked])]:border-yellow-500 [&:has([data-state=checked])]:bg-yellow-500/10 cursor-pointer"
-                >
-                  <span className="text-2xl mb-2">🤔</span>
-                  <span className="text-sm font-medium">Talvez</span>
-                </Label>
-              </div>
-              
-              <div>
-                <RadioGroupItem 
-                  value="nao" 
-                  id="nao" 
-                  className="peer sr-only" 
-                />
-                <Label
-                  htmlFor="nao"
-                  className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-red-500 [&:has([data-state=checked])]:border-red-500 [&:has([data-state=checked])]:bg-red-500/10 cursor-pointer"
-                >
-                  <span className="text-2xl mb-2">👎</span>
-                  <span className="text-sm font-medium">Não</span>
-                </Label>
-              </div>
-            </RadioGroup>
+            {/* ✅ CORREÇÃO CRÍTICA: Adiciona contain-layout para evitar expansão */}
+            <div className="contain-layout">
+              <RadioGroup 
+                onValueChange={(value) => setValue('wouldRecommend', value)}
+                className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+              >
+                <div>
+                  <RadioGroupItem 
+                    value="sim" 
+                    id="sim" 
+                    className="peer sr-only" 
+                  />
+                  <Label
+                    htmlFor="sim"
+                    className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-green-500 [&:has([data-state=checked])]:border-green-500 [&:has([data-state=checked])]:bg-green-500/10 cursor-pointer"
+                  >
+                    <span className="text-2xl mb-2">👍</span>
+                    <span className="text-sm font-medium">Sim, com certeza!</span>
+                  </Label>
+                </div>
+                
+                <div>
+                  <RadioGroupItem 
+                    value="talvez" 
+                    id="talvez" 
+                    className="peer sr-only" 
+                  />
+                  <Label
+                    htmlFor="talvez"
+                    className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-yellow-500 [&:has([data-state=checked])]:border-yellow-500 [&:has([data-state=checked])]:bg-yellow-500/10 cursor-pointer"
+                  >
+                    <span className="text-2xl mb-2">🤔</span>
+                    <span className="text-sm font-medium">Talvez</span>
+                  </Label>
+                </div>
+                
+                <div>
+                  <RadioGroupItem 
+                    value="nao" 
+                    id="nao" 
+                    className="peer sr-only" 
+                  />
+                  <Label
+                    htmlFor="nao"
+                    className="flex flex-col items-center justify-between rounded-lg border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-red-500 [&:has([data-state=checked])]:border-red-500 [&:has([data-state=checked])]:bg-red-500/10 cursor-pointer"
+                  >
+                    <span className="text-2xl mb-2">👎</span>
+                    <span className="text-sm font-medium">Não</span>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
           </div>
 
           {/* Comentários Adicionais (opcional) */}
