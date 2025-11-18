@@ -1,10 +1,12 @@
+// front/app/(app)/settings/page.tsx
+
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { KeyRound, LogOut, Palette } from "lucide-react";
+import { KeyRound, LogOut, Palette, Cpu, ChevronRight } from "lucide-react";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import {
   Dialog,
@@ -15,6 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ThemeSelector } from "@/components/theme-selector";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
@@ -55,6 +58,54 @@ export default function SettingsPage() {
       </Card>
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        
+        {/* * ==========================================================
+          * * MUDANÇAS NO CARD DE CONSUMO DE IA (v2)
+          * * ==========================================================
+        */}
+        <Card className="hover:shadow-md transition-all group relative flex flex-col justify-between">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                {/* Ícone sem 'text-primary' */}
+                <Cpu className="h-5 w-5" />
+              <span>Consumo de IA</span>
+            </CardTitle>
+            
+            {/*
+              * DOCUMENTAÇÃO DA MUDANÇA:
+              * Os dois textos ("Entenda..." e "Saiba mais...") foram
+              * fundidos aqui numa única descrição.
+              * A classe 'pt-2' adiciona um pequeno espaço após o título.
+            */}
+            <CardDescription className="pt-2">
+              Entenda como funcionam as gerações com Inteligência Artificial
+              e saiba mais sobre limites diários.
+            </CardDescription>
+          </CardHeader>
+          
+          {/*
+            * DOCUMENTAÇÃO DA MUDANÇA:
+            * O CardContent agora contém apenas o ícone de seta.
+            * 'pt-0' é o padrão do shadcn/ui.
+            * Usamos 'flex justify-end' para alinhar a seta à direita.
+          */}
+          <CardContent className="pt-0">
+            <div className="flex items-center justify-end">
+              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+            </div>
+          </CardContent>
+
+          {/* O link overlay continua a cobrir todo o card */}
+          <Link href="/settings/ai-usage" className="absolute inset-0 z-10">
+            <span className="sr-only">Ver Consumo de IA</span>
+          </Link>
+        </Card>
+        {/* ==========================================================
+          * FIM DAS MUDANÇAS NO CARD
+          * ==========================================================
+        */}
+
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
