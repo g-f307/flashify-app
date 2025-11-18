@@ -103,6 +103,10 @@ def process_document(
                     text=extracted_text, num_questions=num_questions, difficulty=difficulty
                 )
                 
+                # 🆕 EMBARALHAR AS ALTERNATIVAS ANTES DE SALVAR
+                if quiz_data_dict:
+                    quiz_data_dict = crud.shuffle_quiz_answers(quiz_data_dict)
+                
                 db_document.current_step = "parsing quiz"
                 session.add(db_document)
                 session.commit()

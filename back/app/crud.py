@@ -4,6 +4,7 @@ from . import models, schemas, security
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import selectinload
+import random
 
 DAILY_GENERATION_LIMIT = 10
 
@@ -409,3 +410,50 @@ def get_user_generation_info(session: Session, user: models.User) -> dict:
         "limit": DAILY_GENERATION_LIMIT,
         "hours_until_reset": hours_until_reset
     }
+
+def shuffle_quiz_answers(quiz_data: dict) -> dict:
+    """
+    Embaralha as alternativas de cada pergunta do quiz para evitar padrões previsíveis.
+    Mantém a estrutura do quiz intacta.
+    """
+    shuffled_quiz = quiz_data.copy()
+    
+    for question in shuffled_quiz.get("questions", []):
+        if "answers" in question and isinstance(question["answers"], list):
+            # Embaralha as alternativas
+            random.shuffle(question["answers"])
+    
+    return shuffled_quiz
+
+def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, document_id: int) -> models.Quiz:
+    """
+    Cria um novo quiz completo, com todas as suas perguntas e respostas,
+    e associa-o a um documento existente.
+    
+    🆕 AGORA COM EMBARALHAMENTO DE ALTERNATIVAS
+    """
+    questions_to_create = []
+    for question_schema in quiz_data.questions:
+        # 🆕 Embaralha as alternativas antes de criar
+        shuffled_answers = question_schema.answers.copy()
+        random.shuffle(shuffled_answers)
+        
+        answers_to_create = [
+            models.Answer(**ans.dict()) for ans in shuffled_answers
+        ]
+        question_obj = models.Question(
+            text=question_schema.text, answers=answers_to_create
+        )
+        questions_to_create.append(question_obj)
+
+    db_quiz = models.Quiz(
+        title=quiz_data.title,
+        document_id=document_id,
+        questions=questions_to_create
+    )
+    
+    db.add(db_quiz)
+    db.commit()
+    db.refresh(db_quiz)
+    
+    return db_quiz
