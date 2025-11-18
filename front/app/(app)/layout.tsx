@@ -71,7 +71,7 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
 
   const getDetailedMessage = () => {
     if (remaining > 0) {
-      return `Você ainda pode criar ${remaining} ${remaining === 1 ? 'deck' : 'decks'} hoje.`;
+      return `Você ainda pode realizar ${remaining} gerações hoje.`;
     } else {
       return `Você atingiu o limite de ${limit} decks por dia.`;
     }

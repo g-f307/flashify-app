@@ -164,7 +164,17 @@ export function AddContentModal({
       }, 500);
     } catch (err: any) {
       clearInterval(progressInterval);
-      setError(err.message || "Erro ao adicionar conteúdo");
+      
+      // 🆕 TRATAMENTO ESPECIAL PARA ERRO 429
+      if (err.message === "LIMIT_EXCEEDED" && err.limitInfo) {
+        setError(
+          `Limite diário de gerações atingido (${err.limitInfo.used}/${err.limitInfo.limit}). ` +
+          `Renova em ${err.limitInfo.hours_until_reset}h.`
+        );
+      } else {
+        setError(err.message || "Erro ao adicionar conteúdo");
+      }
+      
       setLoadingProgress(0);
       setCurrentLoadingMessage("");
     } finally {

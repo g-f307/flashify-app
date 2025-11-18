@@ -11,6 +11,7 @@ import { StatsBadge } from './stats-badge';
 import { AddContentModal } from './add-content-modal';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
+import { useGenerationLimit } from "@/contexts/generation-limit-context"; 
 import { 
   PerformanceStats, 
   getMotivationalMessage, 
@@ -42,6 +43,7 @@ export function PerformanceReportResponsive({
 }: PerformanceReportResponsiveProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const { refreshLimitInfo } = useGenerationLimit(); 
 
   const message = getMotivationalMessage(stats.performanceLevel, stats.accuracyPercentage);
   const recommendations = getActionRecommendations(stats);
@@ -54,14 +56,23 @@ export function PerformanceReportResponsive({
       await apiClient.addFlashcardsToDocument(documentId, quantity, difficulty);
       toast.success(`${quantity} novos flashcards foram adicionados!`);
       setIsAddModalOpen(false);
+
+      await refreshLimitInfo();
       
       if (onContentAdded) {
         onContentAdded();
       }
     } catch (error: any) {
-      toast.error("Erro ao adicionar flashcards", {
-        description: error.message
-      });
+      if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
+        toast.error("Limite diário atingido", {
+          description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
+          duration: 5000
+        });
+      } else {
+        toast.error("Erro ao adicionar flashcards", {
+          description: error.message
+        });
+      }
       throw error;
     } finally {
       setIsAdding(false);

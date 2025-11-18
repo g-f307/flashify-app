@@ -11,7 +11,9 @@ import { CircularProgress } from '@/components/study/circular-progress';
 import { StatsBadge } from '@/components/study/stats-badge';
 import { AddContentModal } from '@/components/study/add-content-modal';
 import { apiClient } from '@/lib/api';
+import { useGenerationLimit } from "@/contexts/generation-limit-context"; 
 import { toast } from 'sonner';
+import { a } from 'framer-motion/dist/types.d-Cjd591yU';
 
 // Função de mensagem motivacional específica para o quiz
 const getQuizMotivationalMessage = (score: number) => {
@@ -51,6 +53,7 @@ export function QuizPerformanceReport({
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const { refreshLimitInfo } = useGenerationLimit();
 
   const incorrectAnswersCount = totalQuestions - correctAnswersCount;
   const message = getQuizMotivationalMessage(score);
@@ -62,14 +65,23 @@ export function QuizPerformanceReport({
       await apiClient.addQuestionsToQuiz(documentId, quantity, difficulty);
       toast.success(`${quantity} novas perguntas foram adicionadas!`);
       setIsAddModalOpen(false);
+
+      await refreshLimitInfo();
       
       if (onContentAdded) {
         onContentAdded();
       }
     } catch (error: any) {
-      toast.error("Erro ao adicionar perguntas", {
-        description: error.message
-      });
+      if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
+        toast.error("Limite diário atingido", {
+          description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
+          duration: 5000
+        });
+      } else {
+        toast.error("Erro ao adicionar perguntas", {
+          description: error.message
+        });
+      }
       throw error;
     } finally {
       setIsAdding(false);

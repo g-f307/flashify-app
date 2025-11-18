@@ -29,6 +29,7 @@ import { formatDocumentTitle } from "@/lib/utils";
 import { StatsChart } from "@/components/deck/StatsChart"; 
 import { cn } from "@/lib/utils";
 import { useLoading } from "@/components/providers/loading-provider";
+import { useGenerationLimit } from "@/contexts/generation-limit-context"; 
 
 const ActionCard = ({
     icon: Icon,
@@ -97,6 +98,7 @@ export default function DeckDashboardPage() {
     const router = useRouter();
     const documentId = Number(params.id);
     const { showLoading } = useLoading();
+    const { refreshLimitInfo } = useGenerationLimit();
 
     const [document, setDocument] = useState<Document | null>(null);
     const [stats, setStats] = useState<DeckStats | null>(null);
@@ -176,14 +178,27 @@ export default function DeckDashboardPage() {
             stopProgressSimulation();
             toast.success("Flashcards gerados com sucesso!");
 
+            await refreshLimitInfo();
+
             setTimeout(() => {
-                setIsCreatingFlashcards(false);
-                setCreationProgress(0);
+            setIsCreatingFlashcards(false);
+            setCreationProgress(0);
             }, 1000);
 
         } catch (error: any) {
             stopProgressSimulation(true);
-            toast.error("Falha ao gerar os flashcards", { description: error.message || "Tente novamente mais tarde." });
+        
+            if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
+            toast.error("Limite diário atingido", {
+                description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
+                duration: 5000
+            });
+            } else {
+            toast.error("Falha ao gerar os flashcards", { 
+                description: error.message || "Tente novamente mais tarde." 
+            });
+            }
+            
             setIsCreatingFlashcards(false);
         }
     }
@@ -200,14 +215,27 @@ export default function DeckDashboardPage() {
             stopProgressSimulation();
             toast.success("Quiz gerado com sucesso!");
 
+            await refreshLimitInfo();
+
             setTimeout(() => {
-                setIsCreatingQuiz(false);
-                setCreationProgress(0);
+            setIsCreatingQuiz(false);
+            setCreationProgress(0);
             }, 1000);
 
         } catch (error: any) {
             stopProgressSimulation(true);
-            toast.error("Falha ao gerar o quiz", { description: error.message || "Tente novamente mais tarde." });
+            
+            if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
+            toast.error("Limite diário atingido", {
+                description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
+                duration: 5000
+            });
+            } else {
+            toast.error("Falha ao gerar o quiz", { 
+                description: error.message || "Tente novamente mais tarde." 
+            });
+            }
+            
             setIsCreatingQuiz(false);
         }
     }
