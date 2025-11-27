@@ -40,7 +40,7 @@ const Footer = () => {
                 <FaInstagram className="w-6 h-6" />
               </a>
               <a
-                href="https://acesse.one/CanalFlashify"
+                href="https://whatsapp.com/channel/0029VbBUnnb90x30IAt5rQ2S"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="WhatsApp"
