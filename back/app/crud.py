@@ -193,6 +193,27 @@ def get_studied_flashcards_count(session: Session, document_id: int) -> int:
     count = session.exec(statement).one_or_none()
     return count or 0
 
+def update_flashcard(db: Session, flashcard_id: int, front: str | None = None, back: str | None = None) -> models.Flashcard | None:
+    """
+    Atualiza o conteúdo de um flashcard (frente e/ou verso).
+    """
+    db_flashcard = db.get(models.Flashcard, flashcard_id)
+    
+    if not db_flashcard:
+        return None
+
+    # Atualiza apenas se os valores foram passados
+    if front is not None:
+        db_flashcard.front = front
+    if back is not None:
+        db_flashcard.back = back
+
+    db.add(db_flashcard)
+    db.commit()
+    db.refresh(db_flashcard)
+    
+    return db_flashcard
+
 def delete_document_and_related_data(db: Session, document_id: int) -> bool:
     """
     Exclui um documento e todos os dados associados (flashcards, logs de estudo).
