@@ -7,7 +7,7 @@ import { LoadingProvider } from "@/components/providers/loading-provider";
 import { GenerationLimitProvider } from "@/contexts/generation-limit-context";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from "@/components/ui/sonner"; 
-import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
+import Analytics from "@/components/analytics/Analytics";
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
@@ -45,7 +45,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body>
-        <GoogleAnalytics />
+        <Analytics />
         <GoogleOAuthProvider clientId={clientId}>
           <ThemeProvider 
             attribute="class" 
