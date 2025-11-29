@@ -49,7 +49,7 @@ const Analytics = () => {
   // ✅ Buscar variáveis de ambiente (SEM aspas no .env)
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
   const googleAdsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID || "AW-17739686976"
-  const clarityProjectId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID
+  const clarityProjectId = "uddiaotmxo"
 
   // ✅ Debug: Verificar se as variáveis foram carregadas
   useEffect(() => {
@@ -59,6 +59,7 @@ const Analytics = () => {
         googleAdsId: googleAdsId ? `✅ ${googleAdsId}` : '❌ FALTANDO',
         clarityProjectId: clarityProjectId ? `✅ ${clarityProjectId}` : '❌ FALTANDO'
       })
+      console.log('📝 Clarity ID RAW:', process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID)
     }
   }, [gaMeasurementId, googleAdsId, clarityProjectId])
 
