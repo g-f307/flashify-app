@@ -66,7 +66,7 @@ def chat_about_flashcard(
     Responda como um professor dedicado que quer genuinamente ajudar o aluno a compreender e aprofundar o conhecimento:"""
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
@@ -93,7 +93,7 @@ def generate_flashcards_from_text(
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
     ]
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-2.5-flash-lite",
         generation_config=generation_config,
         safety_settings=safety_settings,
     )
@@ -343,7 +343,7 @@ def generate_quiz_from_text(
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
     ]
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-2.5-flash-lite",
         generation_config=generation_config,
         safety_settings=safety_settings,
     )

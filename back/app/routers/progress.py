@@ -88,3 +88,12 @@ def get_progress_stats(
         quizzes_completed_week=quizzes_completed_week,
         quiz_average_score=quiz_average_score,
     )
+
+@router.get("/review-flashcards", response_model=list[models.Flashcard])
+def get_review_flashcards(
+    current_user: CurrentUser,
+    session: Session = Depends(get_session)
+):
+    # Placeholder até o SRS ser implementado
+    # Retorna flashcards com pior accuracy por enquanto
+    pass

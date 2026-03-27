@@ -47,7 +47,6 @@ app.include_router(folders.router)
 app.include_router(documents.router)
 app.include_router(flashcards.router)
 app.include_router(progress.router)
-app.include_router(folders.router)
 app.include_router(quizzes.router)
 app.include_router(stats.router)
 

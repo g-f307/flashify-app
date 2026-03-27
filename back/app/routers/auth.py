@@ -2,7 +2,7 @@ import httpx
 import os
 from typing import Annotated
 from ..models import AuthProvider
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, SQLModel
 from datetime import datetime, timezone
@@ -134,7 +134,8 @@ async def auth_google(
     session.commit()
     
     # 🆕 SE FOR NOVO USUÁRIO (acabou de ser criado), ENVIAR E-MAIL DE BOAS-VINDAS
-    if not db_user.last_login_at or (datetime.now(timezone.utc) - db_user.created_at).seconds < 60:
+    is_new_user = (datetime.now(timezone.utc) - db_user.created_at).total_seconds() < 60
+    if is_new_user:
         try:
             await email_service.send_welcome_email(
                 email=db_user.email,

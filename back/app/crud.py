@@ -304,32 +304,7 @@ def update_document_folder(db: Session, document_id: int, folder_id: Optional[in
     db.refresh(db_document)
     return db_document
 
-def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, document_id: int) -> models.Quiz:
-    """
-    Cria um novo quiz completo, com todas as suas perguntas e respostas,
-    e associa-o a um documento existente.
-    """
-    questions_to_create = []
-    for question_schema in quiz_data.questions:
-        answers_to_create = [
-            models.Answer(**ans.dict()) for ans in question_schema.answers
-        ]
-        question_obj = models.Question(
-            text=question_schema.text, answers=answers_to_create
-        )
-        questions_to_create.append(question_obj)
 
-    db_quiz = models.Quiz(
-        title=quiz_data.title,
-        document_id=document_id,
-        questions=questions_to_create
-    )
-    
-    db.add(db_quiz)
-    db.commit()
-    db.refresh(db_quiz)
-    
-    return db_quiz
 
 def get_question_if_owned_by_user(session: Session, question_id: int, user_id: int) -> Optional[models.Question]:
     """
