@@ -93,6 +93,7 @@ def create_flashcards_for_document(
     for fc_data in flashcards_data:
         if "front" in fc_data and "back" in fc_data:
             db_flashcard = models.Flashcard(**fc_data, document_id=document_id)
+            # next_review fica NULL — card é "Novo" até o primeiro estudo
             db_flashcards.append(db_flashcard)
     if db_flashcards:
         session.add_all(db_flashcards)
@@ -440,6 +441,7 @@ def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, documen
         question_obj = models.Question(
             text=question_schema.text, answers=answers_to_create
         )
+        # next_review fica NULL — questão é "Nova" até a primeira tentativa
         questions_to_create.append(question_obj)
 
     db_quiz = models.Quiz(

@@ -101,6 +101,7 @@ class DocumentDetail(BaseModel):
     total_flashcards: int
     has_quiz: bool
     current_step: Optional[str] = None  # ← ADICIONADO ESTE CAMPO
+    srs_enabled: bool = True
 
     class Config:
         from_attributes = True
@@ -114,6 +115,9 @@ class DocumentCardData(SQLModel):
     studied_flashcards: int
     folder_id: Optional[int] = None
     has_quiz: bool = False
+    srs_enabled: bool = True
+    flashcards_pending: int = 0
+    questions_pending: int = 0
 
 class DocumentUpdateFolder(BaseModel):
     folder_id: Optional[int] = None
