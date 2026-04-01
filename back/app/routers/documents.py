@@ -178,6 +178,30 @@ def get_user_documents(
         total_flashcards = len(doc.flashcards)
         studied_flashcards = crud.get_studied_flashcards_count(session, document_id=doc.id)
         
+        # Otimização: calcular as pendências de SRS para cada deck diretamente na listagem
+        from datetime import datetime, timezone
+        from sqlmodel import select, func
+        now = datetime.now(timezone.utc)
+        
+        fc_pending = 0
+        q_pending = 0
+        srs_on = getattr(doc, "srs_enabled", True)
+        
+        if srs_on and doc.status == models.DocumentStatus.COMPLETED:
+            fc_stmt = select(func.count(models.Flashcard.id)).where(
+                models.Flashcard.document_id == doc.id,
+                models.Flashcard.next_review != None,
+                models.Flashcard.next_review <= now
+            )
+            fc_pending = session.exec(fc_stmt).one_or_none() or 0
+
+            q_stmt = select(func.count(models.Question.id)).join(models.Quiz).where(
+                models.Quiz.document_id == doc.id,
+                models.Question.next_review != None,
+                models.Question.next_review <= now
+            )
+            q_pending = session.exec(q_stmt).one_or_none() or 0
+
         doc_data = schemas.DocumentCardData(
             id=doc.id,
             file_path=doc.file_path,
@@ -186,7 +210,10 @@ def get_user_documents(
             total_flashcards=total_flashcards,
             studied_flashcards=studied_flashcards,
             folder_id=doc.folder_id,
-            has_quiz=(doc.quiz is not None)
+            has_quiz=(doc.quiz is not None),
+            srs_enabled=srs_on,
+            flashcards_pending=fc_pending,
+            questions_pending=q_pending
         )
         docs_with_progress.append(doc_data)
             
@@ -227,7 +254,8 @@ def get_document_details(
         has_quiz=(db_document.quiz is not None),
         generates_flashcards=db_document.generates_flashcards,
         generates_quizzes=db_document.generates_quizzes,
-        current_step=db_document.current_step
+        current_step=db_document.current_step,
+        srs_enabled=getattr(db_document, "srs_enabled", True)
     )
 
 @router.get("/{document_id}/flashcards", response_model=list[models.Flashcard])
@@ -280,6 +308,28 @@ def delete_document(
         raise HTTPException(status_code=404, detail="Document not found during deletion")
     
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+class SRSToggleRequest(BaseModel):
+    srs_enabled: bool
+
+@router.patch("/{document_id}/srs")
+def toggle_document_srs(
+    document_id: int,
+    data: SRSToggleRequest,
+    db: Session = Depends(get_session),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Ativa ou desativa as revisões diárias (SRS) para este documento."""
+    db_document = crud.get_document(db, document_id=document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    
+    db_document.srs_enabled = data.srs_enabled
+    db.add(db_document)
+    db.commit()
+    db.refresh(db_document)
+    
+    return {"message": "Configuração atualizada com sucesso", "srs_enabled": db_document.srs_enabled}
 
 @router.patch("/{document_id}/move", response_model=schemas.DocumentRead)
 def move_document_to_folder(
