@@ -169,14 +169,41 @@ export default function HomePage() {
   const { user } = useAuth();
   const router = useRouter();
   const [recentDocuments, setRecentDocuments] = useState<Document[]>([]);
+  const [allDocuments, setAllDocuments] = useState<Document[]>([]);
+  const [globalSrsGroups, setGlobalSrsGroups] = useState<{needs_review: number, learning: number, almost_mastered: number, quiz_wrong: number}>({needs_review: 0, learning: 0, almost_mastered: 0, quiz_wrong: 0});
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   const fetchRecent = async () => {
     try {
       const allDocs = await apiClient.getDocuments();
+      setAllDocuments(allDocs);
       const sortedDocs = allDocs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setRecentDocuments(sortedDocs.slice(0, 5));
+
+      // Buscar categorias SRS para cada deck completo e agregar globalmente
+      const completedDocs = allDocs.filter(d => d.status === 'COMPLETED' && d.srs_enabled !== false);
+      const groupPromises = completedDocs.map(d => apiClient.getSrsGroups(d.id).catch(() => null));
+      const quizGroupPromises = completedDocs.map(d => apiClient.getQuizSrsGroups(d.id).catch(() => null));
+      const [groupResults, quizGroupResults] = await Promise.all([
+        Promise.all(groupPromises),
+        Promise.all(quizGroupPromises)
+      ]);
+      
+      const agg = {needs_review: 0, learning: 0, almost_mastered: 0, quiz_wrong: 0};
+      for (const g of groupResults) {
+        if (g) {
+          agg.needs_review += g.needs_review;
+          agg.learning += g.learning;
+          agg.almost_mastered += g.almost_mastered;
+        }
+      }
+      for (const q of quizGroupResults) {
+        if (q) {
+          agg.quiz_wrong += q.wrong;
+        }
+      }
+      setGlobalSrsGroups(agg);
     } catch (error) {
       console.error("Falha ao buscar decks recentes:", error);
     } finally {
@@ -202,13 +229,101 @@ export default function HomePage() {
       setRecentDocuments(currentDocs => 
         currentDocs.filter(doc => doc.id !== deletedId)
       );
+      setAllDocuments(currentDocs => 
+        currentDocs.filter(doc => doc.id !== deletedId)
+      );
     } catch (error: any) {
       toast.error("Falha ao excluir o deck", { description: error.message });
     }
   };
 
+  // Calcular pendências de revisão globais
+  const pendingReviewDocs = allDocuments.filter(
+    d => d.srs_enabled !== false && d.status === 'COMPLETED' && 
+    ((d.flashcards_pending || 0) + (d.questions_pending || 0)) > 0
+  );
+  const totalPending = pendingReviewDocs.reduce(
+    (sum, d) => sum + (d.flashcards_pending || 0) + (d.questions_pending || 0), 0
+  );
+
   return (
     <div className="space-y-12">
+      {/* Banner de revisões pendentes — com breakdown por categoria */}
+      {/* Banner de revisões pendentes — com breakdown por categoria (Oculto temporariamente) */}
+      {false && !loading && (totalPending > 0 || globalSrsGroups.needs_review + globalSrsGroups.learning + globalSrsGroups.almost_mastered > 0) && (
+        <motion.section
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card
+            className="relative overflow-hidden border-primary/30 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 cursor-pointer group hover:border-primary/50 hover:shadow-lg transition-all"
+            onClick={() => router.push(`/deck/${pendingReviewDocs.length > 0 ? pendingReviewDocs[0].id : allDocuments[0]?.id}`)}
+          >
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative p-2.5 bg-primary rounded-xl shadow-lg">
+                    <BrainCircuit className="w-6 h-6 text-primary-foreground" />
+                    {totalPending > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 border-2 border-background bg-red-500"></span>
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">
+                      Seu progresso de estudo
+                    </CardTitle>
+                    <CardDescription>
+                      {totalPending > 0 
+                        ? `${totalPending} ${totalPending === 1 ? 'card agendado' : 'cards agendados'} para revisão em ${pendingReviewDocs.length} ${pendingReviewDocs.length === 1 ? 'deck' : 'decks'}`
+                        : 'Nenhuma revisão agendada — estude quando quiser'
+                      }
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button size="sm" className="shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all">
+                  Ver Decks
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Breakdown por categoria */}
+              {(globalSrsGroups.needs_review + globalSrsGroups.learning + globalSrsGroups.almost_mastered + globalSrsGroups.quiz_wrong) > 0 && (
+                <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border/30">
+                  {globalSrsGroups.needs_review > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                      <span className="text-xs font-medium">{globalSrsGroups.needs_review} Precisa revisar</span>
+                    </div>
+                  )}
+                  {globalSrsGroups.learning > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                      <span className="text-xs font-medium">{globalSrsGroups.learning} Aprendendo</span>
+                    </div>
+                  )}
+                  {globalSrsGroups.almost_mastered > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                      <span className="text-xs font-medium">{globalSrsGroups.almost_mastered} Quase dominado</span>
+                    </div>
+                  )}
+                  {globalSrsGroups.quiz_wrong > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                      <span className="text-xs font-medium">{globalSrsGroups.quiz_wrong} Quiz erradas</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardHeader>
+          </Card>
+        </motion.section>
+      )}
+
       {/* Seção Como Funciona com Carrosel */}
       <CarouselSection onCreateClick={() => startTransition(() => router.push("/create"))} />
 

@@ -79,12 +79,18 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
 
             <div className="relative flex items-start justify-between gap-3 mb-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div className={`flex-shrink-0 p-2 rounded-lg transition-all duration-300 ${
+                <div className={`relative flex-shrink-0 p-2 rounded-lg transition-all duration-300 ${
                   isClickable 
                     ? "bg-[#48cfea]/20 text-[#48cfea] group-hover:bg-[#48cfea] group-hover:text-white group-hover:scale-110" 
                     : "bg-muted text-muted-foreground"
                 }`}>
                   <BookOpen className="w-4 h-4" />
+                  {document.srs_enabled && ((document.flashcards_pending || 0) > 0 || (document.questions_pending || 0) > 0) && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 border-2 border-background bg-red-500"></span>
+                    </span>
+                  )}
                 </div>
                 
                 <div className="flex-1 min-w-0">
@@ -145,9 +151,11 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               
               {document.status === 'COMPLETED' && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <CalendarDays className="w-3.5 h-3.5 opacity-60" />
-                    <span className="font-medium">Criado <TimeAgo date={document.created_at} /></span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <CalendarDays className="w-3.5 h-3.5 opacity-60" />
+                      <span className="font-medium">Criado <TimeAgo date={document.created_at} /></span>
+                    </div>
                   </div>
                   
                   <div className="flex flex-wrap items-center gap-2">
@@ -167,6 +175,15 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                       >
                         <BrainCircuit className="w-3.5 h-3.5"/>
                         <span className="text-[#FACC15]">Quiz</span>
+                      </Badge>
+                    )}
+                    {document.srs_enabled && ((document.flashcards_pending || 0) + (document.questions_pending || 0)) > 0 && (
+                      <Badge 
+                        variant="secondary" 
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/15 text-red-500 border-red-500/30 font-medium"
+                      >
+                        <Sparkles className="w-3.5 h-3.5"/>
+                        <span>{(document.flashcards_pending || 0) + (document.questions_pending || 0)} para revisar</span>
                       </Badge>
                     )}
                   </div>
