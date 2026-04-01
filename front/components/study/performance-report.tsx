@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, RotateCcw, RefreshCw, Plus } from 'lucide-react';
+import { ArrowLeft, RotateCcw, RefreshCw, Plus, TrendingUp, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CircularProgress } from './circular-progress';
@@ -22,6 +22,7 @@ interface PerformanceReportResponsiveProps {
   stats: PerformanceStats;
   totalCards: number;
   documentId: number;
+  isReviewMode?: boolean;
   onRestart: () => void;
   onContinueReview: () => void;
   onPracticeQuestions: () => void;
@@ -35,6 +36,7 @@ export function PerformanceReportResponsive({
   stats,
   totalCards,
   documentId,
+  isReviewMode = false,
   onRestart,
   onContinueReview,
   onPracticeQuestions,
@@ -152,6 +154,33 @@ export function PerformanceReportResponsive({
                 >
                   {message.subtitle}
                 </motion.p>
+
+                {/* SRS Review Summary */}
+                {isReviewMode && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.6 }}
+                    className="mt-4 space-y-2 w-full max-w-xs"
+                  >
+                    {stats.correctCards > 0 && (
+                      <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                        <TrendingUp className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                          <strong>{stats.correctCards}</strong> {stats.correctCards === 1 ? 'card promovido' : 'cards promovidos'} — próxima revisão em alguns dias
+                        </span>
+                      </div>
+                    )}
+                    {(stats.incorrectCards + stats.partialCards) > 0 && (
+                      <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                        <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        <span className="text-xs text-amber-600 dark:text-amber-400">
+                          <strong>{stats.incorrectCards + stats.partialCards}</strong> {(stats.incorrectCards + stats.partialCards) === 1 ? 'card voltou' : 'cards voltaram'} para a fila — revisão em breve
+                        </span>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
               </motion.div>
 
               <motion.div
