@@ -54,6 +54,9 @@ export interface Document {
   studied_flashcards: number;
   has_quiz?: boolean; 
   quiz?: Quiz;
+  srs_enabled?: boolean;
+  flashcards_pending?: number;
+  questions_pending?: number;
 }
 
 export interface Flashcard {
@@ -84,6 +87,33 @@ export interface ProgressStats {
   flashcard_weekly_activity: number[];
   quizzes_completed_week: number;
   quiz_average_score: number;
+}
+
+export interface SrsStats {
+  flashcards_pending: number;
+  questions_pending: number;
+  srs_enabled: boolean;
+  next_review_time: string | null;
+  pending_priorities: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+}
+
+export interface SrsGroups {
+  new_cards: number;
+  needs_review: number;
+  learning: number;
+  almost_mastered: number;
+  total: number;
+}
+
+export interface QuizSrsGroups {
+  new_questions: number;
+  wrong: number;
+  correct: number;
+  total: number;
 }
 
 export interface FolderWithDocuments extends Folder {
@@ -419,11 +449,6 @@ class ApiClient {
         });
   }
 
-  async markFlashcardAsStudied(flashcardId: number): Promise<void> {
-    await this.request<void>(`/flashcards/${flashcardId}/study`, {
-      method: 'POST',
-    });
-  }
 
   async updateFlashcard(flashcardId: number, data: { front?: string, back?: string }): Promise<Flashcard> {
     return this.request<Flashcard>(`/flashcards/${flashcardId}`, {
@@ -450,8 +475,39 @@ class ApiClient {
     }
   }
 
-  async getReviewFlashcards(): Promise<Flashcard[]> {
-    return this.request<Flashcard[]>('/progress/review-flashcards');
+  async getReviewFlashcardsByDocument(documentId: number): Promise<Flashcard[]> {
+    return this.request<Flashcard[]>(`/progress/review-flashcards/${documentId}`);
+  }
+
+  async getReviewQuiz(documentId: number): Promise<Quiz> {
+    return this.request<Quiz>(`/quizzes/review/${documentId}`);
+  }
+
+  async getSrsStats(documentId: number): Promise<SrsStats> {
+    return this.request<SrsStats>(`/progress/srs-stats/${documentId}`);
+  }
+
+  async getSrsGroups(documentId: number): Promise<SrsGroups> {
+    return this.request<SrsGroups>(`/progress/srs-groups/${documentId}`);
+  }
+
+  async getSrsGroupCards(documentId: number, group: string): Promise<Flashcard[]> {
+    return this.request<Flashcard[]>(`/progress/srs-group-cards/${documentId}?group=${group}`);
+  }
+
+  async getQuizSrsGroups(documentId: number): Promise<QuizSrsGroups> {
+    return this.request<QuizSrsGroups>(`/progress/quiz-srs-groups/${documentId}`);
+  }
+
+  async getQuizSrsGroupQuestions(documentId: number, group: string): Promise<Quiz> {
+    return this.request<Quiz>(`/progress/quiz-srs-group-questions/${documentId}?group=${group}`);
+  }
+
+  async toggleSrs(documentId: number, srs_enabled: boolean): Promise<any> {
+    return this.request(`/documents/${documentId}/srs`, {
+      method: 'PATCH',
+      body: JSON.stringify({ srs_enabled }),
+    });
   }
 
   async getProgressStats(): Promise<ProgressStats> {
@@ -507,7 +563,8 @@ class ApiClient {
     quizId: number, 
     score: number, 
     correctAnswers: number, 
-    totalQuestions: number
+    totalQuestions: number,
+    questionResults?: Record<number, boolean>
   ): Promise<any> {
     return this.request(`/quizzes/${quizId}/submit`, {
       method: 'POST',
@@ -515,6 +572,7 @@ class ApiClient {
         score,
         correct_answers: correctAnswers,
         total_questions: totalQuestions,
+        question_results: questionResults || {},
       })
     });
   }
