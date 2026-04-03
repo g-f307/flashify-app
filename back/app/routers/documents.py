@@ -13,6 +13,7 @@ from ..database import get_session
 from ..security import get_current_user
 from ..tasks import process_document 
 from ..ai_generator import generate_flashcards_from_text, generate_quiz_from_text
+from ..study_ordering import order_for_start
 from pydantic import BaseModel, Field
 
 
@@ -243,6 +244,9 @@ def get_document_details(
     # Debug: descomentar para verificar o que está sendo recebido
     print(f"[ENDPOINT] Doc {document_id} - current_step: {db_document.current_step}, status: {db_document.status}")
 
+    if getattr(db_document, "quiz", None) and getattr(db_document.quiz, "questions", None):
+        db_document.quiz.questions = order_for_start(db_document.quiz.questions)
+
     # Constrói o objeto de resposta (schema) manualmente
     return schemas.DocumentDetail(
         id=db_document.id,
@@ -267,8 +271,8 @@ def get_document_flashcards(
     db_document = crud.get_document(session, document_id)
     if not db_document or db_document.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Documento não encontrado")
-    
-    return crud.get_flashcards_by_document(session, document_id=document_id)
+
+    return order_for_start(crud.get_flashcards_by_document(session, document_id=document_id))
 
 @router.post("/{document_id}/cancel")
 def cancel_document_processing(

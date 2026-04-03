@@ -4,7 +4,6 @@ from . import models, schemas, security
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import selectinload
-import random
 
 DAILY_GENERATION_LIMIT = 10
 
@@ -103,7 +102,12 @@ def create_flashcards_for_document(
     return db_flashcards
 
 def get_flashcards_by_document(session: Session, document_id: int) -> list[models.Flashcard]:
-    return session.exec(select(models.Flashcard).where(models.Flashcard.document_id == document_id)).all()
+    statement = (
+        select(models.Flashcard)
+        .where(models.Flashcard.document_id == document_id)
+        .order_by(models.Flashcard.id.asc())
+    )
+    return session.exec(statement).all()
 
 def get_documents_by_user(
     session: Session, user_id: int, in_folder: Optional[bool] = None
@@ -153,6 +157,12 @@ def get_document_with_details(session: Session, document_id: int) -> Optional[mo
     if db_document:
         session.expire(db_document)
         session.refresh(db_document)
+
+        if getattr(db_document, "quiz", None) and getattr(db_document.quiz, "questions", None):
+            db_document.quiz.questions = sorted(
+                db_document.quiz.questions,
+                key=lambda question: question.id or 0,
+            )
                 
     return db_document
 

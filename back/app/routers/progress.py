@@ -9,6 +9,7 @@ from typing import List, Optional
 
 from .. import crud, models, security
 from ..database import get_session
+from ..study_ordering import order_due_for_review
 
 router = APIRouter(prefix="/progress", tags=["Progress"])
 CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
@@ -115,7 +116,7 @@ def get_review_flashcards(
         )
         .order_by(models.Flashcard.repetitions.asc(), models.Flashcard.next_review.asc())
     )
-    return session.exec(statement).all()
+    return order_due_for_review(session.exec(statement).all())
 
 @router.get("/srs-stats/{document_id}")
 def get_srs_stats_for_document(

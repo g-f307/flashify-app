@@ -6,6 +6,7 @@ from typing_extensions import Annotated
 
 from .. import crud, models, security, schemas
 from ..database import get_session
+from ..study_ordering import order_due_for_review
 
 router = APIRouter(prefix="/quizzes", tags=["Quizzes"])
 CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
@@ -145,7 +146,7 @@ def get_review_quiz(
         )
         .order_by(models.Question.repetitions.asc(), models.Question.next_review.asc())
     )
-    due_questions = session.exec(statement).all()
+    due_questions = order_due_for_review(session.exec(statement).all())
 
     return {
         "id": db_document.quiz.id if getattr(db_document, "quiz", None) else "review",
