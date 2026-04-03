@@ -33,6 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { formatDocumentTitle } from "@/lib/utils";
 import { StatsChart } from "@/components/deck/StatsChart"; 
+import { SrsOverviewPanel } from "@/components/deck/srs-overview-panel";
 import { cn } from "@/lib/utils";
 import { useLoading } from "@/components/providers/loading-provider";
 import { useGenerationLimit } from "@/contexts/generation-limit-context"; 
@@ -170,6 +171,7 @@ export default function DeckDashboardPage() {
         try {
             await apiClient.toggleSrs(document.id, newState);
             setDocument(prev => prev ? { ...prev, srs_enabled: newState } : null);
+            await fetchDeckData();
             toast.success(newState ? "Revisões diárias ativadas" : "Revisões pausadas");
         } catch (e) {
             toast.error("Erro ao alterar configurações.");
@@ -309,6 +311,7 @@ export default function DeckDashboardPage() {
 
     const hasFlashcards = stats && stats.flashcards.total > 0;
     const hasQuiz = document.has_quiz;
+    const showSrsOverview = srsStats?.srs_enabled ?? false;
 
     const chartData = [
         { name: 'Flashcards', value: Math.round(stats?.flashcards.progress_percentage || 0), fill: 'hsl(var(--primary))' },
@@ -343,7 +346,7 @@ export default function DeckDashboardPage() {
                             {isCreatingFlashcards ? (
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                        <Loader2 className="w-4 h-4 animate-spin text-[#48cfea]" />
                                         <span>Gerando Flashcards... ({creationProgress}%)</span>
                                     </div>
                                     <Progress value={creationProgress} className="h-2 bg-[#FACC15]/20" indicatorClassName="bg-[#FACC15]" />
@@ -579,7 +582,17 @@ export default function DeckDashboardPage() {
                         </ActionCard>
                     </div>
 
-                    <div className="lg:col-span-2">
+                    <div className={cn("lg:col-span-2 space-y-6", showSrsOverview && "lg:-mt-24 lg:space-y-2")}>
+                        {showSrsOverview && (
+                            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45, delay: 0.15 }}>
+                                <SrsOverviewPanel
+                                    documentId={document.id}
+                                    hasQuiz={hasQuiz}
+                                    srsStats={srsStats}
+                                />
+                            </motion.div>
+                        )}
+
                         <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
                             <Card className="border-border/50 sticky top-6 overflow-hidden h-full">
                                 <CardHeader className="relative pb-4">
