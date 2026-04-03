@@ -108,9 +108,9 @@ export default function QuizPage() {
                      if (!doc.quiz || doc.quiz.questions.length === 0) {
                          setError("Este deck não tem um quiz válido para iniciar.");
                      } else {
-                         setDocument(doc);
-                         setQuestions(doc.quiz.questions.sort(() => Math.random() - 0.5));
-                     }
+                        setDocument(doc);
+                        setQuestions([...doc.quiz.questions]);
+                    }
                 }
             } catch (err) {
                 setError("Não foi possível carregar o quiz.");
