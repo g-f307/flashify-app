@@ -141,6 +141,13 @@ def get_srs_stats_for_document(
 
     now = datetime.now(timezone.utc)
     
+    def get_priority_bucket(repetitions: int, interval_days: int) -> str:
+        if repetitions == 0:
+            return "high"
+        if repetitions <= 2 or interval_days <= 2:
+            return "medium"
+        return "low"
+
     # Buscar flashcards pendentes de REVISÃO (exclui novos com next_review=NULL)
     fc_stmt = select(models.Flashcard).where(
         models.Flashcard.document_id == document_id,
@@ -152,16 +159,17 @@ def get_srs_stats_for_document(
 
     high, medium, low = 0, 0, 0
     for fc in fc_pending:
-        if fc.repetitions == 0:
+        bucket = get_priority_bucket(fc.repetitions, fc.interval_days)
+        if bucket == "high":
             high += 1
-        elif fc.repetitions <= 2:
+        elif bucket == "medium":
             medium += 1
         else:
             low += 1
 
     # Contar questões pendentes (exclui novas com next_review=NULL)
     q_stmt = (
-        select(func.count(models.Question.id))
+        select(models.Question)
         .join(models.Quiz)
         .where(
             models.Quiz.document_id == document_id,
@@ -169,7 +177,17 @@ def get_srs_stats_for_document(
             models.Question.next_review <= now
         )
     )
-    q_count = session.exec(q_stmt).one_or_none() or 0
+    q_pending = session.exec(q_stmt).all()
+    q_count = len(q_pending)
+
+    for question in q_pending:
+        bucket = get_priority_bucket(question.repetitions, question.interval_days)
+        if bucket == "high":
+            high += 1
+        elif bucket == "medium":
+            medium += 1
+        else:
+            low += 1
 
     # Buscar tempo da PRÓXIMA revisão (aquela que ainda não está atrasada)
     future_fc_stmt = select(func.min(models.Flashcard.next_review)).where(

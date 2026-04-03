@@ -4,6 +4,7 @@ from . import models, schemas, security
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import selectinload
+import random
 
 DAILY_GENERATION_LIMIT = 10
 
