@@ -8,37 +8,42 @@ def calculate_sm2(
     quality: int,        # 0=Errei, 1=Quase, 2=Acertei
     ease_factor: float,
     interval: int,
-    repetitions: int
+    repetitions: int,
+    initial_success_interval: int,
+    initial_partial_interval: int = 1,
 ) -> Tuple[float, int, int]:
     """
-    Implementação avançada do algoritmo SM-2.
-    Retorna: (novo_ease_factor, novo_interval, novas_repetitions)
+    Implementação adaptada do SM-2 para um fluxo mais imediatista.
+    O campo legado interval_days passa a representar horas para novos agendamentos.
+    Retorna: (novo_ease_factor, novo_interval_em_horas, novas_repetitions)
     """
     if quality == 2:  # Acertou perfeitamente
         if repetitions == 0:
-            interval = 3
-        elif repetitions == 1:
-            interval = 6
+            interval = initial_success_interval
         else:
-            interval = round(interval * ease_factor)
+            interval = max(1, round(max(interval, 1) * ease_factor))
         repetitions += 1
         ease_factor = ease_factor + 0.1
     elif quality == 1:  # Quase acertou / Difícil
         if repetitions == 0:
-            interval = 1
-        elif repetitions == 1:
-            interval = 2
+            interval = initial_partial_interval
         else:
-            interval = round(interval * ease_factor * 0.8)
+            interval = max(1, round(max(interval, 1) * ease_factor * 0.8))
         repetitions += 1
         ease_factor = ease_factor - 0.15
     else:  # Errou
         repetitions = 0
-        interval = 0  # 0 dias representará 12 horas no cálculo de next_review
+        interval = 0  # 0 representa 30 minutos no cálculo de next_review
         ease_factor = ease_factor - 0.2
 
     ease_factor = max(ease_factor, 1.3)
     return ease_factor, interval, repetitions
+
+
+def next_review_from_interval(interval: int) -> datetime:
+    if interval == 0:
+        return datetime.now(timezone.utc) + timedelta(minutes=30)
+    return datetime.now(timezone.utc) + timedelta(hours=interval)
 
 
 def update_flashcard_srs(
@@ -59,17 +64,15 @@ def update_flashcard_srs(
         quality=quality,
         ease_factor=flashcard.ease_factor,
         interval=flashcard.interval_days,
-        repetitions=flashcard.repetitions
+        repetitions=flashcard.repetitions,
+        initial_success_interval=2,
+        initial_partial_interval=1,
     )
 
     flashcard.ease_factor = new_ease
     flashcard.interval_days = new_interval
     flashcard.repetitions = new_reps
-    
-    if new_interval == 0:
-        flashcard.next_review = datetime.now(timezone.utc) + timedelta(hours=12)
-    else:
-        flashcard.next_review = datetime.now(timezone.utc) + timedelta(days=new_interval)
+    flashcard.next_review = next_review_from_interval(new_interval)
 
     session.add(flashcard)
     # Não faz commit aqui - o chamador é responsável pelo commit atômico
@@ -91,17 +94,14 @@ def update_question_srs(
         quality=quality,
         ease_factor=question.ease_factor,
         interval=question.interval_days,
-        repetitions=question.repetitions
+        repetitions=question.repetitions,
+        initial_success_interval=1,
     )
 
     question.ease_factor = new_ease
     question.interval_days = new_interval
     question.repetitions = new_reps
-    
-    if new_interval == 0:
-        question.next_review = datetime.now(timezone.utc) + timedelta(hours=12)
-    else:
-        question.next_review = datetime.now(timezone.utc) + timedelta(days=new_interval)
+    question.next_review = next_review_from_interval(new_interval)
 
     session.add(question)
     # Não faz commit aqui - o chamador é responsável pelo commit atômico
