@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { KeyRound, LogOut, Palette, Cpu, ChevronRight } from "lucide-react";
+import { KeyRound, LogOut, Palette, Cpu, ChevronRight, BrainCircuit } from "lucide-react";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import {
   Dialog,
@@ -104,6 +104,27 @@ export default function SettingsPage() {
           * FIM DAS MUDANÇAS NO CARD
           * ==========================================================
         */}
+
+        <Card className="hover:shadow-md transition-all group relative flex flex-col justify-between">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5" />
+              <span>Revisão inteligente</span>
+            </CardTitle>
+            <CardDescription className="pt-2">
+              Entenda como a repetição espaçada organiza suas revisões
+              e prioriza o que merece mais atenção.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex items-center justify-end">
+              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+            </div>
+          </CardContent>
+          <Link href="/settings/spaced-repetition" className="absolute inset-0 z-10">
+            <span className="sr-only">Ver guia de revisão inteligente</span>
+          </Link>
+        </Card>
 
 
         <Card>
