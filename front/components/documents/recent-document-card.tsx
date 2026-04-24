@@ -4,9 +4,20 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Document } from "@/lib/api";
-import { Loader2, MoreVertical, Trash2, Move, AlertTriangle, BrainCircuit, Layers, BookOpen, CalendarDays, Sparkles } from "lucide-react";
+import {
+  Loader2,
+  MoreVertical,
+  Trash2,
+  Move,
+  AlertTriangle,
+  BrainCircuit,
+  Layers,
+  BookOpen,
+  CalendarDays,
+  Sparkles,
+} from "lucide-react";
 import TimeAgo from "../common/time-ago";
-import { formatDocumentTitle } from "@/lib/utils";
+import { cn, formatDocumentTitle } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +43,12 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
   const pathname = usePathname();
 
   const displayName = formatDocumentTitle(document.file_path);
+  const pendingCount = (document.flashcards_pending || 0) + (document.questions_pending || 0);
+  const isCompleted = document.status === "COMPLETED";
+  const isClickable = isCompleted && !!onSelect;
+  const hasFlashcards = document.total_flashcards > 0;
+  const hasQuiz = !!document.has_quiz;
+  const linkHref = isCompleted ? `/deck/${document.id}?from=${pathname}` : '#';
 
   const handleStartStudy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -55,42 +72,70 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
     if (onUpdate) onUpdate();
   };
 
-  const linkHref = document.status === "COMPLETED" ? `/deck/${document.id}?from=${pathname}` : '#';
-  const isClickable = document.status === "COMPLETED" && onSelect;
+  const statusBadge =
+    document.status === "PROCESSING" ? (
+      <Badge
+        variant="outline"
+        className="rounded-full border-[#48cfea]/30 bg-[#48cfea]/10 px-2.5 py-1 text-[#48cfea]"
+      >
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        {document.current_step || "Processando"}
+      </Badge>
+    ) : document.status === "FAILED" ? (
+      <Badge
+        variant="outline"
+        className="rounded-full border-red-500/25 bg-red-500/10 px-2.5 py-1 text-red-500"
+      >
+        <AlertTriangle className="h-3.5 w-3.5" />
+        Falha
+      </Badge>
+    ) : null;
 
   return (
     <>
       <Link href={linkHref} legacyBehavior passHref>
-        <a onClick={(e) => { 
-            if (!isClickable) e.preventDefault(); 
+        <a
+          onClick={(e) => {
+            if (!isClickable) {
+              e.preventDefault();
+              return;
+            }
             if (onSelect) onSelect();
-        }} className="block w-full">
+          }}
+          className="block h-full w-full"
+        >
           <Card
-            className={`group relative w-full h-[280px] sm:w-[280px] flex flex-col p-5 border border-transparent transition-all duration-300 ease-out overflow-hidden 
-              ${isClickable 
-                ? "cursor-pointer hover:border-[#48cfea] hover:shadow-xl hover:shadow-[#48cfea]/20 hover:-translate-y-1.5 hover:bg-gradient-to-br hover:from-[#48cfea]/[0.03] hover:to-transparent" 
-                : "cursor-default bg-muted/30 border-muted"
-              }
-            `}
-          >
-            {isClickable && (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#48cfea]/8 via-[#FACC15]/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            className={cn(
+              "group relative flex h-[300px] w-full flex-col overflow-hidden rounded-2xl border bg-card p-5 shadow-sm transition-all duration-200 dark:border-zinc-800 dark:bg-zinc-900",
+              isClickable
+                ? "cursor-pointer border-border hover:-translate-y-1 hover:border-[#FACC15]/40 hover:shadow-[0_0_0_1px_rgba(250,204,21,0.24),0_0_28px_rgba(250,204,21,0.16),0_18px_40px_-24px_rgba(250,204,21,0.52)] dark:hover:border-[#FACC15]/30 dark:hover:shadow-[0_0_0_1px_rgba(250,204,21,0.16),0_0_22px_rgba(250,204,21,0.12),0_18px_40px_-24px_rgba(250,204,21,0.34)]"
+                : "cursor-default border-border/80 bg-muted/20 dark:bg-zinc-900/80"
             )}
+          >
+            <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-border/50 dark:ring-zinc-900/80" />
+            <div className="pointer-events-none absolute inset-[7px] rounded-[12px] border border-black/5 dark:border-zinc-900/80" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-border/70 dark:bg-zinc-900" />
+            <div className="pointer-events-none absolute left-4 right-4 top-0 h-[3px] rounded-b-full bg-[linear-gradient(90deg,rgba(250,204,21,0.0),rgba(250,204,21,0.7),rgba(72,207,234,0.75),rgba(72,207,234,0.0))] opacity-70 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="pointer-events-none absolute right-4 top-4 h-10 w-10 rounded-tr-xl border-r border-t border-[#48cfea]/12 opacity-60 dark:border-zinc-800 dark:opacity-100" />
+            <div className="pointer-events-none absolute bottom-4 left-4 h-10 w-10 rounded-bl-xl border-b border-l border-[#FACC15]/12 opacity-60 dark:border-zinc-800 dark:opacity-100" />
 
-            <div className="relative flex items-start justify-between gap-3 mb-4">
+            <div className="relative mb-4 flex items-start justify-between gap-3">
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div className={`flex-shrink-0 p-2 rounded-lg transition-all duration-300 ${
-                  isClickable 
-                    ? "bg-[#48cfea]/20 text-[#48cfea] group-hover:bg-[#48cfea] group-hover:text-white group-hover:scale-110" 
-                    : "bg-muted text-muted-foreground"
-                }`}>
-                  <BookOpen className="w-4 h-4" />
+                <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[#48cfea]/25 bg-[#48cfea]/10 dark:border-[#48cfea]/20 dark:bg-[#48cfea]/8">
+                  <BookOpen className="h-4.5 w-4.5 text-[#1f8cab] dark:text-[#48cfea]" />
+                  {document.srs_enabled && pendingCount > 0 && (
+                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-4 ring-card dark:ring-zinc-900" />
+                  )}
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-bold leading-tight line-clamp-2 text-foreground/90 group-hover:text-foreground transition-colors" title={displayName}>
+                  <h3 className="line-clamp-2 text-base font-semibold leading-tight text-foreground" title={displayName}>
                     {displayName}
                   </h3>
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <CalendarDays className="h-3.5 w-3.5 opacity-70" />
+                    <span>Criado <TimeAgo date={document.created_at} /></span>
+                  </div>
                 </div>
               </div>
               
@@ -99,7 +144,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="relative h-8 w-8 flex-shrink-0 rounded-lg hover:bg-muted/80 transition-all opacity-60 group-hover:opacity-100" 
+                    className="relative h-8 w-8 flex-shrink-0 rounded-lg hover:bg-muted/80 transition-all opacity-60 group-hover:opacity-100 dark:hover:bg-zinc-800" 
                     onClick={(e) => { e.stopPropagation(); }}
                   >
                     <MoreVertical className="h-4 w-4" />
@@ -124,63 +169,65 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               </DropdownMenu>
             </div>
 
-            <div className="relative flex-grow flex flex-col justify-between min-h-0 space-y-4">
-              {document.status === 'PROCESSING' && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#48cfea]/10 border border-[#48cfea]/30">
-                  <Loader2 className="w-4 h-4 text-[#48cfea] animate-spin flex-shrink-0" />
-                  <span className="text-sm font-medium text-[#48cfea] truncate">
-                    {document.current_step || 'Processando...'}
-                  </span>
+            <div className="relative flex flex-1 flex-col justify-between min-h-0">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  {statusBadge}
+                  {document.srs_enabled ? (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "rounded-full px-2.5 py-1",
+                        pendingCount > 0
+                          ? "border-red-500/25 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
+                          : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400"
+                      )}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {pendingCount > 0 ? `${pendingCount} revisões pendentes` : "Revisão inteligente"}
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-red-500/25 bg-red-500/10 px-2.5 py-1 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
+                    >
+                      Revisão desativada
+                    </Badge>
+                  )}
                 </div>
-              )}
-              
-              {document.status === 'FAILED' && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
-                  <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
-                  <span className="text-sm font-medium text-red-700 dark:text-red-300">
-                    Falha no processamento
-                  </span>
-                </div>
-              )}
-              
-              {document.status === 'COMPLETED' && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <CalendarDays className="w-3.5 h-3.5 opacity-60" />
-                    <span className="font-medium">Criado <TimeAgo date={document.created_at} /></span>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/8 p-3 dark:border-[#FACC15]/20 dark:bg-[#FACC15]/6">
+                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <Layers className="h-3.5 w-3.5 text-[#FACC15]" />
+                      Flashcards
+                    </div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {hasFlashcards ? "Disponível" : "Não gerado"}
+                    </div>
                   </div>
-                  
-                  <div className="flex flex-wrap items-center gap-2">
-                    {document.total_flashcards > 0 && (
-                      <Badge 
-                        variant="secondary" 
-                        className="flex items-center gap-1.5 px-2.5 py-1 bg-[#FACC15]/20 text-[#FACC15] dark:text-[#FACC15] border-[#FACC15]/40 hover:bg-[#FACC15]/30 transition-colors font-medium"
-                      >
-                        <Layers className="w-3.5 h-3.5"/>
-                        <span className="text-[#FACC15]">{document.total_flashcards} Flashcards</span>
-                      </Badge>
-                    )}
-                    {document.has_quiz && (
-                      <Badge 
-                        variant="secondary" 
-                        className="flex items-center gap-1.5 px-2.5 py-1 bg-[#FACC15]/20 text-[#FACC15] dark:text-[#FACC15] border-[#FACC15]/40 hover:bg-[#FACC15]/30 transition-colors font-medium"
-                      >
-                        <BrainCircuit className="w-3.5 h-3.5"/>
-                        <span className="text-[#FACC15]">Quiz</span>
-                      </Badge>
-                    )}
+
+                  <div className="rounded-xl border border-[#48cfea]/30 bg-[#48cfea]/8 p-3 dark:border-[#48cfea]/20 dark:bg-[#48cfea]/6">
+                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <BrainCircuit className="h-3.5 w-3.5 text-[#48cfea]" />
+                      Quiz
+                    </div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {hasQuiz ? "Disponível" : "Não gerado"}
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
             
-            <div className="relative mt-4 pt-4 border-t border-muted">
+            <div className="relative mt-4 border-t border-muted pt-4 dark:border-zinc-900">
               <Button 
-                className={`w-full transition-all duration-300 ${
+                className={cn(
+                  "w-full rounded-xl transition-all duration-200",
                   isClickable 
-                    ? "bg-[#48cfea] hover:bg-[#48cfea]/90 text-black shadow-md hover:shadow-lg hover:shadow-[#48cfea]/30 group-hover:scale-[1.02]" 
+                    ? "bg-[#48cfea] hover:bg-[#48cfea]/90 text-black shadow-sm" 
                     : ""
-                }`}
+                )}
                 variant={document.status === 'COMPLETED' ? "default" : "secondary"}
                 onClick={handleStartStudy} 
                 disabled={document.status !== 'COMPLETED'}

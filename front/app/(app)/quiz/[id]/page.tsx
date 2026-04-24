@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useSearchParams, useParams, useRouter } from "next/navigation";
 import { apiClient, Document, Question, Answer, CheckAnswerResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +34,10 @@ export default function QuizPage() {
     const documentId = Number(params.id);
     const { showLoading, hideLoading } = useLoading();
 
+    const searchParams = useSearchParams();
+    const mode = searchParams?.get('mode');
+    const group = searchParams?.get('group');
+
     const [document, setDocument] = useState<Document | null>(null);
     const [isLoading, setIsLoading] = useState(true); 
     const [error, setError] = useState<string | null>(null);
@@ -44,6 +48,7 @@ export default function QuizPage() {
     const [answerStatus, setAnswerStatus] = useState<AnswerStatus>('unanswered');
     const [feedback, setFeedback] = useState<AnswerFeedback | null>(null);
     const [isChecking, setIsChecking] = useState(false);
+    const [questionResults, setQuestionResults] = useState<Record<number, boolean>>({});
 
     const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
     const [showResults, setShowResults] = useState(false);
@@ -56,12 +61,56 @@ export default function QuizPage() {
                 showLoading("Carregando seu quiz...", true);
                 setIsLoading(true);
 
-                const doc = await apiClient.getDocument(documentId);
-                if (!doc.quiz || doc.quiz.questions.length === 0) {
-                    setError("Este deck não tem um quiz válido para iniciar.");
+                if (group) {
+                     const groupQuiz = await apiClient.getQuizSrsGroupQuestions(documentId, group);
+                     if (!groupQuiz || groupQuiz.questions.length === 0) {
+                         toast.info("Você não possui questões nesta categoria!");
+                         router.back();
+                         return;
+                     }
+                     setDocument({
+                         id: documentId,
+                         file_path: groupQuiz.title,
+                         status: 'COMPLETED',
+                         user_id: 0,
+                         created_at: new Date().toISOString(),
+                         total_flashcards: 0,
+                         studied_flashcards: 0,
+                         generates_flashcards: false,
+                         generates_quizzes: true,
+                         has_quiz: true,
+                         quiz: groupQuiz
+                     } as Document);
+                     setQuestions(groupQuiz.questions);
+                } else if (mode === 'review') {
+                     const reviewQuiz = await apiClient.getReviewQuiz(documentId);
+                     if (!reviewQuiz || reviewQuiz.questions.length === 0) {
+                         toast.info("Você não possui erros pendentes de revisão neste deck!");
+                         router.back();
+                         return;
+                     }
+                     setDocument({
+                         id: documentId,
+                         file_path: "Revisão de Erros",
+                         status: 'COMPLETED',
+                         user_id: 0,
+                         created_at: new Date().toISOString(),
+                         total_flashcards: 0,
+                         studied_flashcards: 0,
+                         generates_flashcards: false,
+                         generates_quizzes: true,
+                         has_quiz: true,
+                         quiz: reviewQuiz
+                     } as Document);
+                     setQuestions(reviewQuiz.questions);
                 } else {
-                    setDocument(doc);
-                    setQuestions(doc.quiz.questions.sort(() => Math.random() - 0.5));
+                     const doc = await apiClient.getDocument(documentId);
+                     if (!doc.quiz || doc.quiz.questions.length === 0) {
+                         setError("Este deck não tem um quiz válido para iniciar.");
+                     } else {
+                        setDocument(doc);
+                        setQuestions([...doc.quiz.questions]);
+                    }
                 }
             } catch (err) {
                 setError("Não foi possível carregar o quiz.");
@@ -96,6 +145,10 @@ export default function QuizPage() {
                 if (result.is_correct) {
                     setCorrectAnswersCount(prev => prev + 1);
                 }
+                setQuestionResults(prev => ({
+                    ...prev,
+                    [currentQuestion.id]: result.is_correct
+                }));
             } else {
                 console.error("Resposta da API inválida ou vazia:", result);
                 throw new Error("O servidor não retornou uma resposta válida.");
@@ -122,7 +175,8 @@ export default function QuizPage() {
                         document.quiz.id,
                         finalScore,
                         correctAnswersCount,
-                        questions.length
+                        questions.length,
+                        questionResults
                     );
                     toast.success("Seu progresso foi salvo!");
                 } catch (error) {

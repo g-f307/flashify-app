@@ -6,6 +6,7 @@ from typing_extensions import Annotated
 
 from .. import crud, models, security, schemas
 from ..database import get_session
+from ..study_ordering import order_due_for_review
 
 router = APIRouter(prefix="/quizzes", tags=["Quizzes"])
 CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
@@ -75,6 +76,8 @@ class SubmitQuizRequest(models.SQLModel):
     score: float
     correct_answers: int
     total_questions: int
+    # 🆕 Para o SRS: mapeamento de question_id -> acertou (True) / errou (False)
+    question_results: dict[int, bool] = {}
 
 @router.post("/{quiz_id}/submit", status_code=status.HTTP_201_CREATED)
 def submit_quiz_attempt(
@@ -98,8 +101,70 @@ def submit_quiz_attempt(
         user_id=current_user.id
     )
     
+    # 🆕 Atualizar SRS para cada questão enviada no submit
+    from ..srs import update_question_srs
+    if request.question_results:
+        for q_id_str, is_correct in request.question_results.items():
+            db_question = session.get(models.Question, int(q_id_str))
+            if db_question and db_question.quiz_id == quiz_id:
+                update_question_srs(session, db_question, is_correct)
+    
     session.add(quiz_attempt)
     session.commit()
     session.refresh(quiz_attempt)
     
     return {"message": "Resultado do quiz guardado com sucesso."}
+
+
+@router.get("/review/{document_id}")
+def get_review_quiz(
+    document_id: int,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session)
+):
+    """
+    Retorna apenas as perguntas pendentes de revisão do documento.
+    Poderá ser renderizado no Frontend na mesma engine de Quiz.
+    """
+    from datetime import datetime, timezone
+    from sqlmodel import select
+
+    db_document = crud.get_document(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+
+    if not getattr(db_document, "srs_enabled", True): # Usando getattr como safe-guard caso não tenha migrado
+        return {"id": -1, "title": "Revisões Desativadas", "questions": []}
+
+    now = datetime.now(timezone.utc)
+    statement = (
+        select(models.Question)
+        .join(models.Quiz)
+        .where(
+            models.Quiz.document_id == document_id,
+            models.Question.next_review <= now
+        )
+        .order_by(models.Question.repetitions.asc(), models.Question.next_review.asc())
+    )
+    due_questions = order_due_for_review(session.exec(statement).all())
+
+    return {
+        "id": db_document.quiz.id if getattr(db_document, "quiz", None) else "review",
+        "title": f"Revisão Focada ({len(due_questions)})",
+        "document_id": document_id,
+        "questions": [
+            {
+                "id": q.id,
+                "text": q.text,
+                "quiz_id": q.quiz_id,
+                "answers": [
+                    {
+                        "id": a.id,
+                        "text": a.text,
+                        "is_correct": a.is_correct,
+                        "explanation": a.explanation
+                    } for a in q.answers
+                ]
+            } for q in due_questions
+        ]
+    }

@@ -108,6 +108,10 @@ def log_study_session(
     if not db_flashcard:
         raise HTTPException(status_code=404, detail="Flashcard não encontrado ou acesso negado")
 
+    # Atualiza o modelo SRS do Flashcard
+    from ..srs import update_flashcard_srs
+    update_flashcard_srs(session, db_flashcard, study_input.accuracy)
+
     # Cria o registo de estudo no banco de dados com o feedback (accuracy)
     study_log = crud.create_study_log(
         session=session,

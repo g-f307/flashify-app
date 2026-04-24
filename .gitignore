@@ -73,5 +73,6 @@ tmp/
 # Celery
 celerybeat-schedule
 
-Caddyfile
-docker-compose.caddy.yml
+#plano de implementacao
+plano_implementacao_flashify.md
+.codex

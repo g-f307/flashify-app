@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { apiClient, Document, Flashcard } from '@/lib/api';
 import { FlashcardStudyFinal } from '@/components/study/flashcard-study';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -11,8 +11,11 @@ import { toast } from 'sonner';
 
 export default function StudyPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams();
   const documentId = params.id as string;
+  const mode = searchParams?.get('mode');
+  const group = searchParams?.get('group');
 
   const [document, setDocument] = useState<Document | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -28,31 +31,39 @@ export default function StudyPage() {
       setLoading(true);
       setError(null);
 
-      if (documentId === 'review') {
-        const reviewFlashcards = await apiClient.getReviewFlashcards();
+      const docIdNumber = parseInt(documentId, 10);
+      if (isNaN(docIdNumber)) {
+        throw new Error("ID do documento inválido.");
+      }
+
+      if (group) {
+        // Modo sub-deck: buscar cards de uma categoria SRS específica
+        const [docData, groupCards] = await Promise.all([
+          apiClient.getDocument(docIdNumber),
+          apiClient.getSrsGroupCards(docIdNumber, group)
+        ]);
+        
+        if (groupCards.length === 0) {
+          toast.info("Não há cards nesta categoria no momento!");
+          router.back();
+          return;
+        }
+        setDocument(docData);
+        setFlashcards(groupCards);
+      } else if (mode === 'review') {
+        const [docData, reviewFlashcards] = await Promise.all([
+          apiClient.getDocument(docIdNumber),
+          apiClient.getReviewFlashcardsByDocument(docIdNumber)
+        ]);
+        
         if (reviewFlashcards.length === 0) {
-           toast.info("Você não tem cards para rever no momento!");
-           router.push('/library');
+           toast.info("Você não tem cards para rever neste deck no momento!");
+           router.back();
            return;
         }
+        setDocument(docData);
         setFlashcards(reviewFlashcards);
-        setDocument({
-          id: 0,
-          file_path: "Sessão de Revisão Inteligente",
-          status: 'COMPLETED',
-          user_id: 0,
-          created_at: new Date().toISOString(),
-          total_flashcards: reviewFlashcards.length,
-          studied_flashcards: 0,
-          generates_flashcards: true,
-          generates_quizzes: false,
-          has_quiz: false,
-        });
       } else {
-        const docIdNumber = parseInt(documentId, 10);
-        if (isNaN(docIdNumber)) {
-          throw new Error("ID do documento inválido.");
-        }
         const [docData, flashcardsData] = await Promise.all([
           apiClient.getDocument(docIdNumber),
           apiClient.getDocumentFlashcards(docIdNumber),
@@ -107,6 +118,7 @@ export default function StudyPage() {
         <FlashcardStudyFinal
           document={document}
           initialFlashcards={flashcards}
+          isReviewMode={mode === 'review'}
           onBack={() => router.back()} 
           backButton={
             <Button variant="ghost" onClick={() => router.back()}>

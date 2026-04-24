@@ -9,6 +9,7 @@ import { EnhancedFlashcardRenderer } from "./enhanced-flashcard-renderer";
 import { FlashcardChat } from "./flashcard-chat";
 import { PerformanceReportResponsive } from "./performance-report";
 import { EditFlashcardModal } from "./edit-flashcard-modal";
+import { SrsOnboardingModal } from "./srs-onboarding-modal";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -25,15 +26,17 @@ import {
 interface FlashcardStudyFinalProps {
   document: Document;
   initialFlashcards: Flashcard[];
+  isReviewMode?: boolean;
   onBack: () => void;
   backButton?: React.ReactNode;
   flipAudioRef: React.RefObject<HTMLAudioElement>;
-  onContentAdded?: () => void; // 🆕 Nova prop
+  onContentAdded?: () => void;
 }
 
 export function FlashcardStudyFinal({ 
   document, 
   initialFlashcards, 
+  isReviewMode = false,
   onBack, 
   backButton,
   flipAudioRef,
@@ -259,12 +262,13 @@ export function FlashcardStudyFinal({
       <PerformanceReportResponsive
         stats={performanceStats}
         totalCards={flashcards.length}
-        documentId={document.id} // 🆕 Passa o documentId
+        documentId={document.id}
+        isReviewMode={isReviewMode}
         onRestart={handleRestart}
         onContinueReview={handleContinueReview}
         onPracticeQuestions={handlePracticeQuestions}
         onBack={onBack}
-        onContentAdded={onContentAdded} // 🆕 Passa o callback
+        onContentAdded={onContentAdded}
       />
     );
   }
@@ -373,14 +377,17 @@ export function FlashcardStudyFinal({
                 transition={{ duration: 0.2 }}
                 className="flex flex-col sm:flex-row w-full justify-center items-center gap-2"
               >
-                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-red-100 text-red-700 hover:bg-red-200" onClick={() => handleFeedback(0.0)} disabled={isLogging}>
-                  <Frown className="mr-2 h-5 w-5" /> Errei
+                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-red-100 text-red-700 hover:bg-red-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.0)} disabled={isLogging}>
+                  <span className="flex items-center gap-1"><Frown className="h-5 w-5" /> Não sabia</span>
+                  <span className="text-[10px] font-normal opacity-70">Não lembrei ou errei</span>
                 </Button>
-                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200" onClick={() => handleFeedback(0.5)} disabled={isLogging}>
-                  <Meh className="mr-2 h-5 w-5" /> Quase
+                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.5)} disabled={isLogging}>
+                  <span className="flex items-center gap-1"><Meh className="h-5 w-5" /> Sabia em parte</span>
+                  <span className="text-[10px] font-normal opacity-70">Lembrei parcialmente</span>
                 </Button>
-                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-green-100 text-green-700 hover:bg-green-200" onClick={() => handleFeedback(1.0)} disabled={isLogging}>
-                  <Smile className="mr-2 h-5 w-5" /> Acertei
+                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-green-100 text-green-700 hover:bg-green-200 flex-col h-auto py-3" onClick={() => handleFeedback(1.0)} disabled={isLogging}>
+                  <span className="flex items-center gap-1"><Smile className="h-5 w-5" /> Sabia</span>
+                  <span className="text-[10px] font-normal opacity-70">Lembrei na hora</span>
                 </Button>
               </motion.div>
             )}
@@ -394,6 +401,7 @@ export function FlashcardStudyFinal({
         flashcard={editingFlashcard}
         onUpdate={handleUpdateFlashcard}
       />
+      <SrsOnboardingModal show={showReport} />
     </div>
   );
 }

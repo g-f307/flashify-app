@@ -65,7 +65,34 @@ export function DocumentList({
     return (
       <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,280px)] gap-4 sm:justify-start">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="h-60 animate-pulse bg-muted/50"></Card>
+          <Card key={i} className="h-[300px] rounded-2xl border border-border bg-card p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex h-full animate-pulse flex-col">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="h-11 w-11 rounded-xl bg-muted/70" />
+                  <div className="space-y-2">
+                    <div className="h-5 w-36 rounded-full bg-muted/70" />
+                    <div className="h-4 w-24 rounded-full bg-muted/60" />
+                  </div>
+                </div>
+                <div className="h-8 w-8 rounded-lg bg-muted/60" />
+              </div>
+
+              <div className="mt-5 flex items-center justify-between gap-3">
+                <div className="h-6 w-24 rounded-full bg-muted/60" />
+                <div className="h-6 w-28 rounded-full bg-muted/60" />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="h-[78px] rounded-xl bg-[#FACC15]/10" />
+                <div className="h-[78px] rounded-xl bg-[#48cfea]/10" />
+              </div>
+
+              <div className="mt-auto pt-4">
+                <div className="h-10 rounded-xl bg-muted/70" />
+              </div>
+            </div>
+          </Card>
         ))}
       </div>
     );

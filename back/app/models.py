@@ -99,6 +99,7 @@ class Document(SQLModel, table=True):
     )
 
     processing_progress: float = 0.0
+    srs_enabled: bool = Field(default=True)
 
     # 🔹 novo campo: lista de flashcards já estudados
     studied_flashcard_ids: list[int] = Field(
@@ -125,6 +126,15 @@ class Flashcard(SQLModel, table=True):
     front: str
     back: str = Field(sa_column=Column(Text))  # Use Text para suportar conteúdo longo
     type: FlashcardType = Field(default=FlashcardType.CONCEPT)
+
+    # Campos SRS
+    ease_factor: float = Field(default=2.5)
+    interval_days: int = Field(default=1)
+    repetitions: int = Field(default=0)
+    next_review: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
 
     document_id: int = Field(foreign_key="document.id")
     document: Document = Relationship(back_populates="flashcards")
@@ -169,6 +179,15 @@ class Quiz(SQLModel, table=True):
 class Question(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     text: str
+    
+    # Campos SRS
+    ease_factor: float = Field(default=2.5)
+    interval_days: int = Field(default=1)
+    repetitions: int = Field(default=0)
+    next_review: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
     
     quiz_id: int = Field(foreign_key="quiz.id")
     quiz: Quiz = Relationship(back_populates="questions")

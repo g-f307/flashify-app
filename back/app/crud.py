@@ -93,6 +93,7 @@ def create_flashcards_for_document(
     for fc_data in flashcards_data:
         if "front" in fc_data and "back" in fc_data:
             db_flashcard = models.Flashcard(**fc_data, document_id=document_id)
+            # next_review fica NULL — card é "Novo" até o primeiro estudo
             db_flashcards.append(db_flashcard)
     if db_flashcards:
         session.add_all(db_flashcards)
@@ -102,7 +103,12 @@ def create_flashcards_for_document(
     return db_flashcards
 
 def get_flashcards_by_document(session: Session, document_id: int) -> list[models.Flashcard]:
-    return session.exec(select(models.Flashcard).where(models.Flashcard.document_id == document_id)).all()
+    statement = (
+        select(models.Flashcard)
+        .where(models.Flashcard.document_id == document_id)
+        .order_by(models.Flashcard.id.asc())
+    )
+    return session.exec(statement).all()
 
 def get_documents_by_user(
     session: Session, user_id: int, in_folder: Optional[bool] = None
@@ -152,6 +158,12 @@ def get_document_with_details(session: Session, document_id: int) -> Optional[mo
     if db_document:
         session.expire(db_document)
         session.refresh(db_document)
+
+        if getattr(db_document, "quiz", None) and getattr(db_document.quiz, "questions", None):
+            db_document.quiz.questions = sorted(
+                db_document.quiz.questions,
+                key=lambda question: question.id or 0,
+            )
                 
     return db_document
 
@@ -440,6 +452,7 @@ def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, documen
         question_obj = models.Question(
             text=question_schema.text, answers=answers_to_create
         )
+        # next_review fica NULL — questão é "Nova" até a primeira tentativa
         questions_to_create.append(question_obj)
 
     db_quiz = models.Quiz(
