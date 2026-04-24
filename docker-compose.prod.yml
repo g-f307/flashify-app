@@ -115,4 +115,4 @@ networks:
   proxy-net:
     external: true
   internal-net:
-    internal: true
+    driver: bridge

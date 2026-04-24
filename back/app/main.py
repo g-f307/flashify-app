@@ -19,7 +19,7 @@ from . import models
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:4000")
+frontend_url = os.getenv("FRONTEND_URL", "http://flashify.cloud")
 
 app = FastAPI(title="Flashify API")
 
@@ -30,7 +30,8 @@ origins = [
     "http://frontend:3000",   # Docker internal
     "http://127.0.0.1:3000",
     "http://127.0.0.1:4000",
-    "https://flashify.cloud", 
+    "https://flashify.cloud",
+    "https://www.flashify.cloud", 
     "frontend_url"
 ]
 
