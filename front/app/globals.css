@@ -162,6 +162,40 @@
   .animate-gradient {
     animation: gradient 10s ease-in-out infinite;
   }
+
+  @keyframes banner-blob-blue {
+    0% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(0, -224px, 0) scale(1.08);
+    }
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  @keyframes banner-blob-yellow {
+    0% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(0, 224px, 0) scale(1.06);
+    }
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  .animate-banner-blob-blue {
+    animation: banner-blob-blue 8.4s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .animate-banner-blob-yellow {
+    animation: banner-blob-yellow 8.4s ease-in-out infinite;
+    will-change: transform;
+  }
 }
 
 .line-clamp-1 {
