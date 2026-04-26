@@ -65,7 +65,7 @@ export function DocumentList({
     return (
       <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,280px)] gap-4 sm:justify-start">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="h-[300px] rounded-2xl border border-border bg-card p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <Card key={i} className="h-[300px] rounded-2xl border border-border bg-card p-5 shadow-sm dark:border-zinc-700/80 dark:bg-[#2a2e38]">
             <div className="flex h-full animate-pulse flex-col">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">

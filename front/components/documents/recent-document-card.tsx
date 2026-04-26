@@ -106,15 +106,15 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
         >
           <Card
             className={cn(
-              "group relative flex h-[300px] w-full flex-col overflow-hidden rounded-2xl border bg-card p-5 shadow-sm transition-all duration-200 dark:border-zinc-800 dark:bg-zinc-900",
+              "group relative flex h-[300px] w-full flex-col overflow-hidden rounded-2xl border bg-card p-5 shadow-sm transition-all duration-200 dark:border-zinc-700/80 dark:bg-[#2a2e38]",
               isClickable
                 ? "cursor-pointer border-border hover:-translate-y-1 hover:border-[#FACC15]/40 hover:shadow-[0_0_0_1px_rgba(250,204,21,0.24),0_0_28px_rgba(250,204,21,0.16),0_18px_40px_-24px_rgba(250,204,21,0.52)] dark:hover:border-[#FACC15]/30 dark:hover:shadow-[0_0_0_1px_rgba(250,204,21,0.16),0_0_22px_rgba(250,204,21,0.12),0_18px_40px_-24px_rgba(250,204,21,0.34)]"
-                : "cursor-default border-border/80 bg-muted/20 dark:bg-zinc-900/80"
+                : "cursor-default border-border/80 bg-muted/20 dark:bg-[#2a2e38]/90"
             )}
           >
-            <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-border/50 dark:ring-zinc-900/80" />
-            <div className="pointer-events-none absolute inset-[7px] rounded-[12px] border border-black/5 dark:border-zinc-900/80" />
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-border/70 dark:bg-zinc-900" />
+            <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-border/50 dark:ring-zinc-800/80" />
+            <div className="pointer-events-none absolute inset-[7px] rounded-[12px] border border-black/5 dark:border-zinc-700/60" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-border/70 dark:bg-zinc-700/70" />
             <div className="pointer-events-none absolute left-4 right-4 top-0 h-[3px] rounded-b-full bg-[linear-gradient(90deg,rgba(250,204,21,0.0),rgba(250,204,21,0.7),rgba(72,207,234,0.75),rgba(72,207,234,0.0))] opacity-70 transition-opacity duration-200 group-hover:opacity-100" />
             <div className="pointer-events-none absolute right-4 top-4 h-10 w-10 rounded-tr-xl border-r border-t border-[#48cfea]/12 opacity-60 dark:border-zinc-800 dark:opacity-100" />
             <div className="pointer-events-none absolute bottom-4 left-4 h-10 w-10 rounded-bl-xl border-b border-l border-[#FACC15]/12 opacity-60 dark:border-zinc-800 dark:opacity-100" />
@@ -124,7 +124,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                 <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[#48cfea]/25 bg-[#48cfea]/10 dark:border-[#48cfea]/20 dark:bg-[#48cfea]/8">
                   <BookOpen className="h-4.5 w-4.5 text-[#1f8cab] dark:text-[#48cfea]" />
                   {document.srs_enabled && pendingCount > 0 && (
-                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-4 ring-card dark:ring-zinc-900" />
+                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-4 ring-card dark:ring-[#2a2e38]" />
                   )}
                 </div>
                 
@@ -144,7 +144,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="relative h-8 w-8 flex-shrink-0 rounded-lg hover:bg-muted/80 transition-all opacity-60 group-hover:opacity-100 dark:hover:bg-zinc-800" 
+                    className="relative h-8 w-8 flex-shrink-0 rounded-lg hover:bg-muted/80 transition-all opacity-60 group-hover:opacity-100 dark:hover:bg-zinc-700/70" 
                     onClick={(e) => { e.stopPropagation(); }}
                   >
                     <MoreVertical className="h-4 w-4" />
@@ -171,7 +171,12 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
 
             <div className="relative flex flex-1 flex-col justify-between min-h-0">
               <div className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
+                <div
+                  className={cn(
+                    "flex items-start gap-2",
+                    document.srs_enabled || statusBadge ? "min-h-8" : "min-h-0"
+                  )}
+                >
                   {statusBadge}
                   {document.srs_enabled ? (
                     <Badge
@@ -186,14 +191,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                       <Sparkles className="h-3.5 w-3.5" />
                       {pendingCount > 0 ? `${pendingCount} revisões pendentes` : "Revisão inteligente"}
                     </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-red-500/25 bg-red-500/10 px-2.5 py-1 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
-                    >
-                      Revisão desativada
-                    </Badge>
-                  )}
+                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -220,7 +218,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               </div>
             </div>
             
-            <div className="relative mt-4 border-t border-muted pt-4 dark:border-zinc-900">
+            <div className="relative mt-4 border-t border-muted pt-4 dark:border-zinc-700/60">
               <Button 
                 className={cn(
                   "w-full rounded-xl transition-all duration-200",
