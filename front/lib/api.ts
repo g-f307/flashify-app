@@ -89,6 +89,39 @@ export interface ProgressStats {
   quiz_average_score: number;
 }
 
+export interface DashboardSummary {
+  reviewed_decks_today: number;
+  flashcards_reviewed_today: number;
+  quizzes_completed_today: number;
+  last_active_document_id: number | null;
+  last_activity_at: string | null;
+}
+
+export interface StreakCalendarDay {
+  date: string;
+  day: number;
+  weekday: number;
+  status: "before" | "active" | "today" | "upcoming" | "missed";
+  has_activity: boolean;
+}
+
+export interface StreakCalendarSummary {
+  month: number;
+  year: number;
+  today: string;
+  current_streak: number;
+  active_days: number;
+  days: StreakCalendarDay[];
+}
+
+export interface StreakCalendarRangeSummary {
+  start_date: string;
+  end_date: string;
+  today: string;
+  current_streak: number;
+  days: StreakCalendarDay[];
+}
+
 export interface SrsStats {
   flashcards_pending: number;
   questions_pending: number;
@@ -513,6 +546,34 @@ class ApiClient {
   async getProgressStats(): Promise<ProgressStats> {
     const timezoneOffset = new Date().getTimezoneOffset();
     return this.request<ProgressStats>(`/progress/stats?utc_offset_minutes=${timezoneOffset}`);
+  }
+
+  async getDashboardSummary(): Promise<DashboardSummary> {
+    const timezoneOffset = new Date().getTimezoneOffset();
+    return this.request<DashboardSummary>(`/progress/dashboard-summary?utc_offset_minutes=${timezoneOffset}`);
+  }
+
+  async getStreakCalendar(month?: number, year?: number): Promise<StreakCalendarSummary> {
+    const timezoneOffset = new Date().getTimezoneOffset();
+    const search = new URLSearchParams({
+      utc_offset_minutes: String(timezoneOffset),
+    });
+
+    if (month) search.set("month", String(month));
+    if (year) search.set("year", String(year));
+
+    return this.request<StreakCalendarSummary>(`/progress/streak-calendar?${search.toString()}`);
+  }
+
+  async getStreakCalendarRange(startDate: string, days = 7): Promise<StreakCalendarRangeSummary> {
+    const timezoneOffset = new Date().getTimezoneOffset();
+    const search = new URLSearchParams({
+      utc_offset_minutes: String(timezoneOffset),
+      start_date: startDate,
+      days: String(days),
+    });
+
+    return this.request<StreakCalendarRangeSummary>(`/progress/streak-calendar-range?${search.toString()}`);
   }
 
   async getLibraryData(): Promise<LibraryData> {
