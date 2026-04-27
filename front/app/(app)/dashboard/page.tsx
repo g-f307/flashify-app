@@ -657,6 +657,8 @@ export default function HomePage() {
   const { user } = useAuth();
   const router = useRouter();
   const [recentDocuments, setRecentDocuments] = useState<Document[]>([]);
+  const [recentCarouselIndex, setRecentCarouselIndex] = useState(0);
+  const [recentVisibleCards, setRecentVisibleCards] = useState(3);
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
   const [dailySummary, setDailySummary] = useState<DashboardSummary | null>(null);
   const [continueDetail, setContinueDetail] = useState<Document | null>(null);
@@ -694,6 +696,23 @@ export default function HomePage() {
       fetchRecent();
     }
   }, [user]);
+
+  useEffect(() => {
+    const updateVisibleCards = () => {
+      if (window.innerWidth >= 1280) {
+        setRecentVisibleCards(3);
+      } else if (window.innerWidth >= 640) {
+        setRecentVisibleCards(2);
+      } else {
+        setRecentVisibleCards(1);
+      }
+    };
+
+    updateVisibleCards();
+    window.addEventListener("resize", updateVisibleCards);
+
+    return () => window.removeEventListener("resize", updateVisibleCards);
+  }, []);
 
   useEffect(() => {
     const loadStreakCalendar = async () => {
@@ -753,6 +772,17 @@ export default function HomePage() {
     allDocuments.find((doc) => doc.id === dailySummary?.last_active_document_id) ||
     recentDocuments[0] ||
     null;
+  const recentCarouselItems = [...recentDocuments, null];
+  const visibleRecentCarouselItems = recentCarouselItems.slice(
+    recentCarouselIndex,
+    recentCarouselIndex + recentVisibleCards
+  );
+  const recentCarouselItemsCount = recentCarouselItems.length;
+  const maxRecentCarouselIndex = Math.max(0, recentCarouselItemsCount - recentVisibleCards);
+
+  useEffect(() => {
+    setRecentCarouselIndex((currentIndex) => Math.min(currentIndex, maxRecentCarouselIndex));
+  }, [maxRecentCarouselIndex]);
 
   useEffect(() => {
     const loadContinueDeckContext = async () => {
@@ -908,37 +938,63 @@ export default function HomePage() {
             <section className="relative pt-4">
               <div className="max-w-5xl mx-auto">
                 <Separator className="pointer-events-none absolute inset-x-0 top-0 bg-border" />
-                <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-2.5">Decks recentes</h3>
+                <div className="mb-2.5 flex items-center justify-between gap-3">
+                  <h3 className="text-xl lg:text-2xl font-bold text-foreground">Decks recentes</h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRecentCarouselIndex((currentIndex) => Math.max(0, currentIndex - 1))}
+                      disabled={recentCarouselIndex === 0}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-background/80 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700/70 dark:bg-zinc-900/40"
+                      aria-label="Ver decks anteriores"
+                    >
+                      <ChevronLeft className="h-4.5 w-4.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRecentCarouselIndex((currentIndex) => Math.min(maxRecentCarouselIndex, currentIndex + 1))
+                      }
+                      disabled={recentCarouselIndex >= maxRecentCarouselIndex}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-background/80 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700/70 dark:bg-zinc-900/40"
+                      aria-label="Ver próximos decks"
+                    >
+                      <ChevronRight className="h-4.5 w-4.5" />
+                    </button>
+                  </div>
+                </div>
                 {loading ? (
                   <div className="flex justify-center items-center h-40">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                   </div>
                 ) : (
                   <div className="relative">
-                    <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory">
-                      {recentDocuments.map((doc) => (
-                        <div key={doc.id} className="flex-shrink-0 w-[280px] snap-start">
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                      {visibleRecentCarouselItems.map((item, index) =>
+                        item ? (
+                          <div key={item.id} className="min-w-0">
                           <RecentDocumentCard
-                            document={doc}
-                            onSelect={() => handleDocumentSelect(doc)}
-                            onDelete={() => handleDelete(doc.id)} 
+                            document={item}
+                            onSelect={() => handleDocumentSelect(item)}
+                            onDelete={() => handleDelete(item.id)} 
                             onUpdate={fetchRecent}
                           />
-                        </div>
-                      ))}
-
-                      <div className="flex-shrink-0 w-[280px] snap-start">
-                        <Card
-                          className="flex flex-col items-center justify-center h-[280px] w-full cursor-pointer hover:shadow-lg transition-shadow"
-                          onClick={() => router.push("/library")}
-                        >
-                          <CardHeader className="text-center p-6">
-                            <Library className="w-10 h-10 mx-auto text-primary mb-2" />
-                            <CardTitle>Acessar à Biblioteca</CardTitle>
-                            <CardDescription>Ver todos os seus decks</CardDescription>
-                          </CardHeader>
-                        </Card>
-                      </div>
+                          </div>
+                        ) : (
+                          <div key={`library-card-${recentCarouselIndex + index}`} className="min-w-0">
+                            <Card
+                              className="flex h-[280px] w-full cursor-pointer flex-col items-center justify-center hover:shadow-lg transition-shadow"
+                              onClick={() => router.push("/library")}
+                            >
+                              <CardHeader className="text-center p-6">
+                                <Library className="w-10 h-10 mx-auto text-primary mb-2" />
+                                <CardTitle>Acessar à Biblioteca</CardTitle>
+                                <CardDescription>Ver todos os seus decks</CardDescription>
+                              </CardHeader>
+                            </Card>
+                          </div>
+                        )
+                      )}
                     </div>
                   </div>
                 )}
