@@ -10,6 +10,19 @@ import { cn } from "@/lib/utils";
 
 export type QuestionAnswerStatus = "unanswered" | "correct" | "incorrect";
 
+interface QuestionStageTheme {
+  badge: string;
+  badgeText: string;
+  hoverBorder: string;
+  hoverBg: string;
+  selectedBorder: string;
+  selectedBg: string;
+  selectedBadge: string;
+  selectedBadgeText: string;
+  primaryButton: string;
+  radioItem: string;
+}
+
 interface QuestionStageProps {
   question: Question;
   questionLabel: string | number;
@@ -22,6 +35,7 @@ interface QuestionStageProps {
   onNext: () => void;
   nextLabel: string;
   hideNextArrow?: boolean;
+  theme?: Partial<QuestionStageTheme>;
 }
 
 export function QuestionStage({
@@ -36,16 +50,30 @@ export function QuestionStage({
   onNext,
   nextLabel,
   hideNextArrow = false,
+  theme,
 }: QuestionStageProps) {
   const letters = ["A", "B", "C", "D", "E"];
+  const mergedTheme: QuestionStageTheme = {
+    badge: "bg-primary/10",
+    badgeText: "text-primary",
+    hoverBorder: "hover:border-primary/80",
+    hoverBg: "hover:bg-primary/5",
+    selectedBorder: "border-primary",
+    selectedBg: "bg-primary/5",
+    selectedBadge: "bg-primary",
+    selectedBadgeText: "text-primary-foreground",
+    primaryButton: "",
+    radioItem: "border-primary/40 text-primary data-[state=checked]:border-primary [&_[data-slot=radio-group-indicator]_svg]:fill-primary",
+    ...theme,
+  };
 
   return (
     <>
       <Card className="overflow-hidden border-muted animate-in fade-in-50 zoom-in-95 duration-500 delay-200">
         <CardHeader className="bg-muted/30 border-b border-muted">
           <div className="flex items-start gap-4 p-2">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-bold text-lg">{questionLabel}</span>
+            <div className={cn("flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center", mergedTheme.badge)}>
+              <span className={cn("font-bold text-lg", mergedTheme.badgeText)}>{questionLabel}</span>
             </div>
             <CardTitle className="text-lg sm:text-xl leading-relaxed pt-1.5 flex-1">
               {question.text}
@@ -69,11 +97,14 @@ export function QuestionStage({
                   key={answer.id}
                   htmlFor={`ans-${answer.id}`}
                   className={cn(
-                    "flex items-start gap-4 p-4 border rounded-xl transition-all duration-300 cursor-pointer group",
+                    "flex items-start gap-4 rounded-xl border border-border/80 p-4 transition-all duration-300 cursor-pointer group dark:border-zinc-700/80",
                     "hover:shadow-md hover:scale-[1.02]",
-                    answerStatus === "unanswered" && "hover:border-primary/80 hover:bg-primary/5",
+                    answerStatus === "unanswered" && mergedTheme.hoverBorder,
+                    answerStatus === "unanswered" && mergedTheme.hoverBg,
                     answerStatus !== "unanswered" && !isCorrect && "opacity-60",
-                    isSelected && answerStatus === "unanswered" && "border-primary bg-primary/5 scale-[1.02]",
+                    isSelected && answerStatus === "unanswered" && mergedTheme.selectedBorder,
+                    isSelected && answerStatus === "unanswered" && mergedTheme.selectedBg,
+                    isSelected && answerStatus === "unanswered" && "scale-[1.02]",
                     answerStatus === "correct" && isCorrect && "border-green-500 bg-green-500/10",
                     answerStatus === "incorrect" && isSelected && "border-destructive bg-destructive/10",
                     answerStatus === "incorrect" && isCorrect && "border-green-500 bg-green-500/10"
@@ -82,9 +113,8 @@ export function QuestionStage({
                   <div
                     className={cn(
                       "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-all",
-                      isSelected && answerStatus === "unanswered"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground",
+                      isSelected && answerStatus === "unanswered" ? mergedTheme.selectedBadge : "bg-muted text-muted-foreground",
+                      isSelected && answerStatus === "unanswered" && mergedTheme.selectedBadgeText,
                       answerStatus === "correct" && isCorrect && "bg-green-500 text-white",
                       answerStatus === "incorrect" && isSelected && "bg-destructive text-white",
                       answerStatus === "incorrect" && isCorrect && "bg-green-500 text-white"
@@ -97,7 +127,7 @@ export function QuestionStage({
                     <RadioGroupItem
                       value={String(answer.id)}
                       id={`ans-${answer.id}`}
-                      className="border-border"
+                      className={cn("border-border dark:border-zinc-700", mergedTheme.radioItem)}
                     />
                     <span className="text-sm sm:text-base leading-relaxed">
                       {answer.text}
@@ -167,7 +197,7 @@ export function QuestionStage({
             onClick={onCheck}
             disabled={!selectedAnswerId || isChecking}
             size="lg"
-            className="w-full sm:w-auto sm:min-w-[140px]"
+            className={cn("w-full sm:w-auto sm:min-w-[140px]", mergedTheme.primaryButton)}
           >
             {isChecking && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Verificar
@@ -176,7 +206,7 @@ export function QuestionStage({
           <Button
             onClick={onNext}
             size="lg"
-            className="w-full sm:w-auto sm:min-w-[140px] group"
+            className={cn("w-full sm:w-auto sm:min-w-[140px] group", mergedTheme.primaryButton)}
           >
             {nextLabel}
             {!hideNextArrow && (

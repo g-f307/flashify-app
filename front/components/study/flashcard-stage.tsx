@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { EnhancedFlashcardRenderer } from "./enhanced-flashcard-renderer";
 
 type FlashcardContent = {
@@ -22,6 +23,11 @@ interface FlashcardStageProps {
   frontActions: ReactNode;
   backActions: ReactNode;
   onEdit?: () => void;
+  interactiveClassName?: string;
+  stageClassName?: string;
+  cardClassName?: string;
+  footerClassName?: string;
+  showCounter?: boolean;
 }
 
 export function FlashcardStage({
@@ -33,12 +39,21 @@ export function FlashcardStage({
   frontActions,
   backActions,
   onEdit,
+  interactiveClassName,
+  stageClassName,
+  cardClassName,
+  footerClassName,
+  showCounter = true,
 }: FlashcardStageProps) {
   return (
     <>
-      <div className="w-full max-w-2xl flex-grow flex flex-col items-center justify-center perspective-1000">
+      <div className={cn("w-full max-w-2xl flex-grow flex flex-col items-center justify-center perspective-1000", stageClassName)}>
         <div
-          className="relative group w-full h-[450px] sm:h-[500px] transform-style-preserve-3d transition-transform duration-600 cursor-pointer glow-on-hover"
+          className={cn(
+            "relative group w-full h-[450px] sm:h-[500px] transform-style-preserve-3d transition-transform duration-600 cursor-pointer",
+            cardClassName,
+            interactiveClassName ?? "glow-on-hover"
+          )}
           style={{ transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
           onClick={onFlip}
         >
@@ -80,10 +95,12 @@ export function FlashcardStage({
         </div>
       </div>
 
-      <div className="w-full max-w-2xl mt-6 space-y-4">
-        <div className="text-center text-sm text-muted-foreground">
-          {currentIndex + 1} / {total}
-        </div>
+      <div className={cn("w-full max-w-2xl mt-6 space-y-4", footerClassName)}>
+        {showCounter && (
+          <div className="text-center text-sm text-muted-foreground">
+            {currentIndex + 1} / {total}
+          </div>
+        )}
 
         <div className="min-h-[6rem] sm:min-h-[3.5rem] flex items-center">
           <AnimatePresence mode="wait">
