@@ -186,6 +186,17 @@ def _clear_guided_study_cache(db_document: models.Document, session: Session) ->
     session.commit()
 
 
+def _guided_study_requires_ai_generation(db_document: models.Document) -> bool:
+    if not db_document.guided_study_cache:
+        return True
+
+    try:
+        cached = schemas.GuidedStudyResponse.model_validate(db_document.guided_study_cache)
+        return cached.summary.is_fallback
+    except Exception:
+        return True
+
+
 def _build_guided_study_response(
     db_document: models.Document,
     session: Session,
@@ -588,7 +599,29 @@ def get_document_guided_study(
     if db_document.status != models.DocumentStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="O deck ainda não está pronto para iniciar o estudo guiado.")
 
-    return _build_guided_study_response(db_document, session)
+    requires_generation = _guided_study_requires_ai_generation(db_document)
+
+    if requires_generation:
+        can_generate, remaining = crud.can_user_generate_deck(session, current_user)
+
+        if not can_generate:
+            generation_info = crud.get_user_generation_info(session, current_user)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "message": "Limite diário de gerações atingido",
+                    "limit": generation_info["limit"],
+                    "used": generation_info["used"],
+                    "hours_until_reset": generation_info["hours_until_reset"]
+                }
+            )
+
+    response = _build_guided_study_response(db_document, session)
+
+    if requires_generation:
+        crud.increment_user_generation_count(session, current_user.id)
+
+    return response
 
 
 @router.get("/{document_id}/guided-study/progress", response_model=schemas.GuidedStudyProgressRead)
@@ -635,7 +668,25 @@ def restructure_guided_study(
     db_document = crud.get_document(session, document_id)
     if not db_document or db_document.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    can_generate, remaining = crud.can_user_generate_deck(session, current_user)
+
+    if not can_generate:
+        generation_info = crud.get_user_generation_info(session, current_user)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": "Limite diário de gerações atingido",
+                "limit": generation_info["limit"],
+                "used": generation_info["used"],
+                "hours_until_reset": generation_info["hours_until_reset"]
+            }
+        )
+
     _clear_guided_study_cache(db_document, session)
+    db_document = crud.get_document_with_details(session, document_id)
+    _build_guided_study_response(db_document, session)
+    crud.increment_user_generation_count(session, current_user.id)
     return {"message": "Trilha reestruturada com sucesso."}
 
 

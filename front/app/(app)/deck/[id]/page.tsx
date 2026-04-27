@@ -12,16 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
     ArrowLeft,
     FileText,
     Loader2,
@@ -47,6 +37,7 @@ import { SrsOverviewPanel } from "@/components/deck/srs-overview-panel";
 import { cn } from "@/lib/utils";
 import { useLoading } from "@/components/providers/loading-provider";
 import { useGenerationLimit } from "@/contexts/generation-limit-context"; 
+import { ResumeStudyDialog } from "@/components/study/resume-study-dialog";
 
 const ActionCard = ({
     icon: Icon,
@@ -75,7 +66,7 @@ const ActionCard = ({
             !isLocked && "hover:shadow-xl",
             !isLocked && iconBgColor === "flashcards" && "hover:border-[#FACC15]/50",
             !isLocked && iconBgColor === "quiz" && "hover:border-[#48cfea]/50",
-            !isLocked && iconBgColor === "guided" && "hover:border-slate-500/40",
+            !isLocked && iconBgColor === "guided" && "hover:border-[#7FD9A0]/45",
             isLocked && "bg-muted/30"
         )}>
             <div className={cn(
@@ -83,7 +74,7 @@ const ActionCard = ({
                 !isLocked && "group-hover:opacity-100",
                 iconBgColor === "flashcards" && "bg-[#FACC15]/5",
                 iconBgColor === "quiz" && "bg-[#48cfea]/5",
-                iconBgColor === "guided" && "bg-gradient-to-br from-slate-500/5 via-zinc-500/5 to-neutral-500/5"
+                iconBgColor === "guided" && "bg-gradient-to-br from-[#7FD9A0]/10 via-[#7FD9A0]/5 to-transparent dark:from-[#7FD9A0]/12 dark:via-[#7FD9A0]/6"
             )} />
 
             <CardHeader className={cn("relative pb-4", isLocked && "opacity-50")}>
@@ -93,7 +84,7 @@ const ActionCard = ({
                         !isLocked && "group-hover:scale-110 group-hover:-rotate-3",
                         iconBgColor === "flashcards" && "bg-[#FACC15] text-black",
                         iconBgColor === "quiz" && "bg-[#48cfea] text-black",
-                        iconBgColor === "guided" && "bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-700 text-white"
+                        iconBgColor === "guided" && "bg-[#7FD9A0] text-black"
                     )}>
                         {iconBgColor === "guided" ? (
                             <div className="relative w-7 h-7">
@@ -110,7 +101,7 @@ const ActionCard = ({
                             "text-xl font-bold mb-1 transition-colors duration-300",
                             !isLocked && iconBgColor === "flashcards" && "group-hover:text-[#FACC15]",
                             !isLocked && iconBgColor === "quiz" && "group-hover:text-[#48cfea]",
-                            !isLocked && iconBgColor === "guided" && "group-hover:text-slate-700 dark:group-hover:text-slate-200"
+                            !isLocked && iconBgColor === "guided" && "group-hover:text-[#3E8E63] dark:group-hover:text-[#9EE6B8]"
                         )}>
                             {title}
                         </CardTitle>
@@ -349,9 +340,17 @@ export default function DeckDashboardPage() {
         try {
             await apiClient.resetGuidedStudy(document.id);
             setGuidedProgress(null);
-            toast.success("Trilha reestruturada. A próxima abertura gerará uma nova estrutura com IA.");
-        } catch {
-            toast.error("Não foi possível reestruturar a trilha.");
+            toast.success("Trilha reestruturada com IA.");
+            await refreshLimitInfo();
+        } catch (error: any) {
+            if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
+                toast.error("Limite diário atingido", {
+                    description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
+                    duration: 5000
+                });
+            } else {
+                toast.error("Não foi possível reestruturar a trilha.");
+            }
         } finally {
             setIsRestructuring(false);
         }
@@ -396,25 +395,16 @@ export default function DeckDashboardPage() {
 
     return (
         <div className="w-full min-h-screen bg-background">
-            <AlertDialog open={showGuidedResumeDialog} onOpenChange={setShowGuidedResumeDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Continuar estudo guiado?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Você tem uma trilha em andamento e pode retomar do passo {guidedProgress?.completed_step_ids.length ?? 0} de {guidedProgress?.total_steps ?? 0}, ou começar tudo do início.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Fechar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => openGuidedStudy(false)}>
-                            Retomar
-                        </AlertDialogAction>
-                        <AlertDialogAction onClick={handleRestartGuidedStudy}>
-                            Começar do início
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            {guidedProgress && (
+                <ResumeStudyDialog
+                    open={showGuidedResumeDialog}
+                    onOpenChange={setShowGuidedResumeDialog}
+                    title="Continuar estudo guiado?"
+                    progressLabel={`Você parou no passo ${guidedProgress.completed_step_ids.length} de ${guidedProgress.total_steps}`}
+                    onContinue={() => openGuidedStudy(false)}
+                    onRestart={handleRestartGuidedStudy}
+                />
+            )}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8">
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
                     <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-2 hover:bg-primary/10">
@@ -686,31 +676,19 @@ export default function DeckDashboardPage() {
                         >
                             {hasFlashcards && hasQuiz ? (
                                 <div className="space-y-4">
-                                    {guidedProgress && !guidedProgress.is_completed && guidedProgress.completed_step_ids.length > 0 ? (
-                                        <div className="rounded-xl border border-slate-300/40 bg-slate-500/[0.06] p-3">
-                                            <p className="text-[11px] leading-relaxed text-muted-foreground">
-                                                Você tem uma trilha em andamento. Ao iniciar, o Flashify pergunta se deseja retomar ou reiniciar.
-                                            </p>
-                                        </div>
-                                    ) : guidedProgress?.is_completed ? (
+                                    {guidedProgress?.is_completed && (
                                         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
                                             <p className="text-[11px] leading-relaxed text-muted-foreground">
                                                 Trilha concluída! Você pode refazê-la para revisar o conteúdo.
                                             </p>
                                         </div>
-                                    ) : (
-                                        <div className="rounded-xl border border-slate-300/40 bg-slate-500/[0.06] p-3">
-                                            <p className="text-[11px] leading-relaxed text-muted-foreground">
-                                                O Flashify intercala flashcards e quizzes em uma ordem guiada para conduzir o estudo do básico ao mais avançado.
-                                            </p>
-                                        </div>
                                     )}
                                     <Button
-                                        className="w-full h-12 text-base shadow-md transition-all group"
+                                        className="w-full h-12 text-base shadow-md transition-all group bg-[#7FD9A0] hover:bg-[#6fca91] text-black"
                                         size="lg"
                                         onClick={handleStartGuidedStudy}
                                     >
-                                        <PlayCircle className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                                        <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                                         {guidedProgress?.is_completed ? "Refazer" : "Iniciar"}
                                     </Button>
                                     <Button
@@ -805,8 +783,8 @@ export default function DeckDashboardPage() {
                                                     value={guidedProgress.total_steps > 0
                                                         ? (guidedProgress.completed_step_ids.length / guidedProgress.total_steps) * 100
                                                         : 0}
-                                                    className="h-2 mt-2 bg-[#FACC15]/20"
-                                                    indicatorClassName="bg-[#FACC15]"
+                                                    className="h-2 mt-2 bg-[#7FD9A0]/20"
+                                                    indicatorClassName="bg-[#7FD9A0]"
                                                 />
                                                 <p className="text-xs text-muted-foreground text-right">
                                                     {guidedProgress.is_completed
