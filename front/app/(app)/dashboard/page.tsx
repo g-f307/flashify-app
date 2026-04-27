@@ -234,8 +234,8 @@ const getDailyHeadline = (
       headline: phrases[index],
       description:
         reviewedDecksToday > 0
-          ? `Você já revisou ${reviewedDecksToday} ${reviewedDecksToday === 1 ? "deck" : "decks"} hoje e não há pendências no momento.`
-          : "Nada vencido por agora. Se quiser, é um ótimo momento para criar ou continuar um deck sem pressão.",
+          ? `${reviewedDecksToday} ${reviewedDecksToday === 1 ? "deck revisado" : "decks revisados"} hoje. Tudo em ordem.`
+          : "Nada pendente no momento.",
       ctaLabel: "Abrir biblioteca",
       ctaHref: "/library",
     };
@@ -251,7 +251,7 @@ const getDailyHeadline = (
     return {
       greeting: `Olá, ${safeName}`,
       headline: phrases[index],
-      description: `Você tem ${pendingDeckCount} ${pendingDeckCount === 1 ? "deck precisando" : "decks precisando"} de revisão agora. Bora manter o estudo ativo?`,
+      description: `${pendingDeckCount} ${pendingDeckCount === 1 ? "deck precisa" : "decks precisam"} de revisão agora.`,
       ctaLabel: "Revisar agora",
       ctaHref: `/deck`,
     };
@@ -266,7 +266,7 @@ const getDailyHeadline = (
   return {
     greeting: `Olá, ${safeName}`,
     headline: phrases[index],
-    description: `Você tem ${pendingDeckCount} decks com revisões pendentes no momento. Bora organizar isso sem drama e manter o ritmo?`,
+    description: `${pendingDeckCount} decks com revisões pendentes no momento.`,
     ctaLabel: "Ver decks pendentes",
     ctaHref: "/library",
   };
@@ -286,10 +286,6 @@ const DailyTasksBanner = ({
   onPrimaryAction: () => void;
 }) => {
   const copy = getDailyHeadline(username, pendingDeckCount, reviewedDecksToday, totalPending);
-  const highlightedPendingText =
-    pendingDeckCount > 0
-      ? `${pendingDeckCount} ${pendingDeckCount === 1 ? "deck com revisões pendentes" : "decks com revisões pendentes"}`
-      : null;
 
   return (
     <motion.section
@@ -311,25 +307,12 @@ const DailyTasksBanner = ({
                 <h2 className="max-w-2xl text-2xl font-semibold tracking-tight text-foreground sm:text-[2rem] lg:text-3xl">
                   {copy.headline}
                 </h2>
-                {highlightedPendingText ? (
+                {pendingDeckCount > 0 ? (
                   <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground lg:text-base">
-                    Você tem{" "}
-                    <span
-                      className="relative inline px-2 py-0.5 font-medium text-foreground dark:text-[#2f2410]"
-                      style={{
-                        backgroundImage:
-                          "linear-gradient(-1.9deg, rgba(250,204,21,0.88) 0%, rgba(250,204,21,0.88) 80%, transparent 80%), linear-gradient(1deg, rgba(253,224,71,0.58) 0%, rgba(253,224,71,0.58) 62%, transparent 62%)",
-                        backgroundRepeat: "no-repeat, no-repeat",
-                        backgroundSize: "100% 112%, 98% 90%",
-                        backgroundPosition: "0 100%, 50% 86%",
-                        boxDecorationBreak: "clone",
-                        WebkitBoxDecorationBreak: "clone",
-                        borderRadius: "0.18rem",
-                      }}
-                    >
-                      {highlightedPendingText}
+                    <span className="rounded-md bg-[#FACC15]/14 px-1.5 py-0.5 font-semibold text-foreground dark:bg-[#FACC15]/16">
+                      {pendingDeckCount} {pendingDeckCount === 1 ? "deck" : "decks"}
                     </span>{" "}
-                    no momento. Bora organizar isso sem drama e manter o ritmo?
+                    com revisões pendentes no momento.
                   </p>
                 ) : (
                   <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground lg:text-base">
@@ -355,11 +338,11 @@ const DailyTasksBanner = ({
             </div>
 
             <div className="relative min-h-[268px] overflow-hidden rounded-[1.75rem] border border-border/70 bg-background/80 p-4 sm:p-5 dark:border-zinc-800 dark:bg-[#18191d]/80">
-              <div className="relative grid h-full grid-cols-2 gap-3 sm:gap-4">
-                <div className="relative flex min-h-[236px] flex-col items-center justify-end">
+              <div className="relative flex h-full items-center justify-center">
+                <div className="grid w-full max-w-[392px] translate-y-2 grid-cols-2 gap-3 sm:translate-y-4 lg:translate-y-5 sm:gap-4">
+                  <div className="relative flex min-h-[184px] flex-col items-center justify-center">
                   <div className="pointer-events-none absolute top-1 h-3 w-3 rounded-full border border-border/70 bg-background/90 shadow-[0_0_18px_rgba(255,255,255,0.18)] dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-[0_0_18px_rgba(255,255,255,0.08)]" />
-                  <div className="pointer-events-none absolute top-8 h-[194px] w-[158px] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_16%,rgba(254,249,195,0.98)_30%,rgba(253,230,138,0.42)_48%,rgba(255,255,255,0)_78%)] opacity-100 blur-[0.2px] [clip-path:polygon(45%_0,55%_0,100%_100%,0_100%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.34)_0%,rgba(110,190,255,0.24)_22%,rgba(72,207,234,0.12)_45%,rgba(255,255,255,0)_74%)]" />
-                  <div className="pointer-events-none absolute bottom-1 h-14 w-44 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_28%,rgba(254,249,195,0.96)_48%,rgba(253,230,138,0.42)_66%,rgba(255,255,255,0)_84%)] blur-[0.2px] dark:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.34)_0%,rgba(125,211,252,0.26)_38%,rgba(125,211,252,0.1)_62%,rgba(255,255,255,0)_78%)]" />
+                  <div className="pointer-events-none absolute left-1/2 top-[110px] h-12 w-36 -translate-x-1/2 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_26%,rgba(254,249,195,0.94)_46%,rgba(253,230,138,0.38)_64%,rgba(255,255,255,0)_82%)] blur-[0.2px] sm:top-[108px] sm:h-12 sm:w-40 dark:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.34)_0%,rgba(125,211,252,0.24)_36%,rgba(125,211,252,0.1)_60%,rgba(255,255,255,0)_78%)]" />
 
                   <div className="relative z-10 flex h-[148px] w-full max-w-[176px] flex-col items-center justify-center rounded-2xl border border-red-500/20 bg-card/94 px-3 py-4 text-center shadow-[0_18px_34px_-24px_rgba(239,68,68,0.45)] dark:border-red-500/20 dark:bg-zinc-900/94">
                     <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/10">
@@ -372,10 +355,9 @@ const DailyTasksBanner = ({
                   </div>
                 </div>
 
-                <div className="relative flex min-h-[236px] flex-col items-center justify-end">
+                  <div className="relative flex min-h-[184px] flex-col items-center justify-center">
                   <div className="pointer-events-none absolute top-1 h-3 w-3 rounded-full border border-border/70 bg-background/90 shadow-[0_0_18px_rgba(255,255,255,0.18)] dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-[0_0_18px_rgba(255,255,255,0.08)]" />
-                  <div className="pointer-events-none absolute top-8 h-[194px] w-[158px] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_16%,rgba(254,249,195,0.98)_30%,rgba(253,230,138,0.42)_48%,rgba(255,255,255,0)_78%)] opacity-100 blur-[0.2px] [clip-path:polygon(45%_0,55%_0,100%_100%,0_100%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.34)_0%,rgba(110,190,255,0.24)_22%,rgba(72,207,234,0.12)_45%,rgba(255,255,255,0)_74%)]" />
-                  <div className="pointer-events-none absolute bottom-1 h-14 w-44 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_28%,rgba(254,249,195,0.96)_48%,rgba(253,230,138,0.42)_66%,rgba(255,255,255,0)_84%)] blur-[0.2px] dark:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.34)_0%,rgba(125,211,252,0.26)_38%,rgba(125,211,252,0.1)_62%,rgba(255,255,255,0)_78%)]" />
+                  <div className="pointer-events-none absolute left-1/2 top-[110px] h-12 w-36 -translate-x-1/2 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_26%,rgba(254,249,195,0.94)_46%,rgba(253,230,138,0.38)_64%,rgba(255,255,255,0)_82%)] blur-[0.2px] sm:top-[108px] sm:h-12 sm:w-40 dark:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.34)_0%,rgba(125,211,252,0.24)_36%,rgba(125,211,252,0.1)_60%,rgba(255,255,255,0)_78%)]" />
 
                   <div className="relative z-10 flex h-[148px] w-full max-w-[176px] flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-card/94 px-3 py-4 text-center shadow-[0_18px_34px_-24px_rgba(16,185,129,0.42)] dark:border-emerald-500/20 dark:bg-zinc-900/94">
                     <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10">
@@ -386,6 +368,7 @@ const DailyTasksBanner = ({
                     </p>
                     <p className="mt-2 text-3xl font-bold text-foreground">{reviewedDecksToday}</p>
                   </div>
+                </div>
                 </div>
               </div>
             </div>
@@ -442,10 +425,18 @@ const ContinueWhereLeftOffCard = ({
             <div className="relative aspect-[4/5] overflow-visible bg-transparent">
               <div className="pointer-events-none absolute bottom-1.5 left-1/2 h-4 w-[58%] -translate-x-1/2 rounded-[999px] bg-black/18 blur-md dark:bg-black/35" />
               <Image
+                src="/flashinho_mobile.png"
+                alt="Ilustração destacando o último deck"
+                fill
+                className="scale-[1.12] object-cover object-center drop-shadow-[0_10px_18px_rgba(15,23,42,0.12)] dark:drop-shadow-[0_14px_22px_rgba(0,0,0,0.3)] sm:hidden"
+                sizes="150px"
+                priority={false}
+              />
+              <Image
                 src="/flashinho.png"
                 alt="Ilustração destacando o último deck"
                 fill
-                className="scale-[1.08] object-cover object-center drop-shadow-[0_10px_18px_rgba(15,23,42,0.12)] dark:drop-shadow-[0_14px_22px_rgba(0,0,0,0.3)]"
+                className="hidden scale-[1.08] object-cover object-center drop-shadow-[0_10px_18px_rgba(15,23,42,0.12)] dark:drop-shadow-[0_14px_22px_rgba(0,0,0,0.3)] sm:block"
                 sizes="(max-width: 640px) 150px, 122px"
                 priority={false}
               />

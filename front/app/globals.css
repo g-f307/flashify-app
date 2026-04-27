@@ -188,12 +188,12 @@
   }
 
   .animate-banner-blob-blue {
-    animation: banner-blob-blue 8.4s ease-in-out infinite;
+    animation: banner-blob-blue 11.5s ease-in-out infinite;
     will-change: transform;
   }
 
   .animate-banner-blob-yellow {
-    animation: banner-blob-yellow 8.4s ease-in-out infinite;
+    animation: banner-blob-yellow 11.5s ease-in-out infinite;
     will-change: transform;
   }
 }
