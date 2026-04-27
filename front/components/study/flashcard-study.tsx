@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { Document, Flashcard, apiClient } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, ArrowRight, RotateCcw, Smile, Frown, Meh, Pencil, Play } from "lucide-react";
-import { EnhancedFlashcardRenderer } from "./enhanced-flashcard-renderer";
+import { ArrowLeft, ArrowRight, RotateCcw, Smile, Frown, Meh, Play } from "lucide-react";
 import { FlashcardChat } from "./flashcard-chat";
 import { PerformanceReportResponsive } from "./performance-report";
 import { EditFlashcardModal } from "./edit-flashcard-modal";
 import { SrsOnboardingModal } from "./srs-onboarding-modal";
+import { FlashcardStage } from "./flashcard-stage";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { 
   StudySession, 
   calculatePerformanceStats,
@@ -290,110 +290,55 @@ export function FlashcardStudyFinal({
         </Button>
       )}
 
-      <div className="w-full max-w-2xl flex-grow flex flex-col items-center justify-center perspective-1000">
-        <div
-          className="relative group w-full h-[450px] sm:h-[500px] transform-style-preserve-3d transition-transform duration-600 cursor-pointer glow-on-hover"
-          style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-          onClick={handleFlip}
-        >
-          <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingFlashcard(currentFlashcard);
-                setIsEditModalOpen(true);
-              }}
-              className="h-9 w-9"
-              style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-            >
-              <Pencil className="w-5 h-5" />
+      <FlashcardStage
+        flashcard={currentFlashcard}
+        currentIndex={currentCardIndex}
+        total={flashcards.length}
+        isFlipped={isFlipped}
+        onFlip={handleFlip}
+        onEdit={() => {
+          setEditingFlashcard(currentFlashcard);
+          setIsEditModalOpen(true);
+        }}
+        frontActions={
+          <div className="flex flex-col sm:flex-row w-full justify-between items-center gap-2">
+            <div className="flex w-full sm:w-auto justify-between gap-2">
+              <Button
+                onClick={handlePrevCard}
+                variant="outline"
+                size="lg"
+                className="functional-button flex-1 sm:flex-none"
+                disabled={currentCardIndex === 0}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <Button onClick={goToNextCard} variant="outline" size="lg" className="functional-button flex-1 sm:flex-none">
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </div>
+            <Button onClick={handleFlip} variant="ghost" size="lg" className="w-full sm:w-auto flex-grow sm:mx-4 functional-button">
+              <RotateCcw className="w-5 h-5 mr-2" />
+              Virar Card
             </Button>
           </div>
-
-          <Card className="absolute w-full h-full backface-hidden flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
-            <div className="w-full h-full flex items-center justify-center text-center">
-              <EnhancedFlashcardRenderer 
-                content={currentFlashcard.front} 
-                type={currentFlashcard.type} 
-              />
-            </div>
-          </Card>
-
-          <Card className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
-            <div className="w-full h-full flex items-center justify-center text-center">
-              <EnhancedFlashcardRenderer 
-                content={currentFlashcard.back} 
-                type={currentFlashcard.type} 
-                isAnswer 
-              />
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      <div className="w-full max-w-2xl mt-6 space-y-4">
-        <div className="text-center text-sm text-muted-foreground">
-          {currentCardIndex + 1} / {flashcards.length}
-        </div>
-        
-        <div className="min-h-[6rem] sm:min-h-[3.5rem] flex items-center">
-          <AnimatePresence mode="wait">
-            {!isFlipped ? (
-              <motion.div
-                key="navigation"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="flex flex-col sm:flex-row w-full justify-between items-center gap-2"
-              >
-                <div className="flex w-full sm:w-auto justify-between gap-2">
-                  <Button 
-                    onClick={handlePrevCard} 
-                    variant="outline" 
-                    size="lg" 
-                    className="functional-button flex-1 sm:flex-none"
-                    disabled={currentCardIndex === 0}
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </Button>
-                  <Button onClick={goToNextCard} variant="outline" size="lg" className="functional-button flex-1 sm:flex-none">
-                    <ArrowRight className="w-5 h-5" />
-                  </Button>
-                </div>
-                <Button onClick={handleFlip} variant="ghost" size="lg" className="w-full sm:w-auto flex-grow sm:mx-4 functional-button">
-                  <RotateCcw className="w-5 h-5 mr-2" />
-                  Virar Card
-                </Button>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="feedback"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="flex flex-col sm:flex-row w-full justify-center items-center gap-2"
-              >
-                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-red-100 text-red-700 hover:bg-red-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.0)} disabled={isLogging}>
-                  <span className="flex items-center gap-1"><Frown className="h-5 w-5" /> Não sabia</span>
-                  <span className="text-[10px] font-normal opacity-70">Não lembrei ou errei</span>
-                </Button>
-                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.5)} disabled={isLogging}>
-                  <span className="flex items-center gap-1"><Meh className="h-5 w-5" /> Sabia em parte</span>
-                  <span className="text-[10px] font-normal opacity-70">Lembrei parcialmente</span>
-                </Button>
-                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-green-100 text-green-700 hover:bg-green-200 flex-col h-auto py-3" onClick={() => handleFeedback(1.0)} disabled={isLogging}>
-                  <span className="flex items-center gap-1"><Smile className="h-5 w-5" /> Sabia</span>
-                  <span className="text-[10px] font-normal opacity-70">Lembrei na hora</span>
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+        }
+        backActions={
+          <div className="flex flex-col sm:flex-row w-full justify-center items-center gap-2">
+            <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-red-100 text-red-700 hover:bg-red-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.0)} disabled={isLogging}>
+              <span className="flex items-center gap-1"><Frown className="h-5 w-5" /> Não sabia</span>
+              <span className="text-[10px] font-normal opacity-70">Não lembrei ou errei</span>
+            </Button>
+            <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.5)} disabled={isLogging}>
+              <span className="flex items-center gap-1"><Meh className="h-5 w-5" /> Sabia em parte</span>
+              <span className="text-[10px] font-normal opacity-70">Lembrei parcialmente</span>
+            </Button>
+            <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-green-100 text-green-700 hover:bg-green-200 flex-col h-auto py-3" onClick={() => handleFeedback(1.0)} disabled={isLogging}>
+              <span className="flex items-center gap-1"><Smile className="h-5 w-5" /> Sabia</span>
+              <span className="text-[10px] font-normal opacity-70">Lembrei na hora</span>
+            </Button>
+          </div>
+        }
+      />
       
       <EditFlashcardModal
         isOpen={isEditModalOpen}

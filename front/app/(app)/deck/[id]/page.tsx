@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiClient, Document, DeckStats } from "@/lib/api";
+import { apiClient, Document, DeckStats, GuidedStudyProgress } from "@/lib/api";
 import { 
     Card, 
     CardContent, 
@@ -11,20 +11,30 @@ import {
     CardTitle 
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-    ArrowLeft, 
-    FileText, 
-    Loader2, 
-    AlertTriangle, 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+    ArrowLeft,
+    FileText,
+    Loader2,
+    AlertTriangle,
     Wand2,
     Play,
     Brain,
     Lock,
-    Pause,
     PlayCircle,
-    CheckCircle2,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Sparkles,
+    RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -65,31 +75,42 @@ const ActionCard = ({
             !isLocked && "hover:shadow-xl",
             !isLocked && iconBgColor === "flashcards" && "hover:border-[#FACC15]/50",
             !isLocked && iconBgColor === "quiz" && "hover:border-[#48cfea]/50",
+            !isLocked && iconBgColor === "guided" && "hover:border-slate-500/40",
             isLocked && "bg-muted/30"
         )}>
             <div className={cn(
                 "absolute inset-0 opacity-0 transition-opacity duration-500",
                 !isLocked && "group-hover:opacity-100",
                 iconBgColor === "flashcards" && "bg-[#FACC15]/5",
-                iconBgColor === "quiz" && "bg-[#48cfea]/5"
+                iconBgColor === "quiz" && "bg-[#48cfea]/5",
+                iconBgColor === "guided" && "bg-gradient-to-br from-slate-500/5 via-zinc-500/5 to-neutral-500/5"
             )} />
-            
+
             <CardHeader className={cn("relative pb-4", isLocked && "opacity-50")}>
                 <div className="flex items-start gap-4">
                     <div className={cn(
                         "relative p-3 rounded-2xl shadow-lg transition-all duration-300",
                         !isLocked && "group-hover:scale-110 group-hover:-rotate-3",
                         iconBgColor === "flashcards" && "bg-[#FACC15] text-black",
-                        iconBgColor === "quiz" && "bg-[#48cfea] text-black"
+                        iconBgColor === "quiz" && "bg-[#48cfea] text-black",
+                        iconBgColor === "guided" && "bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-700 text-white"
                     )}>
-                        <Icon className="w-7 h-7" />
+                        {iconBgColor === "guided" ? (
+                            <div className="relative w-7 h-7">
+                                <FileText className="absolute left-0 bottom-0 w-4.5 h-4.5" />
+                                <Wand2 className="absolute right-0 top-0 w-4 h-4 opacity-90" />
+                            </div>
+                        ) : (
+                            <Icon className="w-7 h-7" />
+                        )}
                         <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/20 to-transparent" />
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
                         <CardTitle className={cn(
                             "text-xl font-bold mb-1 transition-colors duration-300",
                             !isLocked && iconBgColor === "flashcards" && "group-hover:text-[#FACC15]",
-                            !isLocked && iconBgColor === "quiz" && "group-hover:text-[#48cfea]"
+                            !isLocked && iconBgColor === "quiz" && "group-hover:text-[#48cfea]",
+                            !isLocked && iconBgColor === "guided" && "group-hover:text-slate-700 dark:group-hover:text-slate-200"
                         )}>
                             {title}
                         </CardTitle>
@@ -120,6 +141,9 @@ export default function DeckDashboardPage() {
     const [isCreatingFlashcards, setIsCreatingFlashcards] = useState(false);
     const [showFlashcardSrs, setShowFlashcardSrs] = useState(false);
     const [showQuizSrs, setShowQuizSrs] = useState(false);
+    const [guidedProgress, setGuidedProgress] = useState<GuidedStudyProgress | null>(null);
+    const [isRestructuring, setIsRestructuring] = useState(false);
+    const [showGuidedResumeDialog, setShowGuidedResumeDialog] = useState(false);
 
     const [creationProgress, setCreationProgress] = useState(0);
     const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -131,12 +155,13 @@ export default function DeckDashboardPage() {
             setIsLoading(true);
         }
         try {
-            const [docData, statsData, srsStatsData, srsGroupsData, quizGroupsData] = await Promise.all([
+            const [docData, statsData, srsStatsData, srsGroupsData, quizGroupsData, progressData] = await Promise.all([
                 apiClient.getDocument(documentId),
                 apiClient.getDocumentStats(documentId),
                 apiClient.getSrsStats(documentId),
                 apiClient.getSrsGroups(documentId),
-                apiClient.getQuizSrsGroups(documentId)
+                apiClient.getQuizSrsGroups(documentId),
+                apiClient.getGuidedStudyProgress(documentId),
             ]);
             docData.srs_enabled = srsStatsData.srs_enabled;
             docData.flashcards_pending = srsStatsData.flashcards_pending;
@@ -146,6 +171,7 @@ export default function DeckDashboardPage() {
             setSrsStats(srsStatsData);
             setSrsGroups(srsGroupsData);
             setQuizSrsGroups(quizGroupsData);
+            setGuidedProgress(progressData);
         } catch (err) {
             setError("Não foi possível encontrar este deck. Verifique se o link está correto.");
         } finally {
@@ -280,6 +306,56 @@ export default function DeckDashboardPage() {
         showLoading("Carregando seu quiz...", false);
         router.push(`/quiz/${document.id}`);
     };
+
+    const openGuidedStudy = (restart = false) => {
+        showLoading("Montando seu estudo guiado...", false);
+        router.push(restart ? `/guided/${document.id}?restart=1` : `/guided/${document.id}`);
+    };
+
+    const handleStartGuidedStudy = async () => {
+        if (!document) return;
+        if (guidedProgress && !guidedProgress.is_completed && guidedProgress.completed_step_ids.length > 0) {
+            setShowGuidedResumeDialog(true);
+            return;
+        }
+        if (guidedProgress?.is_completed) {
+            try {
+                await apiClient.saveGuidedStudyProgress(document.id, [], false);
+                setGuidedProgress(null);
+                openGuidedStudy(true);
+            } catch {
+                toast.error("Não foi possível reiniciar a trilha agora.");
+            }
+            return;
+        }
+        openGuidedStudy(false);
+    };
+
+    const handleRestartGuidedStudy = async () => {
+        if (!document) return;
+        try {
+            await apiClient.saveGuidedStudyProgress(document.id, [], false);
+            setGuidedProgress(null);
+            setShowGuidedResumeDialog(false);
+            openGuidedStudy(true);
+        } catch {
+            toast.error("Não foi possível reiniciar a trilha agora.");
+        }
+    };
+
+    const handleRestructureGuided = async () => {
+        if (!document) return;
+        setIsRestructuring(true);
+        try {
+            await apiClient.resetGuidedStudy(document.id);
+            setGuidedProgress(null);
+            toast.success("Trilha reestruturada. A próxima abertura gerará uma nova estrutura com IA.");
+        } catch {
+            toast.error("Não foi possível reestruturar a trilha.");
+        } finally {
+            setIsRestructuring(false);
+        }
+    };
     
     if (isLoading) {
         return (
@@ -320,6 +396,25 @@ export default function DeckDashboardPage() {
 
     return (
         <div className="w-full min-h-screen bg-background">
+            <AlertDialog open={showGuidedResumeDialog} onOpenChange={setShowGuidedResumeDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Continuar estudo guiado?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Você tem uma trilha em andamento e pode retomar do passo {guidedProgress?.completed_step_ids.length ?? 0} de {guidedProgress?.total_steps ?? 0}, ou começar tudo do início.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Fechar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => openGuidedStudy(false)}>
+                            Retomar
+                        </AlertDialogAction>
+                        <AlertDialogAction onClick={handleRestartGuidedStudy}>
+                            Começar do início
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8">
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
                     <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-2 hover:bg-primary/10">
@@ -580,6 +675,70 @@ export default function DeckDashboardPage() {
                                 </div>
                             )}
                         </ActionCard>
+
+                        <ActionCard
+                            icon={Sparkles}
+                            iconBgColor="guided"
+                            title="Estudo guiado"
+                            description="Siga uma trilha mista com explicações rápidas e perguntas de validação por blocos do assunto."
+                            delay={0.3}
+                            isLocked={!hasFlashcards || !hasQuiz}
+                        >
+                            {hasFlashcards && hasQuiz ? (
+                                <div className="space-y-4">
+                                    {guidedProgress && !guidedProgress.is_completed && guidedProgress.completed_step_ids.length > 0 ? (
+                                        <div className="rounded-xl border border-slate-300/40 bg-slate-500/[0.06] p-3">
+                                            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                                Você tem uma trilha em andamento. Ao iniciar, o Flashify pergunta se deseja retomar ou reiniciar.
+                                            </p>
+                                        </div>
+                                    ) : guidedProgress?.is_completed ? (
+                                        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                                            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                                Trilha concluída! Você pode refazê-la para revisar o conteúdo.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-xl border border-slate-300/40 bg-slate-500/[0.06] p-3">
+                                            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                                O Flashify intercala flashcards e quizzes em uma ordem guiada para conduzir o estudo do básico ao mais avançado.
+                                            </p>
+                                        </div>
+                                    )}
+                                    <Button
+                                        className="w-full h-12 text-base shadow-md transition-all group"
+                                        size="lg"
+                                        onClick={handleStartGuidedStudy}
+                                    >
+                                        <PlayCircle className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                                        {guidedProgress?.is_completed ? "Refazer" : "Iniciar"}
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full text-xs text-muted-foreground hover:text-foreground"
+                                        onClick={handleRestructureGuided}
+                                        disabled={isRestructuring}
+                                    >
+                                        {isRestructuring
+                                            ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                                            : <RotateCcw className="mr-1.5 h-3 w-3" />}
+                                        Reestruturar trilha com IA
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4 text-center pt-4">
+                                    <div className="flex justify-center">
+                                        <div className="p-3 bg-muted rounded-full">
+                                            <Lock className="w-6 h-6 text-muted-foreground" />
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                        Gere flashcards e quiz para liberar o estudo guiado.
+                                    </p>
+                                </div>
+                            )}
+                        </ActionCard>
                     </div>
 
                     <div className={cn("lg:col-span-2 space-y-6", showSrsOverview && "lg:-mt-24 lg:space-y-2")}>
@@ -633,6 +792,30 @@ export default function DeckDashboardPage() {
                                             </p>
                                         )}
                                     </div>
+
+                                    {hasFlashcards && hasQuiz && guidedProgress && (
+                                        <div className="space-y-3">
+                                            <h4 className="font-semibold">Estudo Guiado</h4>
+                                            <div className="text-sm space-y-1">
+                                                <div className="flex justify-between">
+                                                    <span>Progresso</span>
+                                                    <span>{guidedProgress.completed_step_ids.length}/{guidedProgress.total_steps} passos</span>
+                                                </div>
+                                                <Progress
+                                                    value={guidedProgress.total_steps > 0
+                                                        ? (guidedProgress.completed_step_ids.length / guidedProgress.total_steps) * 100
+                                                        : 0}
+                                                    className="h-2 mt-2 bg-[#FACC15]/20"
+                                                    indicatorClassName="bg-[#FACC15]"
+                                                />
+                                                <p className="text-xs text-muted-foreground text-right">
+                                                    {guidedProgress.is_completed
+                                                        ? "Trilha concluída"
+                                                        : `${Math.round((guidedProgress.completed_step_ids.length / guidedProgress.total_steps) * 100)}% concluído`}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="my-5 h-px w-full bg-neutral-200 dark:bg-white/10" />
                                     <div>
