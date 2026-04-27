@@ -15,6 +15,8 @@ import Confetti from "react-confetti";
 import { useLoading } from "@/components/providers/loading-provider"; 
 import { QuizPerformanceReport } from "@/components/quiz/quiz-performance-report"; 
 import { QuestionStage } from "@/components/quiz/question-stage";
+import { ResumeStudyDialog } from "@/components/study/resume-study-dialog";
+import { quizProgressManager, QuizProgress } from "@/lib/quiz-progress";
 
 type AnswerStatus = 'unanswered' | 'correct' | 'incorrect';
 type AnswerFeedback = CheckAnswerResponse;
@@ -45,6 +47,10 @@ export default function QuizPage() {
     const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
     const [showResults, setShowResults] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
+    const [showResumePrompt, setShowResumePrompt] = useState(false);
+    const [savedProgress, setSavedProgress] = useState<QuizProgress | null>(null);
+
+    const canResumeQuiz = !group && mode !== 'review';
 
     useEffect(() => {
         if (!documentId) return;
@@ -102,6 +108,14 @@ export default function QuizPage() {
                      } else {
                         setDocument(doc);
                         setQuestions([...doc.quiz.questions]);
+
+                        if (canResumeQuiz) {
+                            const progress = quizProgressManager.get(documentId);
+                            if (progress && progress.currentQuestionIndex > 0) {
+                                setSavedProgress(progress);
+                                setShowResumePrompt(true);
+                            }
+                        }
                     }
                 }
             } catch (err) {
@@ -113,7 +127,20 @@ export default function QuizPage() {
         };
         fetchQuiz();
         
-    }, [documentId]); 
+    }, [documentId, canResumeQuiz, group, mode]); 
+
+    useEffect(() => {
+        if (!canResumeQuiz || questions.length === 0 || showResults) return;
+        if (currentQuestionIndex <= 0) return;
+
+        quizProgressManager.save(documentId, {
+            currentQuestionIndex,
+            totalQuestions: questions.length,
+            correctAnswersCount,
+            questionResults,
+            lastUpdatedAt: new Date().toISOString(),
+        });
+    }, [canResumeQuiz, correctAnswersCount, currentQuestionIndex, documentId, questionResults, questions.length, showResults]);
 
     const currentQuestion = useMemo(() => questions[currentQuestionIndex], [questions, currentQuestionIndex]);
     const progressPercentage = useMemo(() => {
@@ -151,6 +178,28 @@ export default function QuizPage() {
             setIsChecking(false);
         }
     };
+
+    const handleResumeQuiz = () => {
+        if (!savedProgress) return;
+        setCurrentQuestionIndex(savedProgress.currentQuestionIndex);
+        setCorrectAnswersCount(savedProgress.correctAnswersCount);
+        setQuestionResults(savedProgress.questionResults);
+        setShowResumePrompt(false);
+        toast.success(`Retomando da pergunta ${savedProgress.currentQuestionIndex + 1} de ${savedProgress.totalQuestions}`);
+    };
+
+    const handleRestartQuiz = () => {
+        quizProgressManager.clear(documentId);
+        setSavedProgress(null);
+        setCurrentQuestionIndex(0);
+        setSelectedAnswerId(null);
+        setAnswerStatus('unanswered');
+        setFeedback(null);
+        setCorrectAnswersCount(0);
+        setQuestionResults({});
+        setShowResumePrompt(false);
+        toast.info("Iniciando do começo");
+    };
     
     const handleNextQuestion = async () => {
         if (currentQuestionIndex < questions.length - 1) {
@@ -176,6 +225,10 @@ export default function QuizPage() {
                     toast.error("Não foi possível salvar o seu resultado.");
                 }
             }
+
+            if (canResumeQuiz) {
+                quizProgressManager.clear(documentId);
+            }
             
             setShowResults(true);
             if (finalScore > 70) {
@@ -197,6 +250,21 @@ export default function QuizPage() {
 
     if (isLoading || !document) {
         return null;
+    }
+
+    if (showResumePrompt && savedProgress) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-background p-4">
+                <ResumeStudyDialog
+                    open={showResumePrompt}
+                    onOpenChange={setShowResumePrompt}
+                    title="Continuar quiz?"
+                    progressLabel={`Você parou na pergunta ${savedProgress.currentQuestionIndex + 1} de ${savedProgress.totalQuestions}`}
+                    onContinue={handleResumeQuiz}
+                    onRestart={handleRestartQuiz}
+                />
+            </div>
+        );
     }
 
     if (showResults) {
@@ -242,9 +310,9 @@ export default function QuizPage() {
                                 {document.quiz?.title}
                             </h1>
                         </div>
-                        <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full">
-                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                            <span className="text-sm font-medium text-primary">
+                    <div className="flex items-center gap-2 rounded-full bg-[#48cfea]/15 px-3 py-1.5 text-[#0f766e] dark:bg-[#48cfea]/12 dark:text-[#48cfea]">
+                            <div className="w-2 h-2 rounded-full bg-[#48cfea] animate-pulse" />
+                            <span className="text-sm font-medium">
                                 {currentQuestionIndex + 1}/{questions.length}
                             </span>
                         </div>
@@ -252,7 +320,7 @@ export default function QuizPage() {
                 </header>
                 
                 <div className="mb-6 animate-in fade-in-50 slide-in-from-top-4 duration-500 delay-100">
-                    <Progress value={progressPercentage} className="h-2" />
+                    <Progress value={progressPercentage} className="h-2 bg-[#48cfea]/20" indicatorClassName="bg-[#48cfea]" />
                     <div className="flex justify-between items-center mt-2 text-xs sm:text-sm text-muted-foreground">
                         <span>Pergunta {currentQuestionIndex + 1}</span>
                         <span>{Math.round(progressPercentage)}% concluído</span>
@@ -270,6 +338,18 @@ export default function QuizPage() {
                     onNext={handleNextQuestion}
                     nextLabel={currentQuestionIndex === questions.length - 1 ? "Ver Resultados" : "Próxima"}
                     hideNextArrow={currentQuestionIndex === questions.length - 1}
+                    theme={{
+                        badge: "bg-[#48cfea]/15",
+                        badgeText: "text-[#0f766e] dark:text-[#48cfea]",
+                        hoverBorder: "hover:border-[#48cfea]/80",
+                        hoverBg: "hover:bg-[#48cfea]/5",
+                        selectedBorder: "border-[#48cfea]",
+                        selectedBg: "bg-[#48cfea]/5",
+                        selectedBadge: "bg-[#48cfea]",
+                        selectedBadgeText: "text-black",
+                        primaryButton: "bg-[#48cfea] hover:bg-[#48cfea]/90 text-black",
+                        radioItem: "border-[#48cfea]/45 text-[#48cfea] data-[state=checked]:border-[#48cfea] [&_[data-slot=radio-group-indicator]_svg]:fill-[#48cfea]",
+                    }}
                 />
             </div>
         </div>

@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react";
 import { Document, Flashcard, apiClient } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ArrowLeft, ArrowRight, RotateCcw, Smile, Frown, Meh, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCcw, Smile, Frown, Meh } from "lucide-react";
 import { FlashcardChat } from "./flashcard-chat";
 import { PerformanceReportResponsive } from "./performance-report";
 import { EditFlashcardModal } from "./edit-flashcard-modal";
 import { SrsOnboardingModal } from "./srs-onboarding-modal";
 import { FlashcardStage } from "./flashcard-stage";
+import { ResumeStudyDialog } from "./resume-study-dialog";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { 
@@ -85,7 +85,12 @@ export function FlashcardStudyFinal({
 
   const handleResumeFromSaved = () => {
     if (savedProgress) {
-      setCurrentCardIndex(savedProgress.currentCardIndex);
+      const safeIndex = Math.min(
+        Math.max(savedProgress.currentCardIndex, 0),
+        Math.max(flashcards.length - 1, 0)
+      );
+
+      setCurrentCardIndex(safeIndex);
       if (savedProgress.sessionData) {
         const restoredSessions: StudySession[] = savedProgress.sessionData.map(data => ({
           flashcardId: data.flashcardId,
@@ -94,7 +99,7 @@ export function FlashcardStudyFinal({
         }));
         setStudySessions(restoredSessions);
       }
-      toast.success(`Retomando do card ${savedProgress.currentCardIndex + 1} de ${savedProgress.totalCards}`);
+      toast.success(`Retomando do card ${safeIndex + 1} de ${flashcards.length}`);
     }
     setShowResumePrompt(false);
   };
@@ -214,49 +219,6 @@ export function FlashcardStudyFinal({
     );
   }
 
-  if (showResumePrompt && savedProgress) {
-    return (
-      <div className="flex flex-col h-full items-center justify-center w-full max-w-md mx-auto p-6">
-        <Card className="p-6 w-full text-center glow-on-hover">
-          <div className="mb-6">
-            <div className="bg-primary p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-              <Play className="w-8 h-8 text-primary-foreground" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">
-              Continuar estudando?
-            </h2>
-            <p className="text-muted-foreground mb-4">
-              Você parou no card {savedProgress.currentCardIndex + 1} de {savedProgress.totalCards}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Última sessão: {StudyProgressUtils.formatTimeSinceLastStudy(savedProgress)}
-            </p>
-          </div>
-          
-          <div className="space-y-3">
-            <Button
-              onClick={handleResumeFromSaved}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-              size="lg"
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Continuar de onde parei
-            </Button>
-            
-            <Button
-              onClick={handleStartFromBeginning}
-              variant="outline"
-              className="w-full"
-              size="lg"
-            >
-              Começar do início
-            </Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   if (showReport) {
     return (
       <PerformanceReportResponsive
@@ -273,7 +235,37 @@ export function FlashcardStudyFinal({
     );
   }
 
+  if (showResumePrompt && savedProgress) {
+    return (
+      <div className="flex min-h-full items-center justify-center">
+        <ResumeStudyDialog
+          open={showResumePrompt}
+          onOpenChange={setShowResumePrompt}
+          progressLabel={`Você parou no card ${savedProgress.currentCardIndex + 1} de ${savedProgress.totalCards}`}
+          secondaryLabel={`Última sessão: ${StudyProgressUtils.formatTimeSinceLastStudy(savedProgress)}`}
+          onContinue={handleResumeFromSaved}
+          onRestart={handleStartFromBeginning}
+        />
+      </div>
+    );
+  }
+
   const currentFlashcard = flashcards[currentCardIndex];
+
+  if (!currentFlashcard) {
+    return (
+      <div className="text-center">
+        <p className="text-muted-foreground">Não foi possível restaurar esta sessão de estudo.</p>
+        <Button
+          onClick={handleStartFromBeginning}
+          variant="outline"
+          className="mt-4"
+        >
+          Reiniciar sessão
+        </Button>
+      </div>
+    );
+  }
 
   if (isChatOpen) {
     return <FlashcardChat flashcard={currentFlashcard} onClose={() => setIsChatOpen(false)} />;
