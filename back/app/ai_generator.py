@@ -576,3 +576,122 @@ Foque em {difficulty_instruction}."""
     except Exception as e:
         print(f"🚨 Erro ao gerar quiz: {type(e).__name__} - {e}")
         return None
+
+
+def generate_guided_study_topics(
+    text: str,
+    flashcards: List[Dict[str, Any]],
+    questions: List[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """
+    Organiza flashcards e perguntas já existentes em tópicos pedagógicos
+    para o modo de estudo guiado.
+    """
+    if not flashcards or not questions:
+        print("Flashcards ou perguntas ausentes. Pulando estruturação guiada com IA.")
+        return None
+
+    generation_config = {
+        "temperature": 0.4,
+        "top_p": 1,
+        "top_k": 1,
+        "max_output_tokens": 8192,
+    }
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    ]
+    model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash-lite",
+        generation_config=generation_config,
+        safety_settings=safety_settings,
+    )
+
+    context_snippet = (text or "").strip()[:12000]
+    flashcards_payload = [
+        {
+            "id": item["id"],
+            "front": item["front"],
+            "back": item["back"],
+        }
+        for item in flashcards[:24]
+    ]
+    questions_payload = [
+        {
+            "id": item["id"],
+            "text": item["text"],
+        }
+        for item in questions[:24]
+    ]
+
+    prompt_parts = [
+        "Você é um especialista em design instrucional universitário.",
+        "Sua tarefa é organizar um deck de estudo guiado usando APENAS os flashcards e perguntas já existentes.",
+        "",
+        "OBJETIVO:",
+        "- Criar uma progressão lógica do básico ao mais complexo.",
+        "- Agrupar conteúdo relacionado em blocos temáticos coesos.",
+        "- Dentro de cada bloco: flashcards introduzem o conceito, perguntas validam o aprendizado.",
+        "",
+        "REGRAS DE CONTEÚDO (obrigatórias):",
+        "- NÃO invente flashcards nem perguntas — use somente os IDs fornecidos.",
+        "- Cada ID deve aparecer exatamente uma vez em todo o JSON.",
+        "- Todo tópico deve ter ao menos 1 flashcard_id E ao menos 1 question_id.",
+        "- Se não houver perguntas suficientes, prefira menos tópicos mais completos.",
+        "",
+        "REGRAS DE EQUILÍBRIO PEDAGÓGICO (obrigatórias):",
+        "- Cada tópico deve ter entre 2 e 5 flashcard_ids.",
+        "- Cada tópico deve ter entre 1 e 3 question_ids.",
+        "- Prefira 2-4 tópicos no total; use no máximo 6.",
+        "- Distribua flashcards e perguntas de forma proporcional entre os tópicos.",
+        "- Evite tópicos com muitos flashcards e poucos (ou nenhum) validação.",
+        "",
+        "REGRAS PARA OS TÍTULOS (obrigatórias):",
+        "- O título deve nomear o conceito ou área de conhecimento do bloco.",
+        "- Use entre 2 e 4 palavras.",
+        "- NÃO use frases completas, perguntas, artigos ('o', 'a', 'os') no início nem 'Tópico X'.",
+        "- Correto: 'Termodinâmica básica', 'Estruturas celulares', 'Contratos e obrigações'.",
+        "- Errado: 'O que é termodinâmica?', 'Conceitos do capítulo', 'Tópico sobre saúde'.",
+        "",
+        "FORMATO DE SAÍDA:",
+        "Responda APENAS com JSON puro, sem markdown nem comentários.",
+        'Estrutura: {"topics":[{"title":"...", "flashcard_ids":[...], "question_ids":[...]}]}',
+        "",
+        "CONTEXTO DO MATERIAL:",
+        context_snippet or "Sem texto extraído. Baseie-se somente nos flashcards e perguntas.",
+        "",
+        "FLASHCARDS DISPONÍVEIS:",
+        json.dumps(flashcards_payload, ensure_ascii=False),
+        "",
+        "PERGUNTAS DISPONÍVEIS:",
+        json.dumps(questions_payload, ensure_ascii=False),
+        "",
+        "EXEMPLO VÁLIDO (siga este padrão de equilíbrio):",
+        """{"topics":[
+  {"title":"Fundamentos do tema", "flashcard_ids":[1,2,3], "question_ids":[10,11]},
+  {"title":"Aplicações práticas", "flashcard_ids":[4,5], "question_ids":[12]},
+  {"title":"Casos e relações", "flashcard_ids":[6,7,8], "question_ids":[13,14]}
+]}""",
+    ]
+
+    try:
+        print("Enviando conteúdo para o Gemini estruturar o estudo guiado.")
+        start = time.time()
+        response = model.generate_content(
+            prompt_parts,
+            request_options={"timeout": 90.0},
+        )
+        elapsed = time.time() - start
+        print(f"⏱️ Tempo de resposta Gemini (Estudo guiado): {elapsed:.2f}s")
+        cleaned_response_text = response.text.strip().replace("```json", "").replace("```", "")
+        data = json.loads(cleaned_response_text)
+        if "topics" in data and isinstance(data["topics"], list):
+            print("✅ Estrutura guiada gerada com sucesso pelo Gemini.")
+            return data
+        print("❌ Erro: resposta da IA não continha a estrutura esperada ('topics').")
+        return None
+    except Exception as e:
+        print(f"🚨 Erro ao estruturar estudo guiado: {type(e).__name__} - {e}")
+        return None
