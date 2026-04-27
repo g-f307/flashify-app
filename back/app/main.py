@@ -4,7 +4,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
-from .database import engine 
+from sqlalchemy import text
+from .database import engine
 from .routers import auth
 from .routers import folders
 from .routers import documents
@@ -18,6 +19,13 @@ from . import models
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+
+def run_column_migrations():
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE document ADD COLUMN IF NOT EXISTS guided_study_cache JSON"
+        ))
+        conn.commit()
 
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:4000")
 
@@ -53,6 +61,7 @@ app.include_router(stats.router)
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    run_column_migrations()
 
 @app.get("/")
 def read_root():

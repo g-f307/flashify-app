@@ -88,7 +88,7 @@ class Document(SQLModel, table=True):
     processing_progress: int = Field(default=0)
     current_step: Optional[str] = Field(default=None)
     can_cancel: bool = Field(default=True)
-    
+
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),        # <- CORREÇÃO: usar DateTime, não datetime
@@ -107,6 +107,11 @@ class Document(SQLModel, table=True):
             ARRAY(Integer), server_default="{}", nullable=False
         ),
         default_factory=list
+    )
+
+    guided_study_cache: Optional[dict] = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True)
     )
 
     user_id: int = Field(foreign_key="user.id")
@@ -218,3 +223,25 @@ class QuizAttempt(SQLModel, table=True):
 
     user_id: int = Field(foreign_key="user.id")
     user: "User" = Relationship(back_populates="quiz_attempts")
+
+
+class GuidedStudySession(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    document_id: int = Field(foreign_key="document.id", index=True)
+    completed_step_ids: list[str] = Field(
+        sa_column=Column(JSON, nullable=False, server_default="[]"),
+        default_factory=list
+    )
+    started_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    last_accessed_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    completed_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )

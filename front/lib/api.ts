@@ -183,6 +183,51 @@ export interface CheckAnswerResponse {
   explanation: string;
 }
 
+export interface GuidedStudyStep {
+  id: string;
+  type: "flashcard" | "question";
+  order: number;
+  flashcard_id?: number | null;
+  question_id?: number | null;
+  front?: string | null;
+  back?: string | null;
+  prompt?: string | null;
+  answers: Answer[];
+}
+
+export interface GuidedStudyTopic {
+  id: string;
+  title: string;
+  order: number;
+  steps: GuidedStudyStep[];
+}
+
+export interface GuidedStudySummary {
+  topics_count: number;
+  steps_count: number;
+  flashcards_count: number;
+  questions_count: number;
+  is_fallback: boolean;
+}
+
+export interface GuidedStudy {
+  document_id: number;
+  title: string;
+  mode: "guided";
+  topics: GuidedStudyTopic[];
+  summary: GuidedStudySummary;
+}
+
+export interface GuidedStudyProgress {
+  document_id: number;
+  completed_step_ids: string[];
+  total_steps: number;
+  started_at: string;
+  last_accessed_at: string;
+  completed_at: string | null;
+  is_completed: boolean;
+}
+
 export interface FlashcardStats {
   known: number;
   learning: number;
@@ -446,6 +491,35 @@ class ApiClient {
   
   async getDocumentFlashcards(documentId: number): Promise<Flashcard[]> {
     return this.request<Flashcard[]>(`/documents/${documentId}/flashcards`);
+  }
+
+  async getGuidedStudy(documentId: number): Promise<GuidedStudy> {
+    return this.request<GuidedStudy>(`/documents/${documentId}/guided-study`);
+  }
+
+  async getGuidedStudyProgress(documentId: number): Promise<GuidedStudyProgress | null> {
+    try {
+      return await this.request<GuidedStudyProgress>(`/documents/${documentId}/guided-study/progress`);
+    } catch {
+      return null;
+    }
+  }
+
+  async saveGuidedStudyProgress(
+    documentId: number,
+    completedStepIds: string[],
+    isCompleted: boolean
+  ): Promise<GuidedStudyProgress> {
+    return this.request<GuidedStudyProgress>(`/documents/${documentId}/guided-study/progress`, {
+      method: "POST",
+      body: JSON.stringify({ completed_step_ids: completedStepIds, is_completed: isCompleted }),
+    });
+  }
+
+  async resetGuidedStudy(documentId: number): Promise<void> {
+    await this.request<{ message: string }>(`/documents/${documentId}/guided-study/restructure`, {
+      method: "POST",
+    });
   }
 
   async cancelDocumentProcessing(documentId: number): Promise<{ message: string }> {
