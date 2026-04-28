@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -653,6 +653,49 @@ const StreakCalendarCard = ({
   );
 };
 
+const calculateContinueProgress = (
+  document: Document,
+  detail: Document | null,
+  stats: DeckStats | null,
+) => {
+  const progressParts: number[] = [];
+
+  if (document.total_flashcards > 0) {
+    const studiedFlashcards = stats?.flashcards.known ?? document.studied_flashcards ?? 0;
+    const flashcardsPending = Math.min(document.flashcards_pending ?? 0, studiedFlashcards);
+    const flashcardsProgress = document.srs_enabled
+      ? Math.max(0, ((studiedFlashcards - flashcardsPending) / document.total_flashcards) * 100)
+      : stats?.flashcards.progress_percentage ??
+        Math.min(100, (studiedFlashcards / document.total_flashcards) * 100);
+
+    progressParts.push(Math.min(100, flashcardsProgress));
+  }
+
+  if (document.has_quiz) {
+    const totalQuestions = detail?.quiz?.questions?.length ?? 0;
+    const totalAttempts = stats?.quiz?.total_attempts ?? 0;
+    let quizProgress = 0;
+
+    if (document.srs_enabled) {
+      if (totalAttempts > 0) {
+        if (totalQuestions > 0) {
+          const questionsPending = Math.min(document.questions_pending ?? 0, totalQuestions);
+          quizProgress = ((totalQuestions - questionsPending) / totalQuestions) * 100;
+        } else {
+          quizProgress = (document.questions_pending ?? 0) === 0 ? 100 : 0;
+        }
+      }
+    } else {
+      quizProgress = totalAttempts > 0 ? 100 : 0;
+    }
+
+    progressParts.push(Math.min(100, quizProgress));
+  }
+
+  if (progressParts.length === 0) return null;
+  return Math.round(progressParts.reduce((sum, value) => sum + value, 0) / progressParts.length);
+};
+
 export default function HomePage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -661,8 +704,10 @@ export default function HomePage() {
   const [recentVisibleCards, setRecentVisibleCards] = useState(3);
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
   const [dailySummary, setDailySummary] = useState<DashboardSummary | null>(null);
+  const [continueDocument, setContinueDocument] = useState<Document | null>(null);
   const [continueDetail, setContinueDetail] = useState<Document | null>(null);
   const [continueStats, setContinueStats] = useState<DeckStats | null>(null);
+  const [continueProgressPercentage, setContinueProgressPercentage] = useState<number | null>(null);
   const [streakCalendar, setStreakCalendar] = useState<StreakCalendarSummary | null>(null);
   const [streakWeek, setStreakWeek] = useState<StreakCalendarRangeSummary | null>(null);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
@@ -768,10 +813,22 @@ export default function HomePage() {
     (sum, d) => sum + (d.flashcards_pending || 0) + (d.questions_pending || 0), 0
   );
   const hasDecks = allDocuments.length > 0;
-  const continueDocument =
-    allDocuments.find((doc) => doc.id === dailySummary?.last_active_document_id) ||
-    recentDocuments[0] ||
-    null;
+  const prioritizedContinueCandidates = useMemo(() => {
+    const candidates: Document[] = [];
+    const seen = new Set<number>();
+
+    const pushUnique = (doc: Document | null | undefined) => {
+      if (!doc || seen.has(doc.id)) return;
+      seen.add(doc.id);
+      candidates.push(doc);
+    };
+
+    pushUnique(allDocuments.find((doc) => doc.id === dailySummary?.last_active_document_id));
+    recentDocuments.forEach((doc) => pushUnique(doc));
+
+    return candidates;
+  }, [allDocuments, recentDocuments, dailySummary?.last_active_document_id]);
+
   const recentCarouselItems = [...recentDocuments, null];
   const visibleRecentCarouselItems = recentCarouselItems.slice(
     recentCarouselIndex,
@@ -785,70 +842,85 @@ export default function HomePage() {
   }, [maxRecentCarouselIndex]);
 
   useEffect(() => {
-    const loadContinueDeckContext = async () => {
-      if (!continueDocument) {
-        setContinueDetail(null);
-        setContinueStats(null);
+    let cancelled = false;
+
+    const resolveContinueDeckContext = async () => {
+      if (prioritizedContinueCandidates.length === 0) {
+        if (!cancelled) {
+          setContinueDocument(null);
+          setContinueDetail(null);
+          setContinueStats(null);
+          setContinueProgressPercentage(null);
+        }
         return;
       }
 
-      try {
-        const [detailData, statsData] = await Promise.all([
-          apiClient.getDocument(continueDocument.id),
-          apiClient.getDocumentStats(continueDocument.id),
-        ]);
-        setContinueDetail(detailData);
-        setContinueStats(statsData);
-      } catch {
+      let fallback: {
+        document: Document;
+        detail: Document;
+        stats: DeckStats;
+        progress: number;
+      } | null = null;
+
+      for (const candidate of prioritizedContinueCandidates) {
+        try {
+          const [detailData, statsData] = await Promise.all([
+            apiClient.getDocument(candidate.id),
+            apiClient.getDocumentStats(candidate.id),
+          ]);
+          const progress = calculateContinueProgress(candidate, detailData, statsData);
+
+          if (progress === null) {
+            continue;
+          }
+
+          if (!fallback) {
+            fallback = {
+              document: candidate,
+              detail: detailData,
+              stats: statsData,
+              progress,
+            };
+          }
+
+          if (progress < 100) {
+            if (!cancelled) {
+              setContinueDocument(candidate);
+              setContinueDetail(detailData);
+              setContinueStats(statsData);
+              setContinueProgressPercentage(progress);
+            }
+            return;
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      if (!cancelled && fallback) {
+        setContinueDocument(fallback.document);
+        setContinueDetail(fallback.detail);
+        setContinueStats(fallback.stats);
+        setContinueProgressPercentage(fallback.progress);
+        return;
+      }
+
+      if (!cancelled) {
+        setContinueDocument(null);
         setContinueDetail(null);
         setContinueStats(null);
+        setContinueProgressPercentage(null);
       }
     };
 
-    loadContinueDeckContext();
-  }, [continueDocument?.id]);
+    resolveContinueDeckContext();
 
-  const continueProgressPercentage = (() => {
-    if (!continueDocument) return null;
+    return () => {
+      cancelled = true;
+    };
+  }, [prioritizedContinueCandidates]);
 
-    const progressParts: number[] = [];
-
-    if (continueDocument.total_flashcards > 0) {
-      const studiedFlashcards = continueStats?.flashcards.known ?? continueDocument.studied_flashcards ?? 0;
-      const flashcardsPending = Math.min(continueDocument.flashcards_pending ?? 0, studiedFlashcards);
-      const flashcardsProgress = continueDocument.srs_enabled
-        ? Math.max(0, ((studiedFlashcards - flashcardsPending) / continueDocument.total_flashcards) * 100)
-        : continueStats?.flashcards.progress_percentage ??
-          Math.min(100, (studiedFlashcards / continueDocument.total_flashcards) * 100);
-
-      progressParts.push(Math.min(100, flashcardsProgress));
-    }
-
-    if (continueDocument.has_quiz) {
-      const totalQuestions = continueDetail?.quiz?.questions?.length ?? 0;
-      const totalAttempts = continueStats?.quiz?.total_attempts ?? 0;
-      let quizProgress = 0;
-
-      if (continueDocument.srs_enabled) {
-        if (totalAttempts > 0) {
-          if (totalQuestions > 0) {
-            const questionsPending = Math.min(continueDocument.questions_pending ?? 0, totalQuestions);
-            quizProgress = ((totalQuestions - questionsPending) / totalQuestions) * 100;
-          } else {
-            quizProgress = (continueDocument.questions_pending ?? 0) === 0 ? 100 : 0;
-          }
-        }
-      } else {
-        quizProgress = totalAttempts > 0 ? 100 : 0;
-      }
-
-      progressParts.push(Math.min(100, quizProgress));
-    }
-
-    if (progressParts.length === 0) return null;
-    return Math.round(progressParts.reduce((sum, value) => sum + value, 0) / progressParts.length);
-  })();
-  const showContinueCard = !!continueDocument && continueProgressPercentage !== null && continueProgressPercentage < 100;
+  const showContinueCard = !!continueDocument && continueProgressPercentage !== null;
   const canGoToNextMonth = (() => {
     const now = new Date();
     return visibleYear < now.getFullYear() || (visibleYear === now.getFullYear() && visibleMonth < now.getMonth() + 1);
