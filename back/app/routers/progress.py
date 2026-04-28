@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 import calendar
 from typing import List, Optional
+from sqlalchemy.orm import selectinload
 
 from .. import crud, models, security
 from ..database import get_session
@@ -14,6 +15,54 @@ from ..study_ordering import order_due_for_review
 
 router = APIRouter(prefix="/progress", tags=["Progress"])
 CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
+
+
+def _flashcard_last_accuracy_map(
+    session: Session,
+    document_id: int,
+) -> dict[int, float]:
+    logs = session.exec(
+        select(models.StudyLog)
+        .join(models.Flashcard, models.Flashcard.id == models.StudyLog.flashcard_id)
+        .where(models.Flashcard.document_id == document_id)
+        .order_by(models.StudyLog.flashcard_id.asc(), models.StudyLog.studied_at.desc())
+    ).all()
+
+    last_accuracy_by_flashcard: dict[int, float] = {}
+    for log in logs:
+        if log.flashcard_id not in last_accuracy_by_flashcard:
+            last_accuracy_by_flashcard[log.flashcard_id] = log.accuracy
+
+    return last_accuracy_by_flashcard
+
+
+def _question_last_result_map(
+    session: Session,
+    document_id: int,
+) -> dict[int, bool]:
+    quiz = session.exec(
+        select(models.Quiz)
+        .where(models.Quiz.document_id == document_id)
+        .options(selectinload(models.Quiz.attempts))
+    ).first()
+    if not quiz or not quiz.attempts:
+        return {}
+
+    latest_attempt = max(quiz.attempts, key=lambda attempt: attempt.completed_at)
+    # Fallback conservador: se a versão antiga da tentativa não armazenar granularidade por questão,
+    # mantemos a classificação estrutural atual.
+    question_results = getattr(latest_attempt, "question_results", None)
+    if not isinstance(question_results, dict):
+        return {}
+
+    parsed_results: dict[int, bool] = {}
+    for question_id, is_correct in question_results.items():
+        try:
+            parsed_results[int(question_id)] = bool(is_correct)
+        except (TypeError, ValueError):
+            continue
+
+    return parsed_results
 
 # ▼▼▼ MODELO DE ESTATÍSTICAS ATUALIZADO PARA INCLUIR QUIZZES ▼▼▼
 class ProgressStats(BaseModel):
@@ -391,7 +440,10 @@ def get_srs_stats_for_document(
             return "medium"
         return "low"
 
-    # Buscar flashcards pendentes de REVISÃO (exclui novos com next_review=NULL)
+    flashcard_last_accuracy = _flashcard_last_accuracy_map(session, document_id)
+    question_last_results = _question_last_result_map(session, document_id)
+
+    # Buscar flashcards pendentes de revisão (exclui novos com next_review=NULL)
     fc_stmt = select(models.Flashcard).where(
         models.Flashcard.document_id == document_id,
         models.Flashcard.next_review != None,
@@ -402,7 +454,16 @@ def get_srs_stats_for_document(
 
     high, medium, low = 0, 0, 0
     for fc in fc_pending:
-        bucket = get_priority_bucket(fc.repetitions, fc.interval_days)
+        last_accuracy = flashcard_last_accuracy.get(fc.id)
+        if last_accuracy is not None:
+            if last_accuracy == 0.0:
+                bucket = "high"
+            elif last_accuracy == 0.5:
+                bucket = "medium"
+            else:
+                bucket = "low"
+        else:
+            bucket = get_priority_bucket(fc.repetitions, fc.interval_days)
         if bucket == "high":
             high += 1
         elif bucket == "medium":
@@ -424,7 +485,13 @@ def get_srs_stats_for_document(
     q_count = len(q_pending)
 
     for question in q_pending:
-        bucket = get_priority_bucket(question.repetitions, question.interval_days)
+        last_result = question_last_results.get(question.id)
+        if last_result is False:
+            bucket = "high"
+        elif last_result is True:
+            bucket = "low"
+        else:
+            bucket = get_priority_bucket(question.repetitions, question.interval_days)
         if bucket == "high":
             high += 1
         elif bucket == "medium":
@@ -479,6 +546,7 @@ def get_srs_groups(
     all_fc = session.exec(
         select(models.Flashcard).where(models.Flashcard.document_id == document_id)
     ).all()
+    last_accuracy_by_flashcard = _flashcard_last_accuracy_map(session, document_id)
 
     new_cards = 0
     needs_review = 0
@@ -486,17 +554,19 @@ def get_srs_groups(
     almost_mastered = 0
 
     for fc in all_fc:
-        if fc.next_review is None:
+        last_accuracy = last_accuracy_by_flashcard.get(fc.id)
+
+        if last_accuracy is None and fc.next_review is None:
             # Nunca estudado
             new_cards += 1
-        elif fc.repetitions == 0:
-            # Errou → SM2 resetou repetitions para 0
+        elif last_accuracy == 0.0 or fc.repetitions == 0:
+            # Errou
             needs_review += 1
-        elif fc.interval_days <= 2:
-            # Acertou parcialmente ou está nos primeiros ciclos (intervalo curto)
+        elif last_accuracy == 0.5:
+            # Quase acertou
             learning += 1
         else:
-            # Acertou bem → intervalo longo (3+ dias)
+            # Acertou
             almost_mastered += 1
 
     return {
@@ -523,16 +593,19 @@ def get_srs_group_cards(
     all_fc = session.exec(
         select(models.Flashcard).where(models.Flashcard.document_id == document_id)
     ).all()
+    last_accuracy_by_flashcard = _flashcard_last_accuracy_map(session, document_id)
 
     filtered = []
     for fc in all_fc:
-        if group == "new" and fc.next_review is None:
+        last_accuracy = last_accuracy_by_flashcard.get(fc.id)
+
+        if group == "new" and last_accuracy is None and fc.next_review is None:
             filtered.append(fc)
-        elif group == "needs_review" and fc.next_review is not None and fc.repetitions == 0:
+        elif group == "needs_review" and (last_accuracy == 0.0 or (fc.next_review is not None and fc.repetitions == 0)):
             filtered.append(fc)
-        elif group == "learning" and fc.next_review is not None and fc.repetitions > 0 and fc.interval_days <= 2:
+        elif group == "learning" and last_accuracy == 0.5:
             filtered.append(fc)
-        elif group == "almost_mastered" and fc.next_review is not None and fc.repetitions > 0 and fc.interval_days > 2:
+        elif group == "almost_mastered" and last_accuracy == 1.0:
             filtered.append(fc)
 
     return filtered
@@ -557,17 +630,20 @@ def get_quiz_srs_groups(
         return {"new_questions": 0, "wrong": 0, "correct": 0, "total": 0}
 
     all_questions = quiz.questions
+    last_results_by_question = _question_last_result_map(session, document_id)
 
     new_questions = 0
     wrong = 0
     correct = 0
 
     for q in all_questions:
-        if q.next_review is None:
+        last_result = last_results_by_question.get(q.id)
+
+        if last_result is None and q.next_review is None:
             # Nunca respondida
             new_questions += 1
-        elif q.repetitions == 0:
-            # Respondeu errado (SM2 resetou)
+        elif last_result is False or q.repetitions == 0:
+            # Respondeu errado
             wrong += 1
         else:
             # Respondeu certo
@@ -598,13 +674,16 @@ def get_quiz_srs_group_questions(
     if not quiz:
         return {"id": "grouped", "title": "Grupo Vazio", "document_id": document_id, "questions": []}
 
+    last_results_by_question = _question_last_result_map(session, document_id)
     filtered = []
     for q in quiz.questions:
-        if group == "new" and q.next_review is None:
+        last_result = last_results_by_question.get(q.id)
+
+        if group == "new" and last_result is None and q.next_review is None:
             filtered.append(q)
-        elif group == "wrong" and q.next_review is not None and q.repetitions == 0:
+        elif group == "wrong" and (last_result is False or (q.next_review is not None and q.repetitions == 0)):
             filtered.append(q)
-        elif group == "correct" and q.next_review is not None and q.repetitions > 0:
+        elif group == "correct" and (last_result is True or (last_result is None and q.next_review is not None and q.repetitions > 0)):
             filtered.append(q)
 
     # Ordenar by next_review se não for new (os novos ficam na ordem criada ou random no front)
