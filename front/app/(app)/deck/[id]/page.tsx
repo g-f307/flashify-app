@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { apiClient, Document, DeckStats, GuidedStudyProgress } from "@/lib/api";
 import { 
     Card, 
+    CardAction,
     CardContent, 
     CardDescription, 
     CardHeader, 
@@ -35,6 +36,7 @@ import { Progress } from "@/components/ui/progress";
 import { formatDocumentTitle } from "@/lib/utils";
 import { StatsChart } from "@/components/deck/StatsChart"; 
 import { SrsOverviewPanel } from "@/components/deck/srs-overview-panel";
+import { BulkEditContentDialog } from "@/components/deck/bulk-edit-content-dialog";
 import { cn } from "@/lib/utils";
 import { useLoading } from "@/components/providers/loading-provider";
 import { useGenerationLimit } from "@/contexts/generation-limit-context"; 
@@ -47,7 +49,8 @@ const ActionCard = ({
     description,
     children,
     delay = 0,
-    isLocked = false
+    isLocked = false,
+    action
 }: {
     icon: any;
     iconBgColor: string;
@@ -56,6 +59,7 @@ const ActionCard = ({
     children: React.ReactNode;
     delay?: number;
     isLocked?: boolean;
+    action?: React.ReactNode;
 }) => (
     <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -79,6 +83,7 @@ const ActionCard = ({
             )} />
 
             <CardHeader className={cn("relative pb-4", isLocked && "opacity-50")}>
+                {action ? <CardAction>{action}</CardAction> : null}
                 <div className="flex items-start gap-4">
                     <div className={cn(
                         "relative p-3 rounded-2xl shadow-lg transition-all duration-300",
@@ -428,6 +433,14 @@ export default function DeckDashboardPage() {
                             description="Veja e revise flashcards, otimizando seu aprendizado."
                             delay={0.1}
                             isLocked={!hasFlashcards && !isCreatingFlashcards}
+                            action={hasFlashcards ? (
+                                <BulkEditContentDialog
+                                    documentId={document.id}
+                                    mode="flashcards"
+                                    onSaved={fetchDeckData}
+                                    triggerMode="icon"
+                                />
+                            ) : undefined}
                         >
                             {isCreatingFlashcards ? (
                                 <div className="space-y-3">
@@ -449,7 +462,6 @@ export default function DeckDashboardPage() {
                                             Iniciar
                                         </Link>
                                     </Button>
-                                    
                                     {document.srs_enabled && srsGroups && (
                                         <div className="space-y-2">
                                             <div 
@@ -558,6 +570,14 @@ export default function DeckDashboardPage() {
                             description="Teste os seus conhecimentos com perguntas de múltipla escolha geradas pela IA."
                             delay={0.2}
                             isLocked={!hasQuiz && !isCreatingQuiz}
+                            action={hasQuiz ? (
+                                <BulkEditContentDialog
+                                    documentId={document.id}
+                                    mode="quiz"
+                                    onSaved={fetchDeckData}
+                                    triggerMode="icon"
+                                />
+                            ) : undefined}
                         >
                             {isCreatingQuiz ? (
                                 <div className="space-y-3">
@@ -577,7 +597,6 @@ export default function DeckDashboardPage() {
                                         <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                                         Iniciar
                                     </Button>
-
                                     {document.srs_enabled && quizSrsGroups && (
                                         <div className="space-y-2">
                                             <div 
