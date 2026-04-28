@@ -28,6 +28,24 @@ CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
 UPLOAD_DIRECTORY = Path("uploads")
 UPLOAD_DIRECTORY.mkdir(exist_ok=True)
 
+ALLOWED_UPLOAD_MIME_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "application/octet-stream",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}
+
+ALLOWED_UPLOAD_EXTENSIONS = {
+    ".pdf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".docx",
+    ".pptx",
+}
+
 class AddFlashcardsRequest(BaseModel):
     num_flashcards: int = Field(ge=1, le=20)
     difficulty: str = "Médio"
@@ -55,6 +73,14 @@ def sanitize_filename(name: str) -> str:
     name = name.lower().replace(' ', '_')
     name = re.sub(r'[^a-z0-9_.-]', '', name)
     return name[:100]
+
+
+def _is_allowed_upload(file: UploadFile) -> bool:
+    suffix = Path(file.filename or "").suffix.lower()
+    content_type = (file.content_type or "").lower()
+    if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
+        return False
+    return not content_type or content_type in ALLOWED_UPLOAD_MIME_TYPES
 
 
 def _truncate_topic_title(text: str, fallback: str) -> str:
@@ -388,10 +414,13 @@ def upload_document(
             }
         )
     
-    if not file.content_type in ["image/jpeg", "image/png", "application/pdf"]:
-        raise HTTPException(status_code=400, detail="Tipo de arquivo inválido.")
+    if not _is_allowed_upload(file):
+        raise HTTPException(
+            status_code=400,
+            detail="Tipo de arquivo invalido. Formatos aceitos: PDF, JPG, PNG, DOCX e PPTX."
+        )
 
-    original_suffix = Path(file.filename).suffix
+    original_suffix = Path(file.filename or "").suffix.lower()
     safe_basename = sanitize_filename(title)
     final_filename = f"{current_user.id}_{safe_basename}{original_suffix}"
     

@@ -6,7 +6,7 @@ from sqlmodel import Session, select  # ✅ ADICIONAR select aqui
 from .worker import celery_app
 from .database import engine
 from . import crud, models, schemas
-from .text_extractor import extract_text_from_pdf, extract_text_from_image
+from .text_extractor import extract_text_from_file
 from .ai_generator import generate_flashcards_from_text, generate_quiz_from_text
 from .email_service import email_service
 from datetime import datetime, timedelta, timezone
@@ -55,12 +55,7 @@ def process_document(
                 
                 file_path = Path(db_document.file_path)
                 
-                if file_path.suffix.lower() == ".pdf":
-                    extracted_text = extract_text_from_pdf(str(file_path))
-                elif file_path.suffix.lower() in [".png", ".jpg", ".jpeg"]:
-                    extracted_text = extract_text_from_image(str(file_path))
-                else:
-                    raise ValueError(f"Tipo de ficheiro não suportado: {file_path.suffix}")
+                extracted_text = extract_text_from_file(str(file_path))
 
                 if not extracted_text or not extracted_text.strip():
                     raise ValueError("Nenhum texto pôde ser extraído do ficheiro.")
