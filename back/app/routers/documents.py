@@ -199,17 +199,7 @@ def _build_guided_topics_from_even_distribution(
 
 
 def _clear_guided_study_cache(db_document: models.Document, session: Session) -> None:
-    db_document.guided_study_cache = None
-    session.add(db_document)
-    # Reset stale sessions: old step IDs won't match the new trail structure
-    stmt = select(models.GuidedStudySession).where(
-        models.GuidedStudySession.document_id == db_document.id
-    )
-    for stale in session.exec(stmt).all():
-        stale.completed_step_ids = []
-        stale.completed_at = None
-        session.add(stale)
-    session.commit()
+    crud.reset_guided_study_state(session, db_document)
 
 
 def _guided_study_requires_ai_generation(db_document: models.Document) -> bool:
@@ -613,6 +603,188 @@ def get_document_flashcards(
         raise HTTPException(status_code=404, detail="Documento não encontrado")
 
     return order_for_start(crud.get_flashcards_by_document(session, document_id=document_id))
+
+
+@router.put("/{document_id}/flashcards/bulk", response_model=list[models.Flashcard])
+def bulk_update_document_flashcards(
+    document_id: int,
+    body: schemas.FlashcardBulkUpdateRequest,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    db_document = crud.get_document_with_details(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    existing_flashcards = {flashcard.id: flashcard for flashcard in db_document.flashcards}
+    touched = False
+
+    for item in body.flashcards:
+        front = item.front.strip()
+        back = item.back.strip()
+
+        if item.id is not None:
+            db_flashcard = existing_flashcards.get(item.id)
+            if not db_flashcard:
+                raise HTTPException(status_code=404, detail="Flashcard não encontrado neste deck")
+
+            if item.is_deleted:
+                crud.delete_flashcard_and_related_data(session, db_flashcard)
+                touched = True
+                continue
+
+            if not front or not back:
+                raise HTTPException(status_code=400, detail="Frente e verso do flashcard são obrigatórios")
+
+            if db_flashcard.front != front or db_flashcard.back != back:
+                db_flashcard.front = front
+                db_flashcard.back = back
+                session.add(db_flashcard)
+                touched = True
+            continue
+
+        if item.is_deleted:
+            continue
+
+        if not front or not back:
+            raise HTTPException(status_code=400, detail="Frente e verso do flashcard são obrigatórios")
+
+        session.add(
+            models.Flashcard(
+                front=front,
+                back=back,
+                type=crud.normalize_flashcard_type(item.type),
+                document_id=document_id,
+            )
+        )
+        touched = True
+
+    session.commit()
+
+    if touched:
+        crud.reset_guided_study_state(session, db_document)
+
+    return crud.get_flashcards_by_document(session, document_id=document_id)
+
+
+@router.put("/{document_id}/quiz/bulk", response_model=schemas.Quiz)
+def bulk_update_document_quiz(
+    document_id: int,
+    body: schemas.QuizBulkUpdateRequest,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    db_document = crud.get_document_with_details(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    if not db_document.quiz:
+        raise HTTPException(status_code=400, detail="Este deck ainda não possui quiz.")
+
+    existing_questions = {question.id: question for question in db_document.quiz.questions}
+    touched = False
+
+    for item in body.questions:
+        active_answers = [answer for answer in item.answers if answer.text.strip()]
+        correct_answers = [answer for answer in active_answers if answer.is_correct]
+
+        if not item.is_deleted:
+            if not item.text.strip():
+                raise HTTPException(status_code=400, detail="Toda pergunta precisa de um enunciado.")
+            if len(active_answers) < 2:
+                raise HTTPException(status_code=400, detail="Cada pergunta precisa de ao menos 2 alternativas.")
+            if len(correct_answers) != 1:
+                raise HTTPException(status_code=400, detail="Cada pergunta precisa ter exatamente 1 alternativa correta.")
+
+        if item.id is not None:
+            db_question = existing_questions.get(item.id)
+            if not db_question:
+                raise HTTPException(status_code=404, detail="Pergunta não encontrada neste quiz")
+
+            if item.is_deleted:
+                session.delete(db_question)
+                touched = True
+                continue
+
+            question_text = item.text.strip()
+            if db_question.text != question_text:
+                db_question.text = question_text
+                session.add(db_question)
+                touched = True
+
+            existing_answers = {answer.id: answer for answer in db_question.answers}
+            kept_answer_ids: set[int] = set()
+
+            for answer_item in active_answers:
+                answer_text = answer_item.text.strip()
+                explanation = (answer_item.explanation or "").strip() or None
+
+                if answer_item.id is not None:
+                    db_answer = existing_answers.get(answer_item.id)
+                    if not db_answer:
+                        raise HTTPException(status_code=404, detail="Alternativa não encontrada nesta pergunta")
+
+                    if (
+                        db_answer.text != answer_text
+                        or db_answer.explanation != explanation
+                        or db_answer.is_correct != answer_item.is_correct
+                    ):
+                        db_answer.text = answer_text
+                        db_answer.explanation = explanation
+                        db_answer.is_correct = answer_item.is_correct
+                        session.add(db_answer)
+                        touched = True
+
+                    kept_answer_ids.add(db_answer.id)
+                    continue
+
+                session.add(
+                    models.Answer(
+                        text=answer_text,
+                        explanation=explanation,
+                        is_correct=answer_item.is_correct,
+                        question_id=db_question.id,
+                    )
+                )
+                touched = True
+
+            for answer in db_question.answers:
+                if answer.id not in kept_answer_ids:
+                    session.delete(answer)
+                    touched = True
+
+            continue
+
+        if item.is_deleted:
+            continue
+
+        answers = [
+            models.Answer(
+                text=answer.text.strip(),
+                explanation=(answer.explanation or "").strip() or None,
+                is_correct=answer.is_correct,
+            )
+            for answer in active_answers
+        ]
+        session.add(
+            models.Question(
+                text=item.text.strip(),
+                quiz_id=db_document.quiz.id,
+                answers=answers,
+            )
+        )
+        touched = True
+
+    session.commit()
+
+    if touched:
+        crud.reset_guided_study_state(session, db_document)
+
+    updated_document = crud.get_document_with_details(session, document_id)
+    if not updated_document or not updated_document.quiz:
+        raise HTTPException(status_code=404, detail="Quiz não encontrado após atualização.")
+
+    return updated_document.quiz
 
 
 @router.get("/{document_id}/guided-study", response_model=schemas.GuidedStudyResponse)

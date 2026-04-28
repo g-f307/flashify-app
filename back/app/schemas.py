@@ -131,6 +131,36 @@ class FlashcardUpdate(BaseModel):
     back: Optional[str] = None
 
 
+class FlashcardBulkItem(BaseModel):
+    id: Optional[int] = None
+    front: str = Field(..., min_length=1)
+    back: str = Field(..., min_length=1)
+    type: Optional[str] = None
+    is_deleted: bool = False
+
+
+class FlashcardBulkUpdateRequest(BaseModel):
+    flashcards: List[FlashcardBulkItem]
+
+
+class AnswerBulkInput(BaseModel):
+    id: Optional[int] = None
+    text: str = Field(..., min_length=1)
+    explanation: Optional[str] = None
+    is_correct: bool = False
+
+
+class QuestionBulkItem(BaseModel):
+    id: Optional[int] = None
+    text: str = Field(..., min_length=1)
+    answers: List[AnswerBulkInput] = Field(default_factory=list, min_length=2)
+    is_deleted: bool = False
+
+
+class QuizBulkUpdateRequest(BaseModel):
+    questions: List[QuestionBulkItem]
+
+
 class GuidedStudyStep(BaseModel):
     id: str
     type: str

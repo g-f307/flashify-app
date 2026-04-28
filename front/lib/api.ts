@@ -67,6 +67,14 @@ export interface Flashcard {
   document_id: number;
 }
 
+export interface FlashcardBulkItemInput {
+  id?: number;
+  front: string;
+  back: string;
+  type?: Flashcard["type"];
+  is_deleted?: boolean;
+}
+
 export interface FlashcardConversation {
   id: number;
   user_message: string;
@@ -165,15 +173,30 @@ export interface Answer {
   explanation?: string;
 }
 
+export interface AnswerBulkInput {
+  id?: number;
+  text: string;
+  is_correct: boolean;
+  explanation?: string;
+}
+
 export interface Question {
   id: number;
   text: string;
   answers: Answer[];
 }
 
+export interface QuestionBulkItemInput {
+  id?: number;
+  text: string;
+  answers: AnswerBulkInput[];
+  is_deleted?: boolean;
+}
+
 export interface Quiz {
   id: number;
   title: string;
+  document_id?: number;
   questions: Question[];
 }
 
@@ -491,6 +514,60 @@ class ApiClient {
   
   async getDocumentFlashcards(documentId: number): Promise<Flashcard[]> {
     return this.request<Flashcard[]>(`/documents/${documentId}/flashcards`);
+  }
+
+  async bulkUpdateDocumentFlashcards(
+    documentId: number,
+    flashcards: FlashcardBulkItemInput[]
+  ): Promise<Flashcard[]> {
+    return this.request<Flashcard[]>(`/documents/${documentId}/flashcards/bulk`, {
+      method: "PUT",
+      body: JSON.stringify({ flashcards }),
+    });
+  }
+
+  async bulkUpdateDocumentQuiz(
+    documentId: number,
+    questions: QuestionBulkItemInput[]
+  ): Promise<Quiz> {
+    return this.request<Quiz>(`/documents/${documentId}/quiz/bulk`, {
+      method: "PUT",
+      body: JSON.stringify({ questions }),
+    });
+  }
+
+  async deleteFlashcardFromDocument(
+    documentId: number,
+    flashcard: Flashcard
+  ): Promise<Flashcard[]> {
+    return this.bulkUpdateDocumentFlashcards(documentId, [
+      {
+        id: flashcard.id,
+        front: flashcard.front,
+        back: flashcard.back,
+        type: flashcard.type,
+        is_deleted: true,
+      },
+    ]);
+  }
+
+  async updateQuestionInDocument(
+    documentId: number,
+    question: QuestionBulkItemInput
+  ): Promise<Quiz> {
+    return this.bulkUpdateDocumentQuiz(documentId, [question]);
+  }
+
+  async deleteQuestionFromDocument(
+    documentId: number,
+    question: QuestionBulkItemInput
+  ): Promise<Quiz> {
+    return this.bulkUpdateDocumentQuiz(documentId, [
+      {
+        ...question,
+        is_deleted: true,
+      },
+    ]);
   }
 
   async getGuidedStudy(documentId: number): Promise<GuidedStudy> {
