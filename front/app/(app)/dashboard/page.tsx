@@ -69,7 +69,7 @@ const CarouselSection = ({ onCreateClick }) => {
     {
       icon: FileUp,
       title: "1. Envie o seu Conteúdo",
-      description: "Faça o upload de um PDF, imagem ou simplesmente cole um texto que deseja estudar.",
+      description: "Faça o upload de PDF, Word, PowerPoint, imagem ou simplesmente cole um texto que deseja estudar.",
       color: "text-[#FACC15]"
     },
     {
