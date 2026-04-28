@@ -5,6 +5,16 @@ import { useSearchParams, useParams, useRouter } from "next/navigation";
 import { apiClient, Document, Question, CheckAnswerResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
     AlertTriangle, 
     ArrowLeft, 
@@ -15,6 +25,7 @@ import Confetti from "react-confetti";
 import { useLoading } from "@/components/providers/loading-provider"; 
 import { QuizPerformanceReport } from "@/components/quiz/quiz-performance-report"; 
 import { QuestionStage } from "@/components/quiz/question-stage";
+import { EditQuestionModal } from "@/components/quiz/edit-question-modal";
 import { ResumeStudyDialog } from "@/components/study/resume-study-dialog";
 import { quizProgressManager, QuizProgress } from "@/lib/quiz-progress";
 
@@ -49,6 +60,10 @@ export default function QuizPage() {
     const [showConfetti, setShowConfetti] = useState(false);
     const [showResumePrompt, setShowResumePrompt] = useState(false);
     const [savedProgress, setSavedProgress] = useState<QuizProgress | null>(null);
+    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+    const [isEditQuestionOpen, setIsEditQuestionOpen] = useState(false);
+    const [questionPendingDelete, setQuestionPendingDelete] = useState<Question | null>(null);
+    const [isDeletingQuestion, setIsDeletingQuestion] = useState(false);
 
     const canResumeQuiz = !group && mode !== 'review';
 
@@ -237,6 +252,62 @@ export default function QuizPage() {
         }
     };
 
+    const toQuestionPayload = (question: Question) => ({
+        id: question.id,
+        text: question.text,
+        answers: question.answers.map((answer) => ({
+            id: answer.id,
+            text: answer.text,
+            explanation: answer.explanation,
+            is_correct: answer.is_correct,
+        })),
+    });
+
+    const handleQuestionUpdated = (updatedQuestion: Question) => {
+        setQuestions((current) =>
+            current.map((question) => question.id === updatedQuestion.id ? updatedQuestion : question)
+        );
+    };
+
+    const handleDeleteQuestion = async () => {
+        const target = questionPendingDelete;
+        if (!target) return;
+
+        setIsDeletingQuestion(true);
+        try {
+            await apiClient.deleteQuestionFromDocument(documentId, toQuestionPayload(target));
+            const remainingQuestions = questions.filter((question) => question.id !== target.id);
+            const wasCorrect = questionResults[target.id] === true;
+            setQuestions(remainingQuestions);
+            setQuestionResults((current) => {
+                const next = { ...current };
+                delete next[target.id];
+                return next;
+            });
+            if (wasCorrect) {
+                setCorrectAnswersCount((current) => Math.max(0, current - 1));
+            }
+
+            if (remainingQuestions.length === 0) {
+                toast.success("Pergunta excluída. Não restaram questões neste quiz.");
+                setQuestionPendingDelete(null);
+                router.back();
+                return;
+            }
+
+            setCurrentQuestionIndex((current) => Math.min(current, remainingQuestions.length - 1));
+            setSelectedAnswerId(null);
+            setAnswerStatus('unanswered');
+            setFeedback(null);
+            setQuestionPendingDelete(null);
+            toast.success("Pergunta excluída com sucesso!");
+        } catch (error: any) {
+            toast.error("Falha ao excluir pergunta", { description: error.message });
+        } finally {
+            setIsDeletingQuestion(false);
+        }
+    };
+
     if (error) {
         return (
             <div className="flex flex-col justify-center items-center h-screen text-center p-4 bg-background">
@@ -336,6 +407,11 @@ export default function QuizPage() {
                     isChecking={isChecking}
                     onCheck={handleCheckAnswer}
                     onNext={handleNextQuestion}
+                    onEdit={() => {
+                        setEditingQuestion(currentQuestion);
+                        setIsEditQuestionOpen(true);
+                    }}
+                    onDelete={() => setQuestionPendingDelete(currentQuestion)}
                     nextLabel={currentQuestionIndex === questions.length - 1 ? "Ver Resultados" : "Próxima"}
                     hideNextArrow={currentQuestionIndex === questions.length - 1}
                     theme={{
@@ -351,6 +427,33 @@ export default function QuizPage() {
                         radioItem: "border-[#48cfea]/45 text-[#48cfea] data-[state=checked]:border-[#48cfea] [&_[data-slot=radio-group-indicator]_svg]:fill-[#48cfea]",
                     }}
                 />
+                <EditQuestionModal
+                    documentId={documentId}
+                    question={editingQuestion}
+                    isOpen={isEditQuestionOpen}
+                    onClose={() => setIsEditQuestionOpen(false)}
+                    onUpdate={handleQuestionUpdated}
+                />
+                <AlertDialog open={Boolean(questionPendingDelete)} onOpenChange={(open) => !open && setQuestionPendingDelete(null)}>
+                    <AlertDialogContent className="w-[calc(100vw-1.5rem)] max-w-md border-black/10 dark:border-white/10 dark:bg-[#171922] sm:w-full">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir pergunta?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Essa ação remove a pergunta do quiz e persiste no sistema.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isDeletingQuestion}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDeleteQuestion}
+                                disabled={isDeletingQuestion}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                Excluir
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </div>
     );

@@ -4,7 +4,13 @@ import { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Pencil } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EnhancedFlashcardRenderer } from "./enhanced-flashcard-renderer";
 
@@ -23,6 +29,7 @@ interface FlashcardStageProps {
   frontActions: ReactNode;
   backActions: ReactNode;
   onEdit?: () => void;
+  onDelete?: () => void;
   interactiveClassName?: string;
   stageClassName?: string;
   cardClassName?: string;
@@ -39,6 +46,7 @@ export function FlashcardStage({
   frontActions,
   backActions,
   onEdit,
+  onDelete,
   interactiveClassName,
   stageClassName,
   cardClassName,
@@ -57,20 +65,39 @@ export function FlashcardStage({
           style={{ transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
           onClick={onFlip}
         >
-          {onEdit && (
+          {(onEdit || onDelete) && (
             <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                }}
-                className="h-9 w-9"
-                style={{ transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
-              >
-                <Pencil className="w-5 h-5" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-9 w-9"
+                    style={{ transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
+                >
+                  {onEdit && (
+                    <DropdownMenuItem onClick={onEdit}>
+                      <Pencil className="w-4 h-4" />
+                      Editar
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (
+                    <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                      <Trash2 className="w-4 h-4" />
+                      Excluir
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
 

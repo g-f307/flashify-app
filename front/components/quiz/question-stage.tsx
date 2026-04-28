@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle, XCircle, ArrowRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Loader2, CheckCircle, XCircle, ArrowRight, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type QuestionAnswerStatus = "unanswered" | "correct" | "incorrect";
@@ -35,6 +41,8 @@ interface QuestionStageProps {
   onNext: () => void;
   nextLabel: string;
   hideNextArrow?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
   theme?: Partial<QuestionStageTheme>;
 }
 
@@ -50,6 +58,8 @@ export function QuestionStage({
   onNext,
   nextLabel,
   hideNextArrow = false,
+  onEdit,
+  onDelete,
   theme,
 }: QuestionStageProps) {
   const letters = ["A", "B", "C", "D", "E"];
@@ -78,6 +88,29 @@ export function QuestionStage({
             <CardTitle className="text-lg sm:text-xl leading-relaxed pt-1.5 flex-1">
               {question.text}
             </CardTitle>
+            {(onEdit || onDelete) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="-mr-1 mt-0.5 h-9 w-9">
+                    <MoreVertical className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {onEdit && (
+                    <DropdownMenuItem onClick={onEdit}>
+                      <Pencil className="w-4 h-4" />
+                      Editar
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (
+                    <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                      <Trash2 className="w-4 h-4" />
+                      Excluir
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </CardHeader>
 

@@ -11,6 +11,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -61,25 +62,37 @@ export function EditFlashcardModal({ flashcard, isOpen, onClose, onUpdate }: Edi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
+      <DialogContent className="flex w-[calc(100vw-1.5rem)] max-w-2xl flex-col p-0 sm:w-full">
+        <DialogHeader className="border-b border-black/10 px-6 py-5 dark:border-white/10">
           <DialogTitle>Editar Flashcard</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-start gap-4 border p-4 rounded-md">
-            <Label htmlFor="front" className="text-right pt-2">
-              Frente
-            </Label>
-            <Textarea id="front" value={front} onChange={(e) => setFront(e.target.value)} className="col-span-3 min-h-[100px]" />
+        <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-scrollbar]]:opacity-100 [&_[data-slot=scroll-area-scrollbar]]:w-3 [&_[data-slot=scroll-area-thumb]]:bg-black/15 dark:[&_[data-slot=scroll-area-thumb]]:bg-white/20">
+          <div className="grid gap-4 px-6 py-5">
+            <div className="grid gap-3 rounded-xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
+              <Label htmlFor="front" className="pt-1">
+                Frente
+              </Label>
+              <Textarea
+                id="front"
+                value={front}
+                onChange={(e) => setFront(e.target.value)}
+                className="min-h-[140px] resize-none border border-black/10 bg-background/80 shadow-none dark:border-white/10 dark:bg-white/[0.04]"
+              />
+            </div>
+            <div className="grid gap-3 rounded-xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
+              <Label htmlFor="back" className="pt-1">
+                Verso
+              </Label>
+              <Textarea
+                id="back"
+                value={back}
+                onChange={(e) => setBack(e.target.value)}
+                className="min-h-[220px] resize-none border border-black/10 bg-background/80 shadow-none dark:border-white/10 dark:bg-white/[0.04]"
+              />
+            </div>
           </div>
-          <div className="grid grid-cols-4 items-start gap-4 border p-4 rounded-md">
-            <Label htmlFor="back" className="text-right pt-2">
-              Verso
-            </Label>
-            <Textarea id="back" value={back} onChange={(e) => setBack(e.target.value)} className="col-span-3 min-h-[100px]" />
-          </div>
-        </div>
-        <DialogFooter>
+        </ScrollArea>
+        <DialogFooter className="border-t border-black/10 px-6 py-4 dark:border-white/10">
           <DialogClose asChild>
             <Button type="button" variant="secondary">
               Cancelar

@@ -3,6 +3,16 @@
 import { useState, useEffect } from "react";
 import { Document, Flashcard, apiClient } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ArrowLeft, ArrowRight, RotateCcw, Smile, Frown, Meh } from "lucide-react";
 import { FlashcardChat } from "./flashcard-chat";
 import { PerformanceReportResponsive } from "./performance-report";
@@ -55,6 +65,8 @@ export function FlashcardStudyFinal({
   
   const [editingFlashcard, setEditingFlashcard] = useState<Flashcard | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [flashcardPendingDelete, setFlashcardPendingDelete] = useState<Flashcard | null>(null);
+  const [isDeletingFlashcard, setIsDeletingFlashcard] = useState(false);
 
   const [savedProgress, setSavedProgress] = useState<StudyProgress | null>(null);
 
@@ -168,6 +180,36 @@ export function FlashcardStudyFinal({
       fc.id === updatedFlashcard.id ? updatedFlashcard : fc
     );
     setFlashcards(newFlashcards);
+  };
+
+  const handleDeleteFlashcard = async () => {
+    const target = flashcardPendingDelete;
+    if (!target) return;
+
+    setIsDeletingFlashcard(true);
+    try {
+      await apiClient.deleteFlashcardFromDocument(document.id, target);
+
+      const remainingFlashcards = flashcards.filter((flashcard) => flashcard.id !== target.id);
+      setFlashcards(remainingFlashcards);
+      setStudySessions((current) => current.filter((session) => session.flashcardId !== target.id));
+
+      if (remainingFlashcards.length === 0) {
+        toast.success("Flashcard excluído. Não restaram cards neste deck.");
+        setFlashcardPendingDelete(null);
+        onBack();
+        return;
+      }
+
+      setCurrentCardIndex((current) => Math.min(current, remainingFlashcards.length - 1));
+      setIsFlipped(false);
+      toast.success("Flashcard excluído com sucesso!");
+      setFlashcardPendingDelete(null);
+    } catch (error: any) {
+      toast.error("Falha ao excluir flashcard", { description: error.message });
+    } finally {
+      setIsDeletingFlashcard(false);
+    }
   };
 
   const handleRestart = () => {
@@ -292,6 +334,7 @@ export function FlashcardStudyFinal({
           setEditingFlashcard(currentFlashcard);
           setIsEditModalOpen(true);
         }}
+        onDelete={() => setFlashcardPendingDelete(currentFlashcard)}
         frontActions={
           <div className="flex flex-col sm:flex-row w-full justify-between items-center gap-2">
             <div className="flex w-full sm:w-auto justify-between gap-2">
@@ -338,6 +381,22 @@ export function FlashcardStudyFinal({
         flashcard={editingFlashcard}
         onUpdate={handleUpdateFlashcard}
       />
+      <AlertDialog open={Boolean(flashcardPendingDelete)} onOpenChange={(open) => !open && setFlashcardPendingDelete(null)}>
+        <AlertDialogContent className="w-[calc(100vw-1.5rem)] max-w-md border-black/10 dark:border-white/10 dark:bg-[#171922] sm:w-full">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir flashcard?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação remove o flashcard do deck e persiste no sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingFlashcard}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteFlashcard} disabled={isDeletingFlashcard} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <SrsOnboardingModal show={showReport} />
     </div>
   );
