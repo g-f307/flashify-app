@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bug, MessageSquare, Lightbulb, Send } from "lucide-react";
+import { Bug, MessageSquare, Lightbulb, Send, Cpu, BrainCircuit, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { BugReportForm } from "@/components/support/bug-report-form";
 import { ExperienceForm } from "@/components/support/experience-form";
 import { SuggestionForm } from "@/components/support/suggestion-form";
+import Link from "next/link";
 
 type FormType = 'bug' | 'experience' | 'suggestion' | null;
 
@@ -127,6 +128,73 @@ export default function SupportPage() {
           </CardDescription>
         </CardHeader>
       </Card>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Saiba mais</h2>
+          <p className="text-muted-foreground mt-1">
+            Guias rápidos para entender melhor como os recursos do Flashify funcionam.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card className="h-full border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg">
+              <CardHeader>
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+                  <Cpu className="w-7 h-7 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Consumo de IA</CardTitle>
+                  <CardDescription className="mt-2 leading-relaxed">
+                    Veja o que consome gerações, como o limite diário funciona e como o estudo guiado entra nessa conta.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="ghost" className="w-full justify-between group">
+                  <Link href="/support/saiba-mais/consumo-ia">
+                    Abrir guia
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card className="h-full border-[#48cfea]/20 hover:border-[#48cfea]/40 transition-all duration-300 hover:shadow-lg">
+              <CardHeader>
+                <div className="w-14 h-14 rounded-2xl bg-[#48cfea]/10 dark:bg-[#48cfea]/20 flex items-center justify-center">
+                  <BrainCircuit className="w-7 h-7 text-[#48cfea]" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Revisão inteligente</CardTitle>
+                  <CardDescription className="mt-2 leading-relaxed">
+                    Entenda como o SRS organiza prioridades, agenda revisões e mostra pendências no deck.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="ghost" className="w-full justify-between group">
+                  <Link href="/support/saiba-mais/revisao-inteligente">
+                    Abrir guia
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 }

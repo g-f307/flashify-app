@@ -20,6 +20,7 @@ import {
   MessageCircle, 
   ChevronDown,
   ChevronUp,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -87,9 +88,15 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">{getStatusIcon()}</span>
-                    <span className="text-xs font-medium text-sidebar-foreground">
-                      Gerações
-                    </span>
+                    <span className="text-xs font-medium text-sidebar-foreground">Gerações</span>
+                    <Link
+                      href="/support/saiba-mais/consumo-ia"
+                      className="relative z-10 rounded-full p-0.5 text-sidebar-foreground/70 hover:text-primary transition-colors"
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label="Saiba mais sobre consumo de IA"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
                   <span className={cn("text-xs font-bold tabular-nums", getStatusColor())}>
                     {used}/{limit}
@@ -153,9 +160,15 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm">{getStatusIcon()}</span>
-                <span className="text-xs font-medium text-sidebar-foreground">
-                  Gerações
-                </span>
+                <span className="text-xs font-medium text-sidebar-foreground">Gerações</span>
+                <Link
+                  href="/support/saiba-mais/consumo-ia"
+                  className="relative z-10 rounded-full p-0.5 text-sidebar-foreground/70 hover:text-primary transition-colors"
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label="Saiba mais sobre consumo de IA"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </Link>
               </div>
               <div className="flex items-center gap-2">
                 <span className={cn("text-xs font-bold tabular-nums", getStatusColor())}>

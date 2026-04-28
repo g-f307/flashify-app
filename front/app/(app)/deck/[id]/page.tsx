@@ -25,6 +25,7 @@ import {
     ChevronUp,
     Sparkles,
     RotateCcw,
+    HelpCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -799,7 +800,19 @@ export default function DeckDashboardPage() {
                                     <div>
                                         <div className="flex items-center justify-between">
                                             <div className="space-y-0.5">
-                                                <h4 className="font-medium text-sm">Revisão Diária (SRS)</h4>
+                                                <div className="flex items-center gap-1.5">
+                                                    <h4 className="font-medium text-sm">Revisão Diária (SRS)</h4>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-5 w-5 text-muted-foreground hover:text-[#48cfea]"
+                                                        asChild
+                                                    >
+                                                        <Link href="/support/saiba-mais/revisao-inteligente" aria-label="Saiba mais sobre revisão inteligente">
+                                                            <HelpCircle className="w-3.5 h-3.5" />
+                                                        </Link>
+                                                    </Button>
+                                                </div>
                                                 <p className="text-xs text-muted-foreground">O algoritmo agenda automaticamente os estudos</p>
                                             </div>
                                             <Switch
