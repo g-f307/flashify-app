@@ -132,9 +132,11 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                   <h3 className="line-clamp-2 text-base font-semibold leading-tight text-foreground" title={displayName}>
                     {displayName}
                   </h3>
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                     <CalendarDays className="h-3.5 w-3.5 opacity-70" />
-                    <span>Criado <TimeAgo date={document.created_at} /></span>
+                    <span className="truncate whitespace-nowrap">
+                      <TimeAgo date={document.created_at} />
+                    </span>
                   </div>
                 </div>
               </div>
@@ -173,7 +175,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               <div className="space-y-4">
                 <div
                   className={cn(
-                    "flex items-start gap-2",
+                    "flex flex-wrap items-start gap-2",
                     document.srs_enabled || statusBadge ? "min-h-8" : "min-h-0"
                   )}
                 >
@@ -182,7 +184,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                     <Badge
                       variant="outline"
                       className={cn(
-                        "rounded-full px-2.5 py-1",
+                        "max-w-full rounded-full px-2.5 py-1",
                         pendingCount > 0
                           ? "border-red-500/25 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
                           : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400"
@@ -195,7 +197,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/8 p-3 dark:border-[#FACC15]/20 dark:bg-[#FACC15]/6">
+                  <div className="min-w-0 rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/8 p-3 dark:border-[#FACC15]/20 dark:bg-[#FACC15]/6">
                     <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                       <Layers className="h-3.5 w-3.5 text-[#FACC15]" />
                       Flashcards
@@ -205,7 +207,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[#48cfea]/30 bg-[#48cfea]/8 p-3 dark:border-[#48cfea]/20 dark:bg-[#48cfea]/6">
+                  <div className="min-w-0 rounded-xl border border-[#48cfea]/30 bg-[#48cfea]/8 p-3 dark:border-[#48cfea]/20 dark:bg-[#48cfea]/6">
                     <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                       <BrainCircuit className="h-3.5 w-3.5 text-[#48cfea]" />
                       Quiz
