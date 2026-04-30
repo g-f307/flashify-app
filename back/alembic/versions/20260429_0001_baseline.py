@@ -19,25 +19,28 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-documentstatus = sa.Enum(
+documentstatus = postgresql.ENUM(
     "PROCESSING",
     "COMPLETED",
     "FAILED",
     "CANCELLED",
     name="documentstatus",
+    create_type=False,
 )
-flashcardtype = sa.Enum(
+flashcardtype = postgresql.ENUM(
     "CONCEPT",
     "CODE",
     "DIAGRAM",
     "EXAMPLE",
     "COMPARISON",
     name="flashcardtype",
+    create_type=False,
 )
-authprovider = sa.Enum(
+authprovider = postgresql.ENUM(
     "LOCAL",
     "GOOGLE",
     name="authprovider",
+    create_type=False,
 )
 
 
