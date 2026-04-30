@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 if not GOOGLE_API_KEY:
     raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi configurada.")
@@ -66,7 +67,7 @@ def chat_about_flashcard(
     Responda como um professor dedicado que quer genuinamente ajudar o aluno a compreender e aprofundar o conhecimento:"""
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        model = genai.GenerativeModel(GEMINI_MODEL)
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
@@ -93,7 +94,7 @@ def generate_flashcards_from_text(
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
     ]
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash-lite",
+        model_name=GEMINI_MODEL,
         generation_config=generation_config,
         safety_settings=safety_settings,
     )
@@ -343,7 +344,7 @@ def generate_quiz_from_text(
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
     ]
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash-lite",
+        model_name=GEMINI_MODEL,
         generation_config=generation_config,
         safety_settings=safety_settings,
     )
@@ -604,7 +605,7 @@ def generate_guided_study_topics(
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
     ]
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash-lite",
+        model_name=GEMINI_MODEL,
         generation_config=generation_config,
         safety_settings=safety_settings,
     )
