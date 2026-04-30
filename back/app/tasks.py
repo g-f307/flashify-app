@@ -256,7 +256,7 @@ def send_incomplete_deck_emails():
                     email_service.send_incomplete_deck_reminder(
                         email=user.email,
                         username=user.username,
-                        document_title=doc.file_path,
+                        document_title=doc.title or doc.file_path,
                         document_id=doc.id
                     )
                 )

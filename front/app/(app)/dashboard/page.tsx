@@ -394,7 +394,7 @@ const ContinueWhereLeftOffCard = ({
   lastActivityAt?: string | null;
   onContinue: () => void;
 }) => {
-  const displayName = formatDocumentTitle(document.file_path);
+  const displayName = formatDocumentTitle(document.file_path, document.title);
   const totalQuestions = detail?.quiz?.questions?.length ?? 0;
   const hasQuizAvailable = document.has_quiz && totalQuestions > 0;
 
@@ -491,7 +491,7 @@ const ContinueWhereLeftOffCard = ({
               onContinue();
             }}
             aria-label={`Continuar no deck ${displayName}`}
-            className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#FACC15]/65 bg-[#FACC15] text-black transition-all hover:bg-[#FACC15]/92 hover:shadow-[0_10px_24px_-16px_rgba(250,204,21,0.95)] dark:border-[#FACC15]/45 dark:bg-[#FACC15] sm:mx-0"
+            className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#FACC15]/65 bg-[#FACC15] text-black transition-all hover:bg-[#FACC15]/92 hover:shadow-[0_10px_24px_-16px_rgba(250,204,21,0.95)] dark:border-[#FACC15]/45 dark:bg-[#FACC15] sm:mx-0"
           >
             <ArrowRight className="h-4.5 w-4.5" />
           </button>
@@ -929,7 +929,15 @@ export default function HomePage() {
 
   return (
     <div className="space-y-12">
-      {hasDecks ? (
+      {loading ? (
+        <section>
+          <Card className="relative overflow-hidden border-[2.5px] border-border/80 bg-[#fbfbfe] shadow-sm dark:border-zinc-800 dark:bg-[#1c1d20]">
+            <CardContent className="flex min-h-[220px] items-center justify-center p-6">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </CardContent>
+          </Card>
+        </section>
+      ) : hasDecks ? (
         <DailyTasksBanner
           username={user?.username}
           pendingDeckCount={pendingReviewDocs.length}

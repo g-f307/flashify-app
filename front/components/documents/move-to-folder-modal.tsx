@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils"; 
+import { formatDocumentTitle } from "@/lib/utils"; 
 
 interface MoveToFolderModalProps {
   doc: Document | null;
@@ -81,7 +81,7 @@ export function MoveToFolderModal({ doc, isOpen, onClose, onSuccess }: MoveToFol
         <DialogHeader>
           <DialogTitle>Mover Deck</DialogTitle>
           <DialogDescription>
-            Escolha um novo local para o deck "{doc?.file_path}".
+            Escolha um novo local para o deck "{doc ? formatDocumentTitle(doc.file_path, doc.title) : ""}".
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">

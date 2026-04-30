@@ -42,7 +42,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
   const { showLoading } = useLoading();
   const pathname = usePathname();
 
-  const displayName = formatDocumentTitle(document.file_path);
+  const displayName = formatDocumentTitle(document.file_path, document.title);
   const pendingCount = (document.flashcards_pending || 0) + (document.questions_pending || 0);
   const isCompleted = document.status === "COMPLETED";
   const isClickable = isCompleted && !!onSelect;

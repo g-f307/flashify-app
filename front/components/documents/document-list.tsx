@@ -51,7 +51,7 @@ export function DocumentList({
     setIsDeleting(true);
     try {
       await apiClient.deleteDocument(docToDelete.id);
-      toast.success(`Deck "${formatDocumentTitle(docToDelete.file_path)}" excluído com sucesso!`);
+      toast.success(`Deck "${formatDocumentTitle(docToDelete.file_path, docToDelete.title)}" excluído com sucesso!`);
       onUpdate();
     } catch (error: any) {
       toast.error("Falha ao excluir o deck", { description: error.message });
@@ -149,7 +149,7 @@ export function DocumentList({
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem a certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação excluirá permanentemente o deck <span className="font-bold">"{docToDelete ? formatDocumentTitle(docToDelete.file_path) : ''}"</span>.
+              Esta ação excluirá permanentemente o deck <span className="font-bold">"{docToDelete ? formatDocumentTitle(docToDelete.file_path, docToDelete.title) : ''}"</span>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

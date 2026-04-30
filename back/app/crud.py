@@ -98,13 +98,20 @@ def get_document(session: Session, document_id: int) -> models.Document | None:
     return session.get(models.Document, document_id)
 
 def create_document_for_user(
-    session: Session, user_id: int, file_path: str, folder_id: Optional[int] = None, generates_flashcards: bool = True, generates_quizzes: bool = False
+    session: Session,
+    user_id: int,
+    file_path: str,
+    title: Optional[str] = None,
+    folder_id: Optional[int] = None,
+    generates_flashcards: bool = True,
+    generates_quizzes: bool = False,
 ) -> models.Document:
     db_document = models.Document(
         user_id=user_id, 
-        file_path=file_path, 
-        folder_id=folder_id, 
-        generates_flashcards=generates_flashcards, 
+        file_path=file_path,
+        title=title,
+        folder_id=folder_id,
+        generates_flashcards=generates_flashcards,
         generates_quizzes=generates_quizzes,
         status=models.DocumentStatus.PROCESSING,
         current_step="iniciando processamento"

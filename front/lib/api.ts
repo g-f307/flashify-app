@@ -40,6 +40,7 @@ export interface Folder {
 export interface Document {
   id: number;
   file_path: string;
+  title?: string | null;
   status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   generates_flashcards: boolean;
   generates_quizzes: boolean;

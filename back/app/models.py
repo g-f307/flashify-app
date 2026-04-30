@@ -81,6 +81,7 @@ class Folder(SQLModel, table=True):
 class Document(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     file_path: str
+    title: Optional[str] = Field(default=None)
     status: DocumentStatus = Field(default=DocumentStatus.PROCESSING)
     generates_flashcards: bool = Field(default=True)
     generates_quizzes: bool = Field(default=False)

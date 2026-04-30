@@ -94,6 +94,7 @@ class DocumentDetail(BaseModel):
     id: int
     status: DocumentStatus
     file_path: str
+    title: Optional[str] = None
     extracted_text: Optional[str] = None
     quiz: Optional[Quiz] = None
     generates_flashcards: bool 
@@ -109,6 +110,7 @@ class DocumentDetail(BaseModel):
 class DocumentCardData(SQLModel):
     id: int
     file_path: str
+    title: Optional[str] = None
     status: DocumentStatus
     created_at: datetime
     total_flashcards: int

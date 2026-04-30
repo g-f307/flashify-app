@@ -75,6 +75,19 @@ def sanitize_filename(name: str) -> str:
     return name[:100]
 
 
+def build_storage_basename(title: str, original_filename: Optional[str] = None) -> str:
+    safe_title = sanitize_filename(title)
+    if safe_title:
+        return safe_title
+
+    original_stem = Path(original_filename or "").stem
+    safe_original_stem = sanitize_filename(original_stem)
+    if safe_original_stem:
+        return safe_original_stem
+
+    return "documento"
+
+
 def _is_allowed_upload(file: UploadFile) -> bool:
     suffix = Path(file.filename or "").suffix.lower()
     content_type = (file.content_type or "").lower()
@@ -358,7 +371,7 @@ def _build_guided_study_response(
 
     response = schemas.GuidedStudyResponse(
         document_id=db_document.id,
-        title=db_document.file_path,
+        title=db_document.title or db_document.file_path,
         topics=topics,
         summary=schemas.GuidedStudySummary(
             topics_count=len(topics),
@@ -411,7 +424,7 @@ def upload_document(
         )
 
     original_suffix = Path(file.filename or "").suffix.lower()
-    safe_basename = sanitize_filename(title)
+    safe_basename = build_storage_basename(title, file.filename)
     final_filename = f"{current_user.id}_{safe_basename}{original_suffix}"
     
     file_path_on_disk = UPLOAD_DIRECTORY / final_filename
@@ -423,6 +436,7 @@ def upload_document(
         session,
         user_id=current_user.id,
         file_path=str(file_path_on_disk),
+        title=title,
         folder_id=folder_id,
         generates_flashcards=generates_flashcards,
         generates_quizzes=generates_quizzes
@@ -466,6 +480,7 @@ def create_document_from_text(
         session,
         user_id=current_user.id,
         file_path=text_input.title,
+        title=text_input.title,
         folder_id=text_input.folder_id,
         generates_flashcards=text_input.generate_flashcards,
         generates_quizzes=text_input.generate_quizzes
@@ -536,6 +551,7 @@ def get_user_documents(
         doc_data = schemas.DocumentCardData(
             id=doc.id,
             file_path=doc.file_path,
+            title=doc.title,
             status=doc.status,
             created_at=doc.created_at,
             total_flashcards=total_flashcards,
@@ -582,6 +598,7 @@ def get_document_details(
         id=db_document.id,
         status=db_document.status,
         file_path=db_document.file_path,
+        title=db_document.title,
         extracted_text=db_document.extracted_text,
         quiz=db_document.quiz,
         total_flashcards=len(db_document.flashcards),

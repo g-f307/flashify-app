@@ -5,8 +5,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Formata o nome do ficheiro para exibição
-export function formatDocumentTitle(filePath: string): string {
+// Formata o nome do deck para exibição.
+export function formatDocumentTitle(filePath: string, explicitTitle?: string | null): string {
+  if (typeof explicitTitle === "string" && explicitTitle.trim().length > 0) {
+    return explicitTitle;
+  }
+
   if (!filePath) return "Deck sem título";
 
   // Remove o caminho do diretório (ex: 'uploads/')

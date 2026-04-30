@@ -436,7 +436,7 @@ export default function DeckDashboardPage() {
                     </Button>
                     <div className="relative">
                         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-2">
-                            {formatDocumentTitle(document.file_path)}
+                            {formatDocumentTitle(document.file_path, document.title)}
                         </h1>
                         <p className="text-base sm:text-lg text-muted-foreground">Escolha sua atividade de estudo para este deck</p>
                     </div>
@@ -784,8 +784,8 @@ export default function DeckDashboardPage() {
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2">
-                                        <div className="rounded-2xl border border-[#FACC15]/60 bg-[#FACC15]/8 p-3 dark:border-[#FACC15]/55">
-                                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Flashcards</p>
+                                        <div className="min-w-0 rounded-2xl border border-[#FACC15]/60 bg-[#FACC15]/8 p-3 dark:border-[#FACC15]/55">
+                                            <p className="text-[9px] uppercase leading-tight tracking-[0.12em] text-muted-foreground [overflow-wrap:anywhere] sm:text-[10px]">Flashcards</p>
                                             <p className="mt-2 text-2xl font-bold leading-none">
                                                 {hasFlashcards ? Math.round(stats?.flashcards.progress_percentage || 0) : 0}
                                                 <span className="ml-1 text-sm text-muted-foreground">%</span>
@@ -795,8 +795,8 @@ export default function DeckDashboardPage() {
                                             </p>
                                         </div>
 
-                                        <div className="rounded-2xl border border-[#48cfea]/60 bg-[#48cfea]/8 p-3 dark:border-[#48cfea]/55">
-                                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Quiz</p>
+                                        <div className="min-w-0 rounded-2xl border border-[#48cfea]/60 bg-[#48cfea]/8 p-3 dark:border-[#48cfea]/55">
+                                            <p className="text-[9px] uppercase leading-tight tracking-[0.12em] text-muted-foreground [overflow-wrap:anywhere] sm:text-[10px]">Quiz</p>
                                             <p className="mt-2 text-2xl font-bold leading-none">
                                                 {hasQuiz && stats?.quiz?.average_score ? Math.round(stats.quiz.average_score) : 0}
                                                 <span className="ml-1 text-sm text-muted-foreground">%</span>
@@ -806,8 +806,8 @@ export default function DeckDashboardPage() {
                                             </p>
                                         </div>
 
-                                        <div className="rounded-2xl border border-[#7FD9A0]/60 bg-[#7FD9A0]/8 p-3 dark:border-[#7FD9A0]/55">
-                                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Guiado</p>
+                                        <div className="min-w-0 rounded-2xl border border-[#7FD9A0]/60 bg-[#7FD9A0]/8 p-3 dark:border-[#7FD9A0]/55">
+                                            <p className="text-[9px] uppercase leading-tight tracking-[0.12em] text-muted-foreground [overflow-wrap:anywhere] sm:text-[10px]">Guiado</p>
                                             <p className="mt-2 text-2xl font-bold leading-none">
                                                 {hasFlashcards && hasQuiz && guidedProgress && guidedProgress.total_steps > 0
                                                     ? Math.round((guidedProgress.completed_step_ids.length / guidedProgress.total_steps) * 100)
