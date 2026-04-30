@@ -59,8 +59,16 @@ const steps = [
 
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const ACCEPTED_FILE_TYPES = ["application/pdf", "image/jpeg", "image/png"];
-const ACCEPTED_FILE_TYPES_STRING = ".pdf, .jpg, .jpeg, .png";
+const ACCEPTED_FILE_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "application/octet-stream",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+];
+const ACCEPTED_FILE_TYPES_STRING = ".pdf, .jpg, .jpeg, .png, .docx, .pptx";
+const ACCEPTED_FILE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".docx", ".pptx"];
 
 export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardProps) {
   const [step, setStep] = useState(1);
@@ -242,8 +250,12 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
 
     if (!file) return;
 
-    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
-      const errorMsg = "Tipo de arquivo inválido. Use PDF, JPG, ou PNG.";
+    const fileExtension = `.${file.name.split(".").pop()?.toLowerCase() || ""}`;
+    const hasAcceptedType = !file.type || ACCEPTED_FILE_TYPES.includes(file.type);
+    const hasAcceptedExtension = ACCEPTED_FILE_EXTENSIONS.includes(fileExtension);
+
+    if (!hasAcceptedType || !hasAcceptedExtension) {
+      const errorMsg = "Tipo de arquivo inválido. Use PDF, JPG, PNG, DOCX ou PPTX.";
       setFileError(errorMsg);
       toast.error(errorMsg);
       setData({ ...data, file: null }); 

@@ -10,7 +10,7 @@ const HowItWorksSection = () => {
       icon: <FaUpload />,
       title: 'Envie o seu Conteúdo',
       description:
-        'Faça o upload de um arquivo PDF, cole um texto diretamente ou tire uma foto das suas anotações. O Flashify é compatível com as suas fontes de estudo preferidas.',
+        'Faça o upload de PDF, Word, PowerPoint, cole um texto diretamente ou tire uma foto das suas anotações. O Flashify é compatível com as suas fontes de estudo preferidas.',
     },
     {
       number: 2,

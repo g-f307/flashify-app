@@ -67,6 +67,14 @@ export interface Flashcard {
   document_id: number;
 }
 
+export interface FlashcardBulkItemInput {
+  id?: number;
+  front: string;
+  back: string;
+  type?: Flashcard["type"];
+  is_deleted?: boolean;
+}
+
 export interface FlashcardConversation {
   id: number;
   user_message: string;
@@ -87,6 +95,39 @@ export interface ProgressStats {
   flashcard_weekly_activity: number[];
   quizzes_completed_week: number;
   quiz_average_score: number;
+}
+
+export interface DashboardSummary {
+  reviewed_decks_today: number;
+  flashcards_reviewed_today: number;
+  quizzes_completed_today: number;
+  last_active_document_id: number | null;
+  last_activity_at: string | null;
+}
+
+export interface StreakCalendarDay {
+  date: string;
+  day: number;
+  weekday: number;
+  status: "before" | "active" | "today" | "upcoming" | "missed";
+  has_activity: boolean;
+}
+
+export interface StreakCalendarSummary {
+  month: number;
+  year: number;
+  today: string;
+  current_streak: number;
+  active_days: number;
+  days: StreakCalendarDay[];
+}
+
+export interface StreakCalendarRangeSummary {
+  start_date: string;
+  end_date: string;
+  today: string;
+  current_streak: number;
+  days: StreakCalendarDay[];
 }
 
 export interface SrsStats {
@@ -132,15 +173,30 @@ export interface Answer {
   explanation?: string;
 }
 
+export interface AnswerBulkInput {
+  id?: number;
+  text: string;
+  is_correct: boolean;
+  explanation?: string;
+}
+
 export interface Question {
   id: number;
   text: string;
   answers: Answer[];
 }
 
+export interface QuestionBulkItemInput {
+  id?: number;
+  text: string;
+  answers: AnswerBulkInput[];
+  is_deleted?: boolean;
+}
+
 export interface Quiz {
   id: number;
   title: string;
+  document_id?: number;
   questions: Question[];
 }
 
@@ -148,6 +204,51 @@ export interface CheckAnswerResponse {
   is_correct: boolean;
   correct_answer_id: number;
   explanation: string;
+}
+
+export interface GuidedStudyStep {
+  id: string;
+  type: "flashcard" | "question";
+  order: number;
+  flashcard_id?: number | null;
+  question_id?: number | null;
+  front?: string | null;
+  back?: string | null;
+  prompt?: string | null;
+  answers: Answer[];
+}
+
+export interface GuidedStudyTopic {
+  id: string;
+  title: string;
+  order: number;
+  steps: GuidedStudyStep[];
+}
+
+export interface GuidedStudySummary {
+  topics_count: number;
+  steps_count: number;
+  flashcards_count: number;
+  questions_count: number;
+  is_fallback: boolean;
+}
+
+export interface GuidedStudy {
+  document_id: number;
+  title: string;
+  mode: "guided";
+  topics: GuidedStudyTopic[];
+  summary: GuidedStudySummary;
+}
+
+export interface GuidedStudyProgress {
+  document_id: number;
+  completed_step_ids: string[];
+  total_steps: number;
+  started_at: string;
+  last_accessed_at: string;
+  completed_at: string | null;
+  is_completed: boolean;
 }
 
 export interface FlashcardStats {
@@ -415,6 +516,89 @@ class ApiClient {
     return this.request<Flashcard[]>(`/documents/${documentId}/flashcards`);
   }
 
+  async bulkUpdateDocumentFlashcards(
+    documentId: number,
+    flashcards: FlashcardBulkItemInput[]
+  ): Promise<Flashcard[]> {
+    return this.request<Flashcard[]>(`/documents/${documentId}/flashcards/bulk`, {
+      method: "PUT",
+      body: JSON.stringify({ flashcards }),
+    });
+  }
+
+  async bulkUpdateDocumentQuiz(
+    documentId: number,
+    questions: QuestionBulkItemInput[]
+  ): Promise<Quiz> {
+    return this.request<Quiz>(`/documents/${documentId}/quiz/bulk`, {
+      method: "PUT",
+      body: JSON.stringify({ questions }),
+    });
+  }
+
+  async deleteFlashcardFromDocument(
+    documentId: number,
+    flashcard: Flashcard
+  ): Promise<Flashcard[]> {
+    return this.bulkUpdateDocumentFlashcards(documentId, [
+      {
+        id: flashcard.id,
+        front: flashcard.front,
+        back: flashcard.back,
+        type: flashcard.type,
+        is_deleted: true,
+      },
+    ]);
+  }
+
+  async updateQuestionInDocument(
+    documentId: number,
+    question: QuestionBulkItemInput
+  ): Promise<Quiz> {
+    return this.bulkUpdateDocumentQuiz(documentId, [question]);
+  }
+
+  async deleteQuestionFromDocument(
+    documentId: number,
+    question: QuestionBulkItemInput
+  ): Promise<Quiz> {
+    return this.bulkUpdateDocumentQuiz(documentId, [
+      {
+        ...question,
+        is_deleted: true,
+      },
+    ]);
+  }
+
+  async getGuidedStudy(documentId: number): Promise<GuidedStudy> {
+    return this.request<GuidedStudy>(`/documents/${documentId}/guided-study`);
+  }
+
+  async getGuidedStudyProgress(documentId: number): Promise<GuidedStudyProgress | null> {
+    try {
+      return await this.request<GuidedStudyProgress>(`/documents/${documentId}/guided-study/progress`);
+    } catch {
+      return null;
+    }
+  }
+
+  async saveGuidedStudyProgress(
+    documentId: number,
+    completedStepIds: string[],
+    isCompleted: boolean
+  ): Promise<GuidedStudyProgress> {
+    return this.request<GuidedStudyProgress>(`/documents/${documentId}/guided-study/progress`, {
+      method: "POST",
+      body: JSON.stringify({ completed_step_ids: completedStepIds, is_completed: isCompleted }),
+    });
+  }
+
+  async resetGuidedStudy(documentId: number): Promise<void> {
+    await this.request<{ message: string }>(`/documents/${documentId}/guided-study/restructure`, {
+      method: "POST",
+    });
+  }
+
   async cancelDocumentProcessing(documentId: number): Promise<{ message: string }> {
     return this.request<{ message: string }>(`/documents/${documentId}/cancel`, {
       method: 'POST',
@@ -513,6 +697,34 @@ class ApiClient {
   async getProgressStats(): Promise<ProgressStats> {
     const timezoneOffset = new Date().getTimezoneOffset();
     return this.request<ProgressStats>(`/progress/stats?utc_offset_minutes=${timezoneOffset}`);
+  }
+
+  async getDashboardSummary(): Promise<DashboardSummary> {
+    const timezoneOffset = new Date().getTimezoneOffset();
+    return this.request<DashboardSummary>(`/progress/dashboard-summary?utc_offset_minutes=${timezoneOffset}`);
+  }
+
+  async getStreakCalendar(month?: number, year?: number): Promise<StreakCalendarSummary> {
+    const timezoneOffset = new Date().getTimezoneOffset();
+    const search = new URLSearchParams({
+      utc_offset_minutes: String(timezoneOffset),
+    });
+
+    if (month) search.set("month", String(month));
+    if (year) search.set("year", String(year));
+
+    return this.request<StreakCalendarSummary>(`/progress/streak-calendar?${search.toString()}`);
+  }
+
+  async getStreakCalendarRange(startDate: string, days = 7): Promise<StreakCalendarRangeSummary> {
+    const timezoneOffset = new Date().getTimezoneOffset();
+    const search = new URLSearchParams({
+      utc_offset_minutes: String(timezoneOffset),
+      start_date: startDate,
+      days: String(days),
+    });
+
+    return this.request<StreakCalendarRangeSummary>(`/progress/streak-calendar-range?${search.toString()}`);
   }
 
   async getLibraryData(): Promise<LibraryData> {

@@ -1,18 +1,23 @@
 # back/app/routers/documents.py
 
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 import re
-from typing import Optional, List
+from typing import Optional, List, Sequence, TypeVar
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, Response
-from sqlmodel import Session
+from sqlmodel import Session, select
 from typing_extensions import Annotated
 
 from .. import crud, models, security, schemas
 from ..database import get_session
 from ..security import get_current_user
 from ..tasks import process_document 
-from ..ai_generator import generate_flashcards_from_text, generate_quiz_from_text
+from ..ai_generator import (
+    generate_flashcards_from_text,
+    generate_guided_study_topics,
+    generate_quiz_from_text,
+)
 from ..study_ordering import order_for_start
 from pydantic import BaseModel, Field
 
@@ -22,6 +27,24 @@ CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
 
 UPLOAD_DIRECTORY = Path("uploads")
 UPLOAD_DIRECTORY.mkdir(exist_ok=True)
+
+ALLOWED_UPLOAD_MIME_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "application/octet-stream",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}
+
+ALLOWED_UPLOAD_EXTENSIONS = {
+    ".pdf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".docx",
+    ".pptx",
+}
 
 class AddFlashcardsRequest(BaseModel):
     num_flashcards: int = Field(ge=1, le=20)
@@ -42,11 +65,315 @@ class TextInput(BaseModel):
     difficulty: str = "Médio"
     num_questions: int = Field(default=5, ge=3, le=25)
 
+
+T = TypeVar("T")
+
 def sanitize_filename(name: str) -> str:
     """Cria um nome de arquivo seguro a partir de uma string."""
     name = name.lower().replace(' ', '_')
     name = re.sub(r'[^a-z0-9_.-]', '', name)
     return name[:100]
+
+
+def _is_allowed_upload(file: UploadFile) -> bool:
+    suffix = Path(file.filename or "").suffix.lower()
+    content_type = (file.content_type or "").lower()
+    if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
+        return False
+    return not content_type or content_type in ALLOWED_UPLOAD_MIME_TYPES
+
+
+def _truncate_topic_title(text: str, fallback: str) -> str:
+    cleaned = " ".join((text or "").split()).strip()
+    if not cleaned:
+        return fallback
+    return cleaned if len(cleaned) <= 48 else f"{cleaned[:45].rstrip()}..."
+
+
+def _distribute_evenly(items: Sequence[T], bucket_count: int) -> list[list[T]]:
+    if bucket_count <= 0:
+        return []
+
+    buckets: list[list[T]] = [[] for _ in range(bucket_count)]
+    for index, item in enumerate(items):
+        buckets[index % bucket_count].append(item)
+    return buckets
+
+
+def _build_guided_steps(
+    flashcards: Sequence[models.Flashcard],
+    questions: Sequence[models.Question],
+) -> list[schemas.GuidedStudyStep]:
+    steps: list[schemas.GuidedStudyStep] = []
+    step_order = 1
+
+    for flashcard in flashcards:
+        steps.append(
+            schemas.GuidedStudyStep(
+                id=f"step-fc-{flashcard.id}",
+                type="flashcard",
+                order=step_order,
+                flashcard_id=flashcard.id,
+                front=flashcard.front,
+                back=flashcard.back,
+            )
+        )
+        step_order += 1
+
+    for question in questions:
+        steps.append(
+            schemas.GuidedStudyStep(
+                id=f"step-q-{question.id}",
+                type="question",
+                order=step_order,
+                question_id=question.id,
+                prompt=question.text,
+                answers=[
+                    schemas.Answer.model_validate(answer, from_attributes=True)
+                    for answer in (question.answers or [])
+                ],
+            )
+        )
+        step_order += 1
+
+    return steps
+
+
+_PEDAGOGICAL_STAGE_NAMES = [
+    "Fundamentos",
+    "Conceitos centrais",
+    "Desenvolvimento",
+    "Aprofundamento",
+    "Aplicações",
+    "Consolidação",
+]
+
+
+def _pedagogical_title(topic_index: int, topic_count: int) -> str:
+    if topic_count == 1:
+        return "Conteúdo completo"
+    if topic_count == 2:
+        return ["Introdução", "Consolidação"][topic_index]
+    if topic_count == 3:
+        return ["Fundamentos", "Desenvolvimento", "Consolidação"][topic_index]
+    if topic_index == 0:
+        return "Fundamentos"
+    if topic_index == topic_count - 1:
+        return "Consolidação"
+    mid_labels = _PEDAGOGICAL_STAGE_NAMES[1:-1]
+    return mid_labels[(topic_index - 1) % len(mid_labels)]
+
+
+def _build_guided_topics_from_even_distribution(
+    ordered_flashcards: Sequence[models.Flashcard],
+    ordered_questions: Sequence[models.Question],
+) -> list[schemas.GuidedStudyTopic]:
+    fc_count = len(ordered_flashcards)
+    q_count = len(ordered_questions)
+
+    # Target 2-3 flashcards per topic; number of topics bounded by available questions.
+    FLASHCARDS_PER_TOPIC = 3
+    ideal_by_flashcards = max(1, (fc_count + FLASHCARDS_PER_TOPIC - 1) // FLASHCARDS_PER_TOPIC)
+    topic_count = max(1, min(ideal_by_flashcards, q_count))
+
+    flashcard_buckets = _distribute_evenly(ordered_flashcards, topic_count)
+    question_buckets = _distribute_evenly(ordered_questions, topic_count)
+
+    topics: list[schemas.GuidedStudyTopic] = []
+
+    for topic_index in range(topic_count):
+        topic_flashcards = flashcard_buckets[topic_index]
+        topic_questions = question_buckets[topic_index]
+        steps = _build_guided_steps(topic_flashcards, topic_questions)
+
+        topics.append(
+            schemas.GuidedStudyTopic(
+                id=f"topic-{topic_index + 1}",
+                title=_pedagogical_title(topic_index, topic_count),
+                order=topic_index + 1,
+                steps=steps,
+            )
+        )
+
+    return topics
+
+
+def _clear_guided_study_cache(db_document: models.Document, session: Session) -> None:
+    crud.reset_guided_study_state(session, db_document)
+
+
+def _guided_study_requires_ai_generation(db_document: models.Document) -> bool:
+    if not db_document.guided_study_cache:
+        return True
+
+    try:
+        cached = schemas.GuidedStudyResponse.model_validate(db_document.guided_study_cache)
+        return cached.summary.is_fallback
+    except Exception:
+        return True
+
+
+def _build_guided_study_response(
+    db_document: models.Document,
+    session: Session,
+) -> schemas.GuidedStudyResponse:
+    if db_document.guided_study_cache:
+        try:
+            cached = schemas.GuidedStudyResponse.model_validate(db_document.guided_study_cache)
+            # If the previous generation fell back to deterministic distribution,
+            # discard the cache and give the AI another chance on this load.
+            if not cached.summary.is_fallback:
+                print(f"[guided-study] doc={db_document.id} cache HIT (is_fallback=False) → returning cached")
+                return cached
+            print(f"[guided-study] doc={db_document.id} cache HIT but is_fallback=True → discarding, calling AI")
+            db_document.guided_study_cache = None
+            session.add(db_document)
+            session.commit()
+        except Exception:
+            pass
+
+    ordered_flashcards = order_for_start(list(db_document.flashcards or []))
+    ordered_questions = order_for_start(list(db_document.quiz.questions or [])) if db_document.quiz else []
+
+    if not ordered_flashcards or not ordered_questions:
+        raise HTTPException(
+            status_code=400,
+            detail="O estudo guiado precisa de flashcards e quiz gerados neste deck."
+        )
+
+    flashcards_by_id = {flashcard.id: flashcard for flashcard in ordered_flashcards}
+    questions_by_id = {question.id: question for question in ordered_questions}
+
+    guided_topics_data = generate_guided_study_topics(
+        text=db_document.extracted_text or db_document.file_path,
+        flashcards=[
+            {"id": flashcard.id, "front": flashcard.front, "back": flashcard.back}
+            for flashcard in ordered_flashcards
+        ],
+        questions=[
+            {"id": question.id, "text": question.text}
+            for question in ordered_questions
+        ],
+    )
+
+    topics: list[schemas.GuidedStudyTopic] = []
+
+    if guided_topics_data:
+        used_flashcard_ids: set[int] = set()
+        used_question_ids: set[int] = set()
+
+        for topic_index, raw_topic in enumerate(guided_topics_data.get("topics", []), start=1):
+            raw_flashcard_ids = raw_topic.get("flashcard_ids", [])
+            raw_question_ids = raw_topic.get("question_ids", [])
+
+            topic_flashcards = []
+            for flashcard_id in raw_flashcard_ids:
+                if (
+                    isinstance(flashcard_id, int)
+                    and flashcard_id in flashcards_by_id
+                    and flashcard_id not in used_flashcard_ids
+                ):
+                    topic_flashcards.append(flashcards_by_id[flashcard_id])
+                    used_flashcard_ids.add(flashcard_id)
+
+            topic_questions = []
+            for question_id in raw_question_ids:
+                if (
+                    isinstance(question_id, int)
+                    and question_id in questions_by_id
+                    and question_id not in used_question_ids
+                ):
+                    topic_questions.append(questions_by_id[question_id])
+                    used_question_ids.add(question_id)
+
+            if not topic_flashcards and not topic_questions:
+                continue
+
+            # Dissolve unbalanced topics back into orphans so the fallback
+            # can pair them properly. Both directions must have content.
+            if topic_flashcards and not topic_questions:
+                for fc in topic_flashcards:
+                    used_flashcard_ids.discard(fc.id)
+                continue
+
+            if not topic_flashcards and topic_questions:
+                for q in topic_questions:
+                    used_question_ids.discard(q.id)
+                continue
+
+            topic_title = _truncate_topic_title(
+                raw_topic.get("title", ""),
+                f"Tópico {topic_index}",
+            )
+
+            topics.append(
+                schemas.GuidedStudyTopic(
+                    id=f"topic-{len(topics) + 1}",
+                    title=topic_title,
+                    order=len(topics) + 1,
+                    steps=_build_guided_steps(topic_flashcards, topic_questions),
+                )
+            )
+
+        remaining_flashcards = [
+            flashcard for flashcard in ordered_flashcards if flashcard.id not in used_flashcard_ids
+        ]
+        remaining_questions = [
+            question for question in ordered_questions if question.id not in used_question_ids
+        ]
+
+        if remaining_flashcards or remaining_questions:
+            fallback_topics = _build_guided_topics_from_even_distribution(
+                remaining_flashcards or [],
+                remaining_questions or [],
+            ) if remaining_flashcards and remaining_questions else []
+
+            if fallback_topics:
+                for fallback_topic in fallback_topics:
+                    topics.append(
+                        schemas.GuidedStudyTopic(
+                            id=f"topic-{len(topics) + 1}",
+                            title=_truncate_topic_title(fallback_topic.title, f"Tópico {len(topics) + 1}"),
+                            order=len(topics) + 1,
+                            steps=fallback_topic.steps,
+                        )
+                    )
+            elif topics:
+                extra_steps = _build_guided_steps(remaining_flashcards, remaining_questions)
+                if extra_steps:
+                    last_topic = topics[-1]
+                    merged_steps = []
+                    for index, step in enumerate(last_topic.steps + extra_steps, start=1):
+                        merged_steps.append(step.model_copy(update={"order": index}))
+                    topics[-1] = last_topic.model_copy(update={"steps": merged_steps})
+
+    is_fallback = not topics
+    if is_fallback:
+        print(f"[guided-study] doc={db_document.id} AI returned no valid topics → using deterministic fallback (is_fallback=True)")
+        topics = _build_guided_topics_from_even_distribution(ordered_flashcards, ordered_questions)
+    else:
+        print(f"[guided-study] doc={db_document.id} AI topics accepted → caching with is_fallback=False")
+
+    total_steps = sum(len(topic.steps) for topic in topics)
+
+    response = schemas.GuidedStudyResponse(
+        document_id=db_document.id,
+        title=db_document.file_path,
+        topics=topics,
+        summary=schemas.GuidedStudySummary(
+            topics_count=len(topics),
+            steps_count=total_steps,
+            flashcards_count=len(ordered_flashcards),
+            questions_count=len(ordered_questions),
+            is_fallback=is_fallback,
+        ),
+    )
+
+    db_document.guided_study_cache = response.model_dump()
+    session.add(db_document)
+    session.commit()
+
+    return response
 
 @router.post("/upload", response_model=models.Document, status_code=status.HTTP_202_ACCEPTED)
 def upload_document(
@@ -77,10 +404,13 @@ def upload_document(
             }
         )
     
-    if not file.content_type in ["image/jpeg", "image/png", "application/pdf"]:
-        raise HTTPException(status_code=400, detail="Tipo de arquivo inválido.")
+    if not _is_allowed_upload(file):
+        raise HTTPException(
+            status_code=400,
+            detail="Tipo de arquivo invalido. Formatos aceitos: PDF, JPG, PNG, DOCX e PPTX."
+        )
 
-    original_suffix = Path(file.filename).suffix
+    original_suffix = Path(file.filename or "").suffix.lower()
     safe_basename = sanitize_filename(title)
     final_filename = f"{current_user.id}_{safe_basename}{original_suffix}"
     
@@ -274,6 +604,346 @@ def get_document_flashcards(
 
     return order_for_start(crud.get_flashcards_by_document(session, document_id=document_id))
 
+
+@router.put("/{document_id}/flashcards/bulk", response_model=list[models.Flashcard])
+def bulk_update_document_flashcards(
+    document_id: int,
+    body: schemas.FlashcardBulkUpdateRequest,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    db_document = crud.get_document_with_details(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    existing_flashcards = {flashcard.id: flashcard for flashcard in db_document.flashcards}
+    touched = False
+
+    for item in body.flashcards:
+        front = item.front.strip()
+        back = item.back.strip()
+
+        if item.id is not None:
+            db_flashcard = existing_flashcards.get(item.id)
+            if not db_flashcard:
+                raise HTTPException(status_code=404, detail="Flashcard não encontrado neste deck")
+
+            if item.is_deleted:
+                crud.delete_flashcard_and_related_data(session, db_flashcard)
+                touched = True
+                continue
+
+            if not front or not back:
+                raise HTTPException(status_code=400, detail="Frente e verso do flashcard são obrigatórios")
+
+            if db_flashcard.front != front or db_flashcard.back != back:
+                db_flashcard.front = front
+                db_flashcard.back = back
+                session.add(db_flashcard)
+                touched = True
+            continue
+
+        if item.is_deleted:
+            continue
+
+        if not front or not back:
+            raise HTTPException(status_code=400, detail="Frente e verso do flashcard são obrigatórios")
+
+        session.add(
+            models.Flashcard(
+                front=front,
+                back=back,
+                type=crud.normalize_flashcard_type(item.type),
+                document_id=document_id,
+            )
+        )
+        touched = True
+
+    session.commit()
+
+    if touched:
+        crud.reset_guided_study_state(session, db_document)
+
+    return crud.get_flashcards_by_document(session, document_id=document_id)
+
+
+@router.put("/{document_id}/quiz/bulk", response_model=schemas.Quiz)
+def bulk_update_document_quiz(
+    document_id: int,
+    body: schemas.QuizBulkUpdateRequest,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    db_document = crud.get_document_with_details(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    if not db_document.quiz:
+        raise HTTPException(status_code=400, detail="Este deck ainda não possui quiz.")
+
+    existing_questions = {question.id: question for question in db_document.quiz.questions}
+    touched = False
+
+    for item in body.questions:
+        active_answers = [answer for answer in item.answers if answer.text.strip()]
+        correct_answers = [answer for answer in active_answers if answer.is_correct]
+
+        if not item.is_deleted:
+            if not item.text.strip():
+                raise HTTPException(status_code=400, detail="Toda pergunta precisa de um enunciado.")
+            if len(active_answers) < 2:
+                raise HTTPException(status_code=400, detail="Cada pergunta precisa de ao menos 2 alternativas.")
+            if len(correct_answers) != 1:
+                raise HTTPException(status_code=400, detail="Cada pergunta precisa ter exatamente 1 alternativa correta.")
+
+        if item.id is not None:
+            db_question = existing_questions.get(item.id)
+            if not db_question:
+                raise HTTPException(status_code=404, detail="Pergunta não encontrada neste quiz")
+
+            if item.is_deleted:
+                session.delete(db_question)
+                touched = True
+                continue
+
+            question_text = item.text.strip()
+            if db_question.text != question_text:
+                db_question.text = question_text
+                session.add(db_question)
+                touched = True
+
+            existing_answers = {answer.id: answer for answer in db_question.answers}
+            kept_answer_ids: set[int] = set()
+
+            for answer_item in active_answers:
+                answer_text = answer_item.text.strip()
+                explanation = (answer_item.explanation or "").strip() or None
+
+                if answer_item.id is not None:
+                    db_answer = existing_answers.get(answer_item.id)
+                    if not db_answer:
+                        raise HTTPException(status_code=404, detail="Alternativa não encontrada nesta pergunta")
+
+                    if (
+                        db_answer.text != answer_text
+                        or db_answer.explanation != explanation
+                        or db_answer.is_correct != answer_item.is_correct
+                    ):
+                        db_answer.text = answer_text
+                        db_answer.explanation = explanation
+                        db_answer.is_correct = answer_item.is_correct
+                        session.add(db_answer)
+                        touched = True
+
+                    kept_answer_ids.add(db_answer.id)
+                    continue
+
+                session.add(
+                    models.Answer(
+                        text=answer_text,
+                        explanation=explanation,
+                        is_correct=answer_item.is_correct,
+                        question_id=db_question.id,
+                    )
+                )
+                touched = True
+
+            for answer in db_question.answers:
+                if answer.id not in kept_answer_ids:
+                    session.delete(answer)
+                    touched = True
+
+            continue
+
+        if item.is_deleted:
+            continue
+
+        answers = [
+            models.Answer(
+                text=answer.text.strip(),
+                explanation=(answer.explanation or "").strip() or None,
+                is_correct=answer.is_correct,
+            )
+            for answer in active_answers
+        ]
+        session.add(
+            models.Question(
+                text=item.text.strip(),
+                quiz_id=db_document.quiz.id,
+                answers=answers,
+            )
+        )
+        touched = True
+
+    session.commit()
+
+    if touched:
+        crud.reset_guided_study_state(session, db_document)
+
+    updated_document = crud.get_document_with_details(session, document_id)
+    if not updated_document or not updated_document.quiz:
+        raise HTTPException(status_code=404, detail="Quiz não encontrado após atualização.")
+
+    return updated_document.quiz
+
+
+@router.get("/{document_id}/guided-study", response_model=schemas.GuidedStudyResponse)
+def get_document_guided_study(
+    document_id: int,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    db_document = crud.get_document_with_details(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    if db_document.status != models.DocumentStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="O deck ainda não está pronto para iniciar o estudo guiado.")
+
+    requires_generation = _guided_study_requires_ai_generation(db_document)
+
+    if requires_generation:
+        can_generate, remaining = crud.can_user_generate_deck(session, current_user)
+
+        if not can_generate:
+            generation_info = crud.get_user_generation_info(session, current_user)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "message": "Limite diário de gerações atingido",
+                    "limit": generation_info["limit"],
+                    "used": generation_info["used"],
+                    "hours_until_reset": generation_info["hours_until_reset"]
+                }
+            )
+
+    response = _build_guided_study_response(db_document, session)
+
+    if requires_generation:
+        crud.increment_user_generation_count(session, current_user.id)
+
+    return response
+
+
+@router.get("/{document_id}/guided-study/progress", response_model=schemas.GuidedStudyProgressRead)
+def get_guided_study_progress(
+    document_id: int,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    db_document = crud.get_document(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    statement = select(models.GuidedStudySession).where(
+        models.GuidedStudySession.user_id == current_user.id,
+        models.GuidedStudySession.document_id == document_id,
+    )
+    db_session = session.exec(statement).first()
+
+    if not db_session:
+        raise HTTPException(status_code=404, detail="Nenhuma sessão guiada encontrada")
+
+    cached = db_document.guided_study_cache
+    total_steps = cached["summary"]["steps_count"] if cached else 0
+
+    return schemas.GuidedStudyProgressRead(
+        document_id=document_id,
+        completed_step_ids=db_session.completed_step_ids or [],
+        total_steps=total_steps,
+        started_at=db_session.started_at,
+        last_accessed_at=db_session.last_accessed_at,
+        completed_at=db_session.completed_at,
+        is_completed=db_session.completed_at is not None,
+    )
+
+
+@router.post("/{document_id}/guided-study/restructure", status_code=200)
+def restructure_guided_study(
+    document_id: int,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    """Limpa o cache da trilha guiada e reseta a sessão do usuário.
+    A próxima abertura do estudo guiado gerará uma nova estrutura via IA."""
+    db_document = crud.get_document(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    can_generate, remaining = crud.can_user_generate_deck(session, current_user)
+
+    if not can_generate:
+        generation_info = crud.get_user_generation_info(session, current_user)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": "Limite diário de gerações atingido",
+                "limit": generation_info["limit"],
+                "used": generation_info["used"],
+                "hours_until_reset": generation_info["hours_until_reset"]
+            }
+        )
+
+    _clear_guided_study_cache(db_document, session)
+    db_document = crud.get_document_with_details(session, document_id)
+    _build_guided_study_response(db_document, session)
+    crud.increment_user_generation_count(session, current_user.id)
+    return {"message": "Trilha reestruturada com sucesso."}
+
+
+@router.post("/{document_id}/guided-study/progress", response_model=schemas.GuidedStudyProgressRead)
+def save_guided_study_progress(
+    document_id: int,
+    body: schemas.GuidedStudyProgressUpdate,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    db_document = crud.get_document(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    statement = select(models.GuidedStudySession).where(
+        models.GuidedStudySession.user_id == current_user.id,
+        models.GuidedStudySession.document_id == document_id,
+    )
+    db_session = session.exec(statement).first()
+
+    now = datetime.now(timezone.utc)
+
+    if db_session:
+        db_session.completed_step_ids = body.completed_step_ids
+        db_session.last_accessed_at = now
+        if body.is_completed:
+            db_session.completed_at = now
+        else:
+            db_session.completed_at = None
+    else:
+        db_session = models.GuidedStudySession(
+            user_id=current_user.id,
+            document_id=document_id,
+            completed_step_ids=body.completed_step_ids,
+            started_at=now,
+            last_accessed_at=now,
+            completed_at=now if body.is_completed else None,
+        )
+
+    session.add(db_session)
+    session.commit()
+    session.refresh(db_session)
+
+    cached = db_document.guided_study_cache
+    total_steps = cached["summary"]["steps_count"] if cached else 0
+
+    return schemas.GuidedStudyProgressRead(
+        document_id=document_id,
+        completed_step_ids=db_session.completed_step_ids or [],
+        total_steps=total_steps,
+        started_at=db_session.started_at,
+        last_accessed_at=db_session.last_accessed_at,
+        completed_at=db_session.completed_at,
+        is_completed=db_session.completed_at is not None,
+    )
+
 @router.post("/{document_id}/cancel")
 def cancel_document_processing(
     document_id: int,
@@ -389,9 +1059,10 @@ def generate_quiz_for_existing_document(
     db_quiz = crud.create_quiz_for_document(
         db=session, quiz_data=quiz_schema, document_id=document_id
     )
-    
+
     crud.increment_user_generation_count(session, current_user.id)
-    
+    _clear_guided_study_cache(db_document, session)
+
     return db_quiz
 
 @router.post("/{document_id}/generate-flashcards", response_model=List[models.Flashcard], status_code=status.HTTP_201_CREATED)
@@ -442,10 +1113,10 @@ def generate_flashcards_for_existing_document(
         flashcards_data=flashcards_data,
         document_id=document_id
     )
-    
-    # 🆕 INCREMENTAR CONTADOR APÓS SUCESSO
+
     crud.increment_user_generation_count(session, current_user.id)
-    
+    _clear_guided_study_cache(db_document, session)
+
     return db_flashcards
 
 @router.post("/{document_id}/add-flashcards", response_model=List[models.Flashcard], status_code=status.HTTP_201_CREATED)
@@ -531,10 +1202,10 @@ Agora, com base no MESMO CONTEÚDO ORIGINAL abaixo, gere {requested_count} NOVOS
         flashcards_data=new_flashcards_data,
         document_id=document_id
     )
-    
-    # 🆕 INCREMENTAR CONTADOR APÓS SUCESSO
+
     crud.increment_user_generation_count(session, current_user.id)
-    
+    _clear_guided_study_cache(db_document, session)
+
     return db_flashcards
 
 
@@ -628,7 +1299,8 @@ Agora, com base no MESMO CONTEÚDO ORIGINAL abaixo, gere {requested_count} NOVAS
     
     session.commit()
     session.refresh(db_document.quiz)
-    
+
     crud.increment_user_generation_count(session, current_user.id)
-    
+    _clear_guided_study_cache(db_document, session)
+
     return db_document.quiz

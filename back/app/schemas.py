@@ -129,3 +129,86 @@ class FolderReadWithDocuments(FolderRead):
 class FlashcardUpdate(BaseModel):
     front: Optional[str] = None
     back: Optional[str] = None
+
+
+class FlashcardBulkItem(BaseModel):
+    id: Optional[int] = None
+    front: str = Field(..., min_length=1)
+    back: str = Field(..., min_length=1)
+    type: Optional[str] = None
+    is_deleted: bool = False
+
+
+class FlashcardBulkUpdateRequest(BaseModel):
+    flashcards: List[FlashcardBulkItem]
+
+
+class AnswerBulkInput(BaseModel):
+    id: Optional[int] = None
+    text: str = Field(..., min_length=1)
+    explanation: Optional[str] = None
+    is_correct: bool = False
+
+
+class QuestionBulkItem(BaseModel):
+    id: Optional[int] = None
+    text: str = Field(..., min_length=1)
+    answers: List[AnswerBulkInput] = Field(default_factory=list, min_length=2)
+    is_deleted: bool = False
+
+
+class QuizBulkUpdateRequest(BaseModel):
+    questions: List[QuestionBulkItem]
+
+
+class GuidedStudyStep(BaseModel):
+    id: str
+    type: str
+    order: int
+    flashcard_id: Optional[int] = None
+    question_id: Optional[int] = None
+    front: Optional[str] = None
+    back: Optional[str] = None
+    prompt: Optional[str] = None
+    answers: List[Answer] = []
+
+
+class GuidedStudyTopic(BaseModel):
+    id: str
+    title: str
+    order: int
+    steps: List[GuidedStudyStep]
+
+
+class GuidedStudySummary(BaseModel):
+    topics_count: int
+    steps_count: int
+    flashcards_count: int
+    questions_count: int
+    is_fallback: bool = False
+
+
+class GuidedStudyResponse(BaseModel):
+    document_id: int
+    title: str
+    mode: str = "guided"
+    topics: List[GuidedStudyTopic]
+    summary: GuidedStudySummary
+
+
+class GuidedStudyProgressRead(BaseModel):
+    document_id: int
+    completed_step_ids: List[str]
+    total_steps: int
+    started_at: datetime
+    last_accessed_at: datetime
+    completed_at: Optional[datetime] = None
+    is_completed: bool
+
+    class Config:
+        from_attributes = True
+
+
+class GuidedStudyProgressUpdate(BaseModel):
+    completed_step_ids: List[str]
+    is_completed: bool = False

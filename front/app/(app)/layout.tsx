@@ -20,6 +20,7 @@ import {
   MessageCircle, 
   ChevronDown,
   ChevronUp,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,12 +58,6 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
     return "[&>div]:bg-primary dark:[&>div]:bg-[#6BDEF3]";
   };
 
-  const getStatusIcon = () => {
-    if (percentage >= 90) return "🚫";
-    if (percentage >= 70) return "⚠️";
-    return "✨";
-  };
-
   const getMessage = () => {
     if (remaining === 0) return "Limite atingido";
     if (remaining === 1) return "Última geração";
@@ -86,10 +81,15 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm">{getStatusIcon()}</span>
-                    <span className="text-xs font-medium text-sidebar-foreground">
-                      Gerações
-                    </span>
+                    <span className="text-xs font-medium text-sidebar-foreground">Gerações</span>
+                    <Link
+                      href="/support/saiba-mais/consumo-ia"
+                      className="relative z-10 rounded-full p-0.5 text-sidebar-foreground/70 hover:text-primary transition-colors"
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label="Saiba mais sobre consumo de IA"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
                   <span className={cn("text-xs font-bold tabular-nums", getStatusColor())}>
                     {used}/{limit}
@@ -114,10 +114,7 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
             sideOffset={8}
           >
             <div className="space-y-2.5">
-              <div className="flex items-center gap-2">
-                <span className="text-base">{getStatusIcon()}</span>
-                <p className="font-semibold text-sm text-foreground">Limite Diário</p>
-              </div>
+              <p className="font-semibold text-sm text-foreground">Limite Diário</p>
               
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {getDetailedMessage()}
@@ -135,7 +132,7 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
               {remaining === 0 && (
                 <div className="pt-2 border-t border-border/30 dark:border-zinc-800/50">
                   <p className="text-xs text-muted-foreground italic">
-                    💡 Revise seus decks enquanto aguarda!
+                    Revise seus decks enquanto aguarda!
                   </p>
                 </div>
               )}
@@ -152,10 +149,15 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm">{getStatusIcon()}</span>
-                <span className="text-xs font-medium text-sidebar-foreground">
-                  Gerações
-                </span>
+                <span className="text-xs font-medium text-sidebar-foreground">Gerações</span>
+                <Link
+                  href="/support/saiba-mais/consumo-ia"
+                  className="relative z-10 rounded-full p-0.5 text-sidebar-foreground/70 hover:text-primary transition-colors"
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label="Saiba mais sobre consumo de IA"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </Link>
               </div>
               <div className="flex items-center gap-2">
                 <span className={cn("text-xs font-bold tabular-nums", getStatusColor())}>
@@ -198,7 +200,7 @@ function GenerationLimitBar({ limitInfo }: { limitInfo: GenerationLimitInfo | nu
             {remaining === 0 && (
               <div className="pt-2 border-t border-border/30 dark:border-zinc-800/50">
                 <p className="text-xs text-muted-foreground italic">
-                  💡 Revise seus decks enquanto aguarda!
+                  Revise seus decks enquanto aguarda!
                 </p>
               </div>
             )}

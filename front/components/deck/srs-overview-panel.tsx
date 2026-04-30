@@ -127,8 +127,8 @@ export function SrsOverviewPanel({
 
   return (
     <>
-      <Card className="border-border/50 overflow-hidden dark:border-zinc-800">
-        <CardContent className="space-y-4 p-5">
+      <Card className="overflow-hidden border-border/50 py-0 dark:border-zinc-800">
+        <CardContent className="space-y-4 p-5 pb-2">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">

@@ -1,0 +1,257 @@
+"use client";
+
+import { useMemo } from "react";
+import { motion } from "framer-motion";
+import {
+  ArrowLeft,
+  Brain,
+  Clock,
+  Layers3,
+  RotateCcw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { GuidedStudy } from "@/lib/api";
+import { formatStudyTime } from "@/lib/performance-utils";
+
+type GuidedQuestionResult = {
+  questionId: number;
+  isCorrect: boolean;
+};
+
+interface GuidedStudyReportProps {
+  guidedStudy: GuidedStudy;
+  sessionStartedAt: Date;
+  sessionCompletedAt: Date;
+  questionResults: GuidedQuestionResult[];
+  onRestart: () => void;
+  onBack: () => void;
+}
+
+function getGuidedMessage(healthScore: number) {
+  if (healthScore >= 90) {
+    return {
+      emoji: "🌟",
+      title: "Trilha muito bem consolidada",
+      subtitle: "Você terminou com ótima segurança no conteúdo revisado.",
+    };
+  }
+  if (healthScore >= 75) {
+    return {
+      emoji: "📘",
+      title: "Boa construção de base",
+      subtitle: "A trilha avançou bem. Vale só reforçar alguns pontos.",
+    };
+  }
+  if (healthScore >= 60) {
+    return {
+      emoji: "🌱",
+      title: "Aprendizado em evolução",
+      subtitle: "Você percorreu a trilha inteira, mas ainda há espaço para fixar melhor os conceitos.",
+    };
+  }
+  return {
+    emoji: "🧭",
+    title: "Hora de reforçar a trilha",
+    subtitle: "A cobertura foi boa, mas a retenção ainda pede uma nova passada.",
+  };
+}
+
+function getRetentionLabel(accuracy: number) {
+  if (accuracy >= 85) return "Alta";
+  if (accuracy >= 65) return "Média";
+  return "Em consolidação";
+}
+
+export function GuidedStudyReport({
+  guidedStudy,
+  sessionStartedAt,
+  sessionCompletedAt,
+  questionResults,
+  onRestart,
+  onBack,
+}: GuidedStudyReportProps) {
+  const stats = useMemo(() => {
+    const totalTopics = guidedStudy.summary.topics_count;
+    const totalSteps = guidedStudy.summary.steps_count;
+    const totalFlashcards = guidedStudy.summary.flashcards_count;
+    const totalQuestions = guidedStudy.summary.questions_count;
+    const correctQuestions = questionResults.filter((result) => result.isCorrect).length;
+    const incorrectQuestions = Math.max(totalQuestions - correctQuestions, 0);
+    const quizAccuracy = totalQuestions > 0 ? Math.round((correctQuestions / totalQuestions) * 100) : 100;
+    const healthScore = Math.round(quizAccuracy * 0.7 + 30);
+
+    const weakestTopics = guidedStudy.topics
+      .map((topic) => {
+        const topicQuestions = topic.steps.filter((step) => step.type === "question" && step.question_id);
+        if (topicQuestions.length === 0) {
+          return null;
+        }
+
+        const correct = topicQuestions.filter((step) =>
+          questionResults.some(
+            (result) => result.questionId === step.question_id && result.isCorrect
+          )
+        ).length;
+
+        return {
+          title: topic.title,
+          accuracy: Math.round((correct / topicQuestions.length) * 100),
+        };
+      })
+      .filter((topic): topic is { title: string; accuracy: number } => Boolean(topic))
+      .sort((a, b) => a.accuracy - b.accuracy)
+      .slice(0, 2);
+
+    return {
+      totalTopics,
+      totalSteps,
+      totalFlashcards,
+      totalQuestions,
+      correctQuestions,
+      incorrectQuestions,
+      quizAccuracy,
+      healthScore,
+      weakestTopics,
+    };
+  }, [guidedStudy, questionResults]);
+
+  const message = getGuidedMessage(stats.healthScore);
+  const studyTime = formatStudyTime(sessionStartedAt, sessionCompletedAt);
+  const retentionLabel = getRetentionLabel(stats.quizAccuracy);
+
+  return (
+    <div className="min-h-screen bg-background px-4 py-6 md:py-8">
+      <div className="mx-auto max-w-4xl">
+        <Card className="animate-in fade-in-50 duration-500 border border-border/70 bg-card/95 p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#7FD9A0]/45 hover:shadow-[0_0_0_1px_rgba(127,217,160,0.18),0_22px_54px_-24px_rgba(127,217,160,0.48)] dark:border-zinc-800 dark:bg-[#23262f]/95 dark:hover:border-[#7FD9A0]/28 dark:hover:shadow-[0_0_0_1px_rgba(127,217,160,0.12),0_22px_54px_-24px_rgba(127,217,160,0.3)] md:p-8 lg:p-10">
+          <div className="mb-8 flex items-center justify-between">
+            <Button
+              onClick={onBack}
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <span className="text-sm font-medium text-muted-foreground">
+              {stats.totalSteps} / {stats.totalSteps}
+            </span>
+            <div className="h-10 w-10" />
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-stretch">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="flex min-h-[340px] flex-col items-center justify-center text-center lg:min-h-[420px] lg:justify-start lg:pt-24"
+            >
+              <div className="mb-6 flex justify-center">
+                <div className="relative inline-flex items-center justify-center">
+                  <div className="absolute -top-2 -right-2 h-4 w-4 rounded-full bg-emerald-300 opacity-80" />
+                  <div className="absolute -bottom-1 -left-3 h-3 w-3 rounded-full bg-[#7FD9A0] opacity-60" />
+                  <div className="absolute top-3 -left-2 h-2 w-2 rounded-full bg-emerald-200 opacity-70" />
+                  <div className="absolute -top-1 left-4 h-2 w-2 rounded-full bg-[#7FD9A0] opacity-80" />
+
+                  <div className="relative z-10 rounded-2xl bg-[#7FD9A0] p-4 text-black shadow-lg lg:p-5">
+                    <span className="text-2xl lg:text-3xl">{message.emoji}</span>
+                  </div>
+
+                  <div className="absolute -bottom-2 right-1 h-3 w-3 rounded-full bg-emerald-300 opacity-60" />
+                  <div className="absolute top-1 right-3 h-2 w-2 rounded-full bg-[#7FD9A0] opacity-70" />
+                </div>
+              </div>
+
+              <h1 className="mb-3 text-2xl font-bold text-foreground md:text-3xl">
+                {message.title}
+              </h1>
+              <p className="max-w-sm text-sm leading-relaxed text-muted-foreground md:text-base">
+                {message.subtitle}
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="space-y-5"
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-[#7FD9A0]/20 bg-[#7FD9A0]/10 p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-[#5CAF7A] dark:text-[#A5E7BB]">
+                    <Brain className="h-4 w-4" />
+                    Saúde do conhecimento
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-foreground">{stats.healthScore}%</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Síntese da sua retenção nesta trilha.</p>
+                </div>
+
+                <div className="rounded-2xl border border-[#7FD9A0]/20 bg-[#7FD9A0]/10 p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-[#5CAF7A] dark:text-[#A5E7BB]">
+                    <Layers3 className="h-4 w-4" />
+                    Cobertura
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-foreground">{stats.totalTopics} blocos</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{stats.totalFlashcards} flashcards e {stats.totalQuestions} quizzes.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 dark:border-zinc-800">
+                  <p className="text-sm text-muted-foreground">Retenção</p>
+                  <p className="mt-1 text-lg font-semibold text-foreground">{retentionLabel}</p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 dark:border-zinc-800">
+                  <p className="text-sm text-muted-foreground">Acertos</p>
+                  <p className="mt-1 text-lg font-semibold text-foreground">{stats.correctQuestions}/{stats.totalQuestions}</p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 dark:border-zinc-800">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    Tempo
+                  </div>
+                  <p className="mt-1 text-lg font-semibold text-foreground">{studyTime}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 dark:border-zinc-800">
+                <h2 className="text-sm font-semibold text-foreground">Resumo final</h2>
+                <div className="mt-3 space-y-2 text-sm leading-relaxed text-muted-foreground">
+                  <p>Você concluiu todos os {stats.totalSteps} passos da trilha.</p>
+                  <p>Precisão nos quizzes: <strong className="text-foreground">{stats.quizAccuracy}%</strong>.</p>
+                  {stats.weakestTopics.length > 0 ? (
+                    <p>
+                      Vale revisar com mais atenção: <strong className="text-foreground">{stats.weakestTopics.map((topic) => topic.title).join(" e ")}</strong>.
+                    </p>
+                  ) : (
+                    <p>O desempenho ficou estável em todos os blocos avaliados.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                <Button
+                  onClick={onRestart}
+                  className="flex-1 rounded-lg bg-[#7FD9A0] py-4 text-base font-medium text-black hover:bg-[#7FD9A0]/90"
+                  size="lg"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Refazer trilha
+                </Button>
+                <Button
+                  onClick={onBack}
+                  variant="outline"
+                  className="flex-1 border-[#7FD9A0]/25 text-foreground hover:bg-[#7FD9A0]/10 dark:border-[#7FD9A0]/20"
+                  size="lg"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Voltar ao deck
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}

@@ -34,6 +34,8 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./back/app:/app/app
+      - ./back/alembic:/app/alembic
+      - ./back/alembic.ini:/app/alembic.ini
       - ./back/gcp-credentials.json:/app/gcp-credentials.json
     depends_on:
       db:
@@ -51,6 +53,8 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./back/app:/app/app
+      - ./back/alembic:/app/alembic
+      - ./back/alembic.ini:/app/alembic.ini
       - ./back/gcp-credentials.json:/app/gcp-credentials.json
     depends_on:
       db:
@@ -84,7 +88,11 @@ services:
     env_file:
       - ./back/.env
     volumes:
-      - ./back:/app
+      - ./uploads:/app/uploads
+      - ./back/app:/app/app
+      - ./back/alembic:/app/alembic
+      - ./back/alembic.ini:/app/alembic.ini
+      - ./back/gcp-credentials.json:/app/gcp-credentials.json
     restart: unless-stopped
 
 volumes:

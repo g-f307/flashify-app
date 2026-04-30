@@ -3,15 +3,25 @@
 import { useState, useEffect } from "react";
 import { Document, Flashcard, apiClient } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ArrowLeft, ArrowRight, RotateCcw, Smile, Frown, Meh, Pencil, Play } from "lucide-react";
-import { EnhancedFlashcardRenderer } from "./enhanced-flashcard-renderer";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, ArrowRight, RotateCcw, Smile, Frown, Meh } from "lucide-react";
 import { FlashcardChat } from "./flashcard-chat";
 import { PerformanceReportResponsive } from "./performance-report";
 import { EditFlashcardModal } from "./edit-flashcard-modal";
 import { SrsOnboardingModal } from "./srs-onboarding-modal";
+import { FlashcardStage } from "./flashcard-stage";
+import { ResumeStudyDialog } from "./resume-study-dialog";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { 
   StudySession, 
   calculatePerformanceStats,
@@ -55,6 +65,8 @@ export function FlashcardStudyFinal({
   
   const [editingFlashcard, setEditingFlashcard] = useState<Flashcard | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [flashcardPendingDelete, setFlashcardPendingDelete] = useState<Flashcard | null>(null);
+  const [isDeletingFlashcard, setIsDeletingFlashcard] = useState(false);
 
   const [savedProgress, setSavedProgress] = useState<StudyProgress | null>(null);
 
@@ -85,7 +97,12 @@ export function FlashcardStudyFinal({
 
   const handleResumeFromSaved = () => {
     if (savedProgress) {
-      setCurrentCardIndex(savedProgress.currentCardIndex);
+      const safeIndex = Math.min(
+        Math.max(savedProgress.currentCardIndex, 0),
+        Math.max(flashcards.length - 1, 0)
+      );
+
+      setCurrentCardIndex(safeIndex);
       if (savedProgress.sessionData) {
         const restoredSessions: StudySession[] = savedProgress.sessionData.map(data => ({
           flashcardId: data.flashcardId,
@@ -94,7 +111,7 @@ export function FlashcardStudyFinal({
         }));
         setStudySessions(restoredSessions);
       }
-      toast.success(`Retomando do card ${savedProgress.currentCardIndex + 1} de ${savedProgress.totalCards}`);
+      toast.success(`Retomando do card ${safeIndex + 1} de ${flashcards.length}`);
     }
     setShowResumePrompt(false);
   };
@@ -165,6 +182,36 @@ export function FlashcardStudyFinal({
     setFlashcards(newFlashcards);
   };
 
+  const handleDeleteFlashcard = async () => {
+    const target = flashcardPendingDelete;
+    if (!target) return;
+
+    setIsDeletingFlashcard(true);
+    try {
+      await apiClient.deleteFlashcardFromDocument(document.id, target);
+
+      const remainingFlashcards = flashcards.filter((flashcard) => flashcard.id !== target.id);
+      setFlashcards(remainingFlashcards);
+      setStudySessions((current) => current.filter((session) => session.flashcardId !== target.id));
+
+      if (remainingFlashcards.length === 0) {
+        toast.success("Flashcard excluído. Não restaram cards neste deck.");
+        setFlashcardPendingDelete(null);
+        onBack();
+        return;
+      }
+
+      setCurrentCardIndex((current) => Math.min(current, remainingFlashcards.length - 1));
+      setIsFlipped(false);
+      toast.success("Flashcard excluído com sucesso!");
+      setFlashcardPendingDelete(null);
+    } catch (error: any) {
+      toast.error("Falha ao excluir flashcard", { description: error.message });
+    } finally {
+      setIsDeletingFlashcard(false);
+    }
+  };
+
   const handleRestart = () => {
     setCurrentCardIndex(0);
     setIsFlipped(false);
@@ -214,49 +261,6 @@ export function FlashcardStudyFinal({
     );
   }
 
-  if (showResumePrompt && savedProgress) {
-    return (
-      <div className="flex flex-col h-full items-center justify-center w-full max-w-md mx-auto p-6">
-        <Card className="p-6 w-full text-center glow-on-hover">
-          <div className="mb-6">
-            <div className="bg-primary p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-              <Play className="w-8 h-8 text-primary-foreground" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">
-              Continuar estudando?
-            </h2>
-            <p className="text-muted-foreground mb-4">
-              Você parou no card {savedProgress.currentCardIndex + 1} de {savedProgress.totalCards}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Última sessão: {StudyProgressUtils.formatTimeSinceLastStudy(savedProgress)}
-            </p>
-          </div>
-          
-          <div className="space-y-3">
-            <Button
-              onClick={handleResumeFromSaved}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-              size="lg"
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Continuar de onde parei
-            </Button>
-            
-            <Button
-              onClick={handleStartFromBeginning}
-              variant="outline"
-              className="w-full"
-              size="lg"
-            >
-              Começar do início
-            </Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   if (showReport) {
     return (
       <PerformanceReportResponsive
@@ -273,7 +277,37 @@ export function FlashcardStudyFinal({
     );
   }
 
+  if (showResumePrompt && savedProgress) {
+    return (
+      <div className="flex min-h-full items-center justify-center">
+        <ResumeStudyDialog
+          open={showResumePrompt}
+          onOpenChange={setShowResumePrompt}
+          progressLabel={`Você parou no card ${savedProgress.currentCardIndex + 1} de ${savedProgress.totalCards}`}
+          secondaryLabel={`Última sessão: ${StudyProgressUtils.formatTimeSinceLastStudy(savedProgress)}`}
+          onContinue={handleResumeFromSaved}
+          onRestart={handleStartFromBeginning}
+        />
+      </div>
+    );
+  }
+
   const currentFlashcard = flashcards[currentCardIndex];
+
+  if (!currentFlashcard) {
+    return (
+      <div className="text-center">
+        <p className="text-muted-foreground">Não foi possível restaurar esta sessão de estudo.</p>
+        <Button
+          onClick={handleStartFromBeginning}
+          variant="outline"
+          className="mt-4"
+        >
+          Reiniciar sessão
+        </Button>
+      </div>
+    );
+  }
 
   if (isChatOpen) {
     return <FlashcardChat flashcard={currentFlashcard} onClose={() => setIsChatOpen(false)} />;
@@ -290,110 +324,56 @@ export function FlashcardStudyFinal({
         </Button>
       )}
 
-      <div className="w-full max-w-2xl flex-grow flex flex-col items-center justify-center perspective-1000">
-        <div
-          className="relative group w-full h-[450px] sm:h-[500px] transform-style-preserve-3d transition-transform duration-600 cursor-pointer glow-on-hover"
-          style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-          onClick={handleFlip}
-        >
-          <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingFlashcard(currentFlashcard);
-                setIsEditModalOpen(true);
-              }}
-              className="h-9 w-9"
-              style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-            >
-              <Pencil className="w-5 h-5" />
+      <FlashcardStage
+        flashcard={currentFlashcard}
+        currentIndex={currentCardIndex}
+        total={flashcards.length}
+        isFlipped={isFlipped}
+        onFlip={handleFlip}
+        onEdit={() => {
+          setEditingFlashcard(currentFlashcard);
+          setIsEditModalOpen(true);
+        }}
+        onDelete={() => setFlashcardPendingDelete(currentFlashcard)}
+        frontActions={
+          <div className="flex flex-col sm:flex-row w-full justify-between items-center gap-2">
+            <div className="flex w-full sm:w-auto justify-between gap-2">
+              <Button
+                onClick={handlePrevCard}
+                variant="outline"
+                size="lg"
+                className="functional-button flex-1 sm:flex-none"
+                disabled={currentCardIndex === 0}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <Button onClick={goToNextCard} variant="outline" size="lg" className="functional-button flex-1 sm:flex-none">
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </div>
+            <Button onClick={handleFlip} variant="ghost" size="lg" className="w-full sm:w-auto flex-grow sm:mx-4 functional-button">
+              <RotateCcw className="w-5 h-5 mr-2" />
+              Virar Card
             </Button>
           </div>
-
-          <Card className="absolute w-full h-full backface-hidden flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
-            <div className="w-full h-full flex items-center justify-center text-center">
-              <EnhancedFlashcardRenderer 
-                content={currentFlashcard.front} 
-                type={currentFlashcard.type} 
-              />
-            </div>
-          </Card>
-
-          <Card className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
-            <div className="w-full h-full flex items-center justify-center text-center">
-              <EnhancedFlashcardRenderer 
-                content={currentFlashcard.back} 
-                type={currentFlashcard.type} 
-                isAnswer 
-              />
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      <div className="w-full max-w-2xl mt-6 space-y-4">
-        <div className="text-center text-sm text-muted-foreground">
-          {currentCardIndex + 1} / {flashcards.length}
-        </div>
-        
-        <div className="min-h-[6rem] sm:min-h-[3.5rem] flex items-center">
-          <AnimatePresence mode="wait">
-            {!isFlipped ? (
-              <motion.div
-                key="navigation"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="flex flex-col sm:flex-row w-full justify-between items-center gap-2"
-              >
-                <div className="flex w-full sm:w-auto justify-between gap-2">
-                  <Button 
-                    onClick={handlePrevCard} 
-                    variant="outline" 
-                    size="lg" 
-                    className="functional-button flex-1 sm:flex-none"
-                    disabled={currentCardIndex === 0}
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </Button>
-                  <Button onClick={goToNextCard} variant="outline" size="lg" className="functional-button flex-1 sm:flex-none">
-                    <ArrowRight className="w-5 h-5" />
-                  </Button>
-                </div>
-                <Button onClick={handleFlip} variant="ghost" size="lg" className="w-full sm:w-auto flex-grow sm:mx-4 functional-button">
-                  <RotateCcw className="w-5 h-5 mr-2" />
-                  Virar Card
-                </Button>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="feedback"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="flex flex-col sm:flex-row w-full justify-center items-center gap-2"
-              >
-                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-red-100 text-red-700 hover:bg-red-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.0)} disabled={isLogging}>
-                  <span className="flex items-center gap-1"><Frown className="h-5 w-5" /> Não sabia</span>
-                  <span className="text-[10px] font-normal opacity-70">Não lembrei ou errei</span>
-                </Button>
-                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.5)} disabled={isLogging}>
-                  <span className="flex items-center gap-1"><Meh className="h-5 w-5" /> Sabia em parte</span>
-                  <span className="text-[10px] font-normal opacity-70">Lembrei parcialmente</span>
-                </Button>
-                <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-green-100 text-green-700 hover:bg-green-200 flex-col h-auto py-3" onClick={() => handleFeedback(1.0)} disabled={isLogging}>
-                  <span className="flex items-center gap-1"><Smile className="h-5 w-5" /> Sabia</span>
-                  <span className="text-[10px] font-normal opacity-70">Lembrei na hora</span>
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+        }
+        backActions={
+          <div className="flex flex-col sm:flex-row w-full justify-center items-center gap-2">
+            <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-red-100 text-red-700 hover:bg-red-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.0)} disabled={isLogging}>
+              <span className="flex items-center gap-1"><Frown className="h-5 w-5" /> Não sabia</span>
+              <span className="text-[10px] font-normal opacity-70">Não lembrei ou errei</span>
+            </Button>
+            <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 flex-col h-auto py-3" onClick={() => handleFeedback(0.5)} disabled={isLogging}>
+              <span className="flex items-center gap-1"><Meh className="h-5 w-5" /> Sabia em parte</span>
+              <span className="text-[10px] font-normal opacity-70">Lembrei parcialmente</span>
+            </Button>
+            <Button variant="outline" size="lg" className="w-full sm:flex-1 bg-green-100 text-green-700 hover:bg-green-200 flex-col h-auto py-3" onClick={() => handleFeedback(1.0)} disabled={isLogging}>
+              <span className="flex items-center gap-1"><Smile className="h-5 w-5" /> Sabia</span>
+              <span className="text-[10px] font-normal opacity-70">Lembrei na hora</span>
+            </Button>
+          </div>
+        }
+      />
       
       <EditFlashcardModal
         isOpen={isEditModalOpen}
@@ -401,6 +381,22 @@ export function FlashcardStudyFinal({
         flashcard={editingFlashcard}
         onUpdate={handleUpdateFlashcard}
       />
+      <AlertDialog open={Boolean(flashcardPendingDelete)} onOpenChange={(open) => !open && setFlashcardPendingDelete(null)}>
+        <AlertDialogContent className="w-[calc(100vw-1.5rem)] max-w-md border-black/10 dark:border-white/10 dark:bg-[#171922] sm:w-full">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir flashcard?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação remove o flashcard do deck e persiste no sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingFlashcard}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteFlashcard} disabled={isDeletingFlashcard} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <SrsOnboardingModal show={showReport} />
     </div>
   );

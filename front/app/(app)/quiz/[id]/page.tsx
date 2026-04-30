@@ -2,27 +2,32 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
-import { apiClient, Document, Question, Answer, CheckAnswerResponse } from "@/lib/api";
+import { apiClient, Document, Question, CheckAnswerResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
-    Loader2, 
     AlertTriangle, 
     ArrowLeft, 
-    CheckCircle, 
-    XCircle, 
-    Sparkles,
-    ArrowRight
 } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Confetti from "react-confetti";
 import { useLoading } from "@/components/providers/loading-provider"; 
 import { QuizPerformanceReport } from "@/components/quiz/quiz-performance-report"; 
+import { QuestionStage } from "@/components/quiz/question-stage";
+import { EditQuestionModal } from "@/components/quiz/edit-question-modal";
+import { ResumeStudyDialog } from "@/components/study/resume-study-dialog";
+import { quizProgressManager, QuizProgress } from "@/lib/quiz-progress";
 
 type AnswerStatus = 'unanswered' | 'correct' | 'incorrect';
 type AnswerFeedback = CheckAnswerResponse;
@@ -53,6 +58,14 @@ export default function QuizPage() {
     const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
     const [showResults, setShowResults] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
+    const [showResumePrompt, setShowResumePrompt] = useState(false);
+    const [savedProgress, setSavedProgress] = useState<QuizProgress | null>(null);
+    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+    const [isEditQuestionOpen, setIsEditQuestionOpen] = useState(false);
+    const [questionPendingDelete, setQuestionPendingDelete] = useState<Question | null>(null);
+    const [isDeletingQuestion, setIsDeletingQuestion] = useState(false);
+
+    const canResumeQuiz = !group && mode !== 'review';
 
     useEffect(() => {
         if (!documentId) return;
@@ -110,6 +123,14 @@ export default function QuizPage() {
                      } else {
                         setDocument(doc);
                         setQuestions([...doc.quiz.questions]);
+
+                        if (canResumeQuiz) {
+                            const progress = quizProgressManager.get(documentId);
+                            if (progress && progress.currentQuestionIndex > 0) {
+                                setSavedProgress(progress);
+                                setShowResumePrompt(true);
+                            }
+                        }
                     }
                 }
             } catch (err) {
@@ -121,7 +142,20 @@ export default function QuizPage() {
         };
         fetchQuiz();
         
-    }, [documentId]); 
+    }, [documentId, canResumeQuiz, group, mode]); 
+
+    useEffect(() => {
+        if (!canResumeQuiz || questions.length === 0 || showResults) return;
+        if (currentQuestionIndex <= 0) return;
+
+        quizProgressManager.save(documentId, {
+            currentQuestionIndex,
+            totalQuestions: questions.length,
+            correctAnswersCount,
+            questionResults,
+            lastUpdatedAt: new Date().toISOString(),
+        });
+    }, [canResumeQuiz, correctAnswersCount, currentQuestionIndex, documentId, questionResults, questions.length, showResults]);
 
     const currentQuestion = useMemo(() => questions[currentQuestionIndex], [questions, currentQuestionIndex]);
     const progressPercentage = useMemo(() => {
@@ -159,6 +193,28 @@ export default function QuizPage() {
             setIsChecking(false);
         }
     };
+
+    const handleResumeQuiz = () => {
+        if (!savedProgress) return;
+        setCurrentQuestionIndex(savedProgress.currentQuestionIndex);
+        setCorrectAnswersCount(savedProgress.correctAnswersCount);
+        setQuestionResults(savedProgress.questionResults);
+        setShowResumePrompt(false);
+        toast.success(`Retomando da pergunta ${savedProgress.currentQuestionIndex + 1} de ${savedProgress.totalQuestions}`);
+    };
+
+    const handleRestartQuiz = () => {
+        quizProgressManager.clear(documentId);
+        setSavedProgress(null);
+        setCurrentQuestionIndex(0);
+        setSelectedAnswerId(null);
+        setAnswerStatus('unanswered');
+        setFeedback(null);
+        setCorrectAnswersCount(0);
+        setQuestionResults({});
+        setShowResumePrompt(false);
+        toast.info("Iniciando do começo");
+    };
     
     const handleNextQuestion = async () => {
         if (currentQuestionIndex < questions.length - 1) {
@@ -184,11 +240,71 @@ export default function QuizPage() {
                     toast.error("Não foi possível salvar o seu resultado.");
                 }
             }
+
+            if (canResumeQuiz) {
+                quizProgressManager.clear(documentId);
+            }
             
             setShowResults(true);
             if (finalScore > 70) {
                 setShowConfetti(true);
             }
+        }
+    };
+
+    const toQuestionPayload = (question: Question) => ({
+        id: question.id,
+        text: question.text,
+        answers: question.answers.map((answer) => ({
+            id: answer.id,
+            text: answer.text,
+            explanation: answer.explanation,
+            is_correct: answer.is_correct,
+        })),
+    });
+
+    const handleQuestionUpdated = (updatedQuestion: Question) => {
+        setQuestions((current) =>
+            current.map((question) => question.id === updatedQuestion.id ? updatedQuestion : question)
+        );
+    };
+
+    const handleDeleteQuestion = async () => {
+        const target = questionPendingDelete;
+        if (!target) return;
+
+        setIsDeletingQuestion(true);
+        try {
+            await apiClient.deleteQuestionFromDocument(documentId, toQuestionPayload(target));
+            const remainingQuestions = questions.filter((question) => question.id !== target.id);
+            const wasCorrect = questionResults[target.id] === true;
+            setQuestions(remainingQuestions);
+            setQuestionResults((current) => {
+                const next = { ...current };
+                delete next[target.id];
+                return next;
+            });
+            if (wasCorrect) {
+                setCorrectAnswersCount((current) => Math.max(0, current - 1));
+            }
+
+            if (remainingQuestions.length === 0) {
+                toast.success("Pergunta excluída. Não restaram questões neste quiz.");
+                setQuestionPendingDelete(null);
+                router.back();
+                return;
+            }
+
+            setCurrentQuestionIndex((current) => Math.min(current, remainingQuestions.length - 1));
+            setSelectedAnswerId(null);
+            setAnswerStatus('unanswered');
+            setFeedback(null);
+            setQuestionPendingDelete(null);
+            toast.success("Pergunta excluída com sucesso!");
+        } catch (error: any) {
+            toast.error("Falha ao excluir pergunta", { description: error.message });
+        } finally {
+            setIsDeletingQuestion(false);
         }
     };
 
@@ -205,6 +321,21 @@ export default function QuizPage() {
 
     if (isLoading || !document) {
         return null;
+    }
+
+    if (showResumePrompt && savedProgress) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-background p-4">
+                <ResumeStudyDialog
+                    open={showResumePrompt}
+                    onOpenChange={setShowResumePrompt}
+                    title="Continuar quiz?"
+                    progressLabel={`Você parou na pergunta ${savedProgress.currentQuestionIndex + 1} de ${savedProgress.totalQuestions}`}
+                    onContinue={handleResumeQuiz}
+                    onRestart={handleRestartQuiz}
+                />
+            </div>
+        );
     }
 
     if (showResults) {
@@ -250,9 +381,9 @@ export default function QuizPage() {
                                 {document.quiz?.title}
                             </h1>
                         </div>
-                        <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full">
-                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                            <span className="text-sm font-medium text-primary">
+                    <div className="flex items-center gap-2 rounded-full bg-[#48cfea]/15 px-3 py-1.5 text-[#0f766e] dark:bg-[#48cfea]/12 dark:text-[#48cfea]">
+                            <div className="w-2 h-2 rounded-full bg-[#48cfea] animate-pulse" />
+                            <span className="text-sm font-medium">
                                 {currentQuestionIndex + 1}/{questions.length}
                             </span>
                         </div>
@@ -260,139 +391,69 @@ export default function QuizPage() {
                 </header>
                 
                 <div className="mb-6 animate-in fade-in-50 slide-in-from-top-4 duration-500 delay-100">
-                    <Progress value={progressPercentage} className="h-2" />
+                    <Progress value={progressPercentage} className="h-2 bg-[#48cfea]/20" indicatorClassName="bg-[#48cfea]" />
                     <div className="flex justify-between items-center mt-2 text-xs sm:text-sm text-muted-foreground">
                         <span>Pergunta {currentQuestionIndex + 1}</span>
                         <span>{Math.round(progressPercentage)}% concluído</span>
                     </div>
                 </div>
-                <Card className="overflow-hidden border-muted animate-in fade-in-50 zoom-in-95 duration-500 delay-200">
-                    <CardHeader className="bg-muted/30 border-b border-muted">
-                        <div className="flex items-start gap-4 p-2">
-                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <span className="text-primary font-bold text-lg">{currentQuestionIndex + 1}</span>
-                            </div>
-                            <CardTitle className="text-lg sm:text-xl leading-relaxed pt-1.5 flex-1">
-                                {currentQuestion.text}
-                            </CardTitle>
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="pt-6 pb-6">
-                        <RadioGroup
-                            value={String(selectedAnswerId)}
-                            onValueChange={(value) => setSelectedAnswerId(Number(value))}
-                            disabled={answerStatus !== 'unanswered'}
-                            className="space-y-3"
-                        >
-                            {currentQuestion.answers.map((answer, index) => {
-                                const isCorrect = feedback?.correct_answer_id === answer.id;
-                                const isSelected = selectedAnswerId === answer.id;
-                                const letters = ['A', 'B', 'C', 'D', 'E'];
-
-                                return (
-                                    <Label
-                                        key={answer.id}
-                                        htmlFor={`ans-${answer.id}`}
-                                        className={cn(
-                                            "flex items-start gap-4 p-4 border rounded-xl transition-all duration-300 cursor-pointer group",
-                                            "hover:shadow-md hover:scale-[1.02]",
-                                            answerStatus === 'unanswered' && "hover:border-primary/80 hover:bg-primary/5",
-                                            answerStatus !== 'unanswered' && !isCorrect && "opacity-60",
-                                            isSelected && answerStatus === 'unanswered' && "border-primary bg-primary/5 scale-[1.02]",
-                                            answerStatus === 'correct' && isCorrect && "border-green-500 bg-green-500/10",
-                                            answerStatus === 'incorrect' && isSelected && "border-destructive bg-destructive/10",
-                                            answerStatus === 'incorrect' && isCorrect && "border-green-500 bg-green-500/10"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-all",
-                                            isSelected && answerStatus === 'unanswered' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-                                            answerStatus === 'correct' && isCorrect && "bg-green-500 text-white",
-                                            answerStatus === 'incorrect' && isSelected && "bg-destructive text-white",
-                                            answerStatus === 'incorrect' && isCorrect && "bg-green-500 text-white"
-                                        )}>
-                                            {letters[index]}
-                                        </div>
-                                        
-                                        <div className="flex-1 flex items-center gap-3">
-                                            <RadioGroupItem
-                                                value={String(answer.id)}
-                                                id={`ans-${answer.id}`}
-                                                className="border-border"
-                                            />
-                                            <span className="text-sm sm:text-base leading-relaxed">
-                                                {answer.text}
-                                            </span>
-                                        </div>
-                                        
-                                        {answerStatus !== 'unanswered' && (
-                                            <div className="flex-shrink-0">
-                                                {isCorrect ? (
-                                                    <CheckCircle className="w-6 h-6 text-green-500 animate-in zoom-in-50 duration-300" />
-                                                ) : isSelected ? (
-                                                    <XCircle className="w-6 h-6 text-destructive animate-in zoom-in-50 duration-300" />
-                                                ) : null}
-                                            </div>
-                                        )}
-                                    </Label>
-                                )
-                            })}
-                        </RadioGroup>
-                        
-                        {feedback && (
-                            <div className={cn(
-                                "mt-6 p-4 rounded-xl animate-in fade-in-50 slide-in-from-bottom-4 duration-500 border",
-                                feedback.is_correct
-                                    ? "bg-green-500/10 border-green-500/30"
-                                    : "bg-destructive/10 border-destructive/30"
-                            )}>
-                                <div className="flex items-start gap-3">
-                                    <div className={cn(
-                                        "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5",
-                                        feedback.is_correct ? "bg-green-500" : "bg-destructive"
-                                    )}>
-                                        {feedback.is_correct ? <CheckCircle className="w-5 h-5 text-white"/> : <XCircle className="w-5 h-5 text-white"/>}
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className={cn(
-                                            "text-sm leading-relaxed",
-                                            feedback.is_correct ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"
-                                        )}>
-                                            {feedback.explanation
-                                                .replace(/^Correto!\s*/i, '')
-                                                .replace(/^Incorreto[o|a]?[!]?\s*/i, '')
-                                                .replace(/^Errado[!]?\s*/i, '')
-                                            }
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-                <div className="mt-6 flex flex-col sm:flex-row sm:justify-end animate-in fade-in-50 slide-in-from-bottom-4 duration-500 delay-300">
-                    {answerStatus === 'unanswered' ? (
-                        <Button
-                            onClick={handleCheckAnswer}
-                            disabled={!selectedAnswerId || isChecking}
-                            size="lg"
-                            className="w-full sm:w-auto sm:min-w-[140px]"
-                        >
-                            {isChecking && <Loader2 className="w-4 h-4 mr-2 animate-spin"/>}
-                            Verificar
-                        </Button>
-                    ) : (
-                        <Button
-                            onClick={handleNextQuestion}
-                            size="lg"
-                            className="w-full sm:w-auto sm:min-w-[140px] group"
-                        >
-                            {currentQuestionIndex === questions.length - 1 ? "Ver Resultados" : "Próxima"}
-                            {currentQuestionIndex < questions.length - 1 && <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />}
-                        </Button>
-                    )}
-                </div>
+                <QuestionStage
+                    question={currentQuestion}
+                    questionLabel={currentQuestionIndex + 1}
+                    selectedAnswerId={selectedAnswerId}
+                    onSelectAnswer={setSelectedAnswerId}
+                    answerStatus={answerStatus}
+                    feedback={feedback}
+                    isChecking={isChecking}
+                    onCheck={handleCheckAnswer}
+                    onNext={handleNextQuestion}
+                    onEdit={() => {
+                        setEditingQuestion(currentQuestion);
+                        setIsEditQuestionOpen(true);
+                    }}
+                    onDelete={() => setQuestionPendingDelete(currentQuestion)}
+                    nextLabel={currentQuestionIndex === questions.length - 1 ? "Ver Resultados" : "Próxima"}
+                    hideNextArrow={currentQuestionIndex === questions.length - 1}
+                    theme={{
+                        badge: "bg-[#48cfea]/15",
+                        badgeText: "text-[#0f766e] dark:text-[#48cfea]",
+                        hoverBorder: "hover:border-[#48cfea]/80",
+                        hoverBg: "hover:bg-[#48cfea]/5",
+                        selectedBorder: "border-[#48cfea]",
+                        selectedBg: "bg-[#48cfea]/5",
+                        selectedBadge: "bg-[#48cfea]",
+                        selectedBadgeText: "text-black",
+                        primaryButton: "bg-[#48cfea] hover:bg-[#48cfea]/90 text-black",
+                        radioItem: "border-[#48cfea]/45 text-[#48cfea] data-[state=checked]:border-[#48cfea] [&_[data-slot=radio-group-indicator]_svg]:fill-[#48cfea]",
+                    }}
+                />
+                <EditQuestionModal
+                    documentId={documentId}
+                    question={editingQuestion}
+                    isOpen={isEditQuestionOpen}
+                    onClose={() => setIsEditQuestionOpen(false)}
+                    onUpdate={handleQuestionUpdated}
+                />
+                <AlertDialog open={Boolean(questionPendingDelete)} onOpenChange={(open) => !open && setQuestionPendingDelete(null)}>
+                    <AlertDialogContent className="w-[calc(100vw-1.5rem)] max-w-md border-black/10 dark:border-white/10 dark:bg-[#171922] sm:w-full">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir pergunta?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Essa ação remove a pergunta do quiz e persiste no sistema.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isDeletingQuestion}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDeleteQuestion}
+                                disabled={isDeletingQuestion}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                Excluir
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </div>
     );

@@ -42,14 +42,13 @@ export function LimitReachedDialog({ isOpen, onClose, limitInfo }: LimitReachedD
           </div>
           
           <AlertDialogTitle className="text-center text-xl">
-            Limite Diário Atingido! 🎉
+            Limite Diário Atingido
           </AlertDialogTitle>
           
           <AlertDialogDescription className="text-center space-y-4">
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
               <p className="text-sm">
-                Você criou <strong className="text-primary">{used} decks</strong> hoje! 
-                Que produtividade incrível! 🚀
+                Você criou <strong className="text-primary">{used} decks</strong> hoje.
               </p>
               
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
@@ -77,7 +76,7 @@ export function LimitReachedDialog({ isOpen, onClose, limitInfo }: LimitReachedD
             </div>
 
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-xs">
-              <p className="text-primary font-medium">💡 Dica Pro</p>
+              <p className="text-primary font-medium">Dica</p>
               <p className="text-muted-foreground mt-1">
                 A repetição espaçada funciona melhor do que criar muitos decks de uma vez. 
                 Use hoje para consolidar o que já aprendeu!

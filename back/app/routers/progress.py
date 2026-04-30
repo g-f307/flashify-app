@@ -5,7 +5,9 @@ from sqlmodel import Session, select, func
 from typing_extensions import Annotated
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
+import calendar
 from typing import List, Optional
+from sqlalchemy.orm import selectinload
 
 from .. import crud, models, security
 from ..database import get_session
@@ -13,6 +15,54 @@ from ..study_ordering import order_due_for_review
 
 router = APIRouter(prefix="/progress", tags=["Progress"])
 CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
+
+
+def _flashcard_last_accuracy_map(
+    session: Session,
+    document_id: int,
+) -> dict[int, float]:
+    logs = session.exec(
+        select(models.StudyLog)
+        .join(models.Flashcard, models.Flashcard.id == models.StudyLog.flashcard_id)
+        .where(models.Flashcard.document_id == document_id)
+        .order_by(models.StudyLog.flashcard_id.asc(), models.StudyLog.studied_at.desc())
+    ).all()
+
+    last_accuracy_by_flashcard: dict[int, float] = {}
+    for log in logs:
+        if log.flashcard_id not in last_accuracy_by_flashcard:
+            last_accuracy_by_flashcard[log.flashcard_id] = log.accuracy
+
+    return last_accuracy_by_flashcard
+
+
+def _question_last_result_map(
+    session: Session,
+    document_id: int,
+) -> dict[int, bool]:
+    quiz = session.exec(
+        select(models.Quiz)
+        .where(models.Quiz.document_id == document_id)
+        .options(selectinload(models.Quiz.attempts))
+    ).first()
+    if not quiz or not quiz.attempts:
+        return {}
+
+    latest_attempt = max(quiz.attempts, key=lambda attempt: attempt.completed_at)
+    # Fallback conservador: se a versão antiga da tentativa não armazenar granularidade por questão,
+    # mantemos a classificação estrutural atual.
+    question_results = getattr(latest_attempt, "question_results", None)
+    if not isinstance(question_results, dict):
+        return {}
+
+    parsed_results: dict[int, bool] = {}
+    for question_id, is_correct in question_results.items():
+        try:
+            parsed_results[int(question_id)] = bool(is_correct)
+        except (TypeError, ValueError):
+            continue
+
+    return parsed_results
 
 # ▼▼▼ MODELO DE ESTATÍSTICAS ATUALIZADO PARA INCLUIR QUIZZES ▼▼▼
 class ProgressStats(BaseModel):
@@ -22,6 +72,95 @@ class ProgressStats(BaseModel):
     flashcard_weekly_activity: List[int]
     quizzes_completed_week: int
     quiz_average_score: float
+
+
+class DashboardSummary(BaseModel):
+    reviewed_decks_today: int
+    flashcards_reviewed_today: int
+    quizzes_completed_today: int
+    last_active_document_id: Optional[int] = None
+    last_activity_at: Optional[datetime] = None
+
+
+class StreakCalendarDay(BaseModel):
+    date: str
+    day: int
+    weekday: int
+    status: str
+    has_activity: bool
+
+
+class StreakCalendarSummary(BaseModel):
+    month: int
+    year: int
+    today: str
+    current_streak: int
+    active_days: int
+    days: List[StreakCalendarDay]
+
+
+class StreakCalendarRangeSummary(BaseModel):
+    start_date: str
+    end_date: str
+    today: str
+    current_streak: int
+    days: List[StreakCalendarDay]
+
+
+def _get_local_activity_dates(
+    current_user: CurrentUser,
+    session: Session,
+    user_timezone_delta: timedelta,
+):
+    study_times = session.exec(
+        select(models.StudyLog.studied_at)
+        .where(models.StudyLog.user_id == current_user.id)
+    ).all()
+
+    quiz_times = session.exec(
+        select(models.QuizAttempt.completed_at)
+        .where(models.QuizAttempt.user_id == current_user.id)
+    ).all()
+
+    activity_dates = {
+        (studied_at + user_timezone_delta).date()
+        for studied_at in study_times
+    }
+    activity_dates.update(
+        (completed_at + user_timezone_delta).date()
+        for completed_at in quiz_times
+    )
+
+    return activity_dates
+
+
+def _calculate_current_streak(activity_dates: set, today_date):
+    if not activity_dates:
+        return 0
+
+    anchor_date = today_date if today_date in activity_dates else today_date - timedelta(days=1)
+    if anchor_date not in activity_dates:
+        return 0
+
+    streak = 0
+    cursor = anchor_date
+    while cursor in activity_dates:
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    return streak
+
+
+def _resolve_day_status(current_date, today_date, account_start_date, activity_dates: set):
+    if current_date < account_start_date:
+        return "before"
+    if current_date in activity_dates:
+        return "active"
+    if current_date == today_date:
+        return "today"
+    if current_date > today_date:
+        return "upcoming"
+    return "missed"
 
 @router.get("/stats", response_model=ProgressStats)
 def get_progress_stats(
@@ -90,6 +229,159 @@ def get_progress_stats(
         quiz_average_score=quiz_average_score,
     )
 
+
+@router.get("/dashboard-summary", response_model=DashboardSummary)
+def get_dashboard_summary(
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+    utc_offset_minutes: int = Query(0)
+):
+    """
+    Retorna um resumo diário enxuto para o banner da dashboard.
+    """
+    user_timezone_delta = timedelta(minutes=-utc_offset_minutes)
+    user_today_date = (datetime.now(timezone.utc) + user_timezone_delta).date()
+
+    study_rows = session.exec(
+        select(models.StudyLog.studied_at, models.Flashcard.document_id)
+        .join(models.Flashcard, models.Flashcard.id == models.StudyLog.flashcard_id)
+        .where(models.StudyLog.user_id == current_user.id)
+    ).all()
+
+    reviewed_deck_ids: set[int] = set()
+    flashcards_reviewed_today = 0
+    last_activity_at: Optional[datetime] = None
+    last_active_document_id: Optional[int] = None
+    for studied_at, document_id in study_rows:
+        if (studied_at + user_timezone_delta).date() == user_today_date:
+            flashcards_reviewed_today += 1
+            reviewed_deck_ids.add(document_id)
+        if last_activity_at is None or studied_at > last_activity_at:
+            last_activity_at = studied_at
+            last_active_document_id = document_id
+
+    quiz_rows = session.exec(
+        select(models.QuizAttempt.completed_at, models.Quiz.document_id)
+        .join(models.Quiz, models.Quiz.id == models.QuizAttempt.quiz_id)
+        .join(models.Document, models.Document.id == models.Quiz.document_id)
+        .where(
+            models.Document.user_id == current_user.id,
+            models.QuizAttempt.user_id == current_user.id
+        )
+    ).all()
+
+    quizzes_completed_today = 0
+    for completed_at, document_id in quiz_rows:
+        if (completed_at + user_timezone_delta).date() == user_today_date:
+            quizzes_completed_today += 1
+            reviewed_deck_ids.add(document_id)
+        if last_activity_at is None or completed_at > last_activity_at:
+            last_activity_at = completed_at
+            last_active_document_id = document_id
+
+    return DashboardSummary(
+        reviewed_decks_today=len(reviewed_deck_ids),
+        flashcards_reviewed_today=flashcards_reviewed_today,
+        quizzes_completed_today=quizzes_completed_today,
+        last_active_document_id=last_active_document_id,
+        last_activity_at=last_activity_at,
+    )
+
+
+@router.get("/streak-calendar", response_model=StreakCalendarSummary)
+def get_streak_calendar(
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+    utc_offset_minutes: int = Query(0),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    year: Optional[int] = Query(None, ge=2020, le=2100),
+):
+    user_timezone_delta = timedelta(minutes=-utc_offset_minutes)
+    local_now = datetime.now(timezone.utc) + user_timezone_delta
+    today_date = local_now.date()
+
+    target_month = month or local_now.month
+    target_year = year or local_now.year
+
+    first_day = datetime(target_year, target_month, 1).date()
+    last_day_number = calendar.monthrange(target_year, target_month)[1]
+    last_day = datetime(target_year, target_month, last_day_number).date()
+
+    account_start_date = (current_user.created_at + user_timezone_delta).date()
+    activity_dates = _get_local_activity_dates(current_user, session, user_timezone_delta)
+    current_streak = _calculate_current_streak(activity_dates, today_date)
+
+    days: List[StreakCalendarDay] = []
+    for day_number in range(1, last_day_number + 1):
+        current_date = datetime(target_year, target_month, day_number).date()
+        status = _resolve_day_status(current_date, today_date, account_start_date, activity_dates)
+
+        days.append(
+            StreakCalendarDay(
+                date=current_date.isoformat(),
+                day=day_number,
+                weekday=(current_date.weekday() + 1) % 7,
+                status=status,
+                has_activity=current_date in activity_dates,
+            )
+        )
+
+    active_days = sum(1 for day in days if day.status == "active")
+
+    return StreakCalendarSummary(
+        month=target_month,
+        year=target_year,
+        today=today_date.isoformat(),
+        current_streak=current_streak,
+        active_days=active_days,
+        days=days,
+    )
+
+
+@router.get("/streak-calendar-range", response_model=StreakCalendarRangeSummary)
+def get_streak_calendar_range(
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+    utc_offset_minutes: int = Query(0),
+    start_date: str = Query(...),
+    days: int = Query(7, ge=7, le=42),
+):
+    user_timezone_delta = timedelta(minutes=-utc_offset_minutes)
+    local_now = datetime.now(timezone.utc) + user_timezone_delta
+    today_date = local_now.date()
+
+    try:
+      range_start = datetime.strptime(start_date, "%Y-%m-%d").date()
+    except ValueError:
+      raise HTTPException(status_code=400, detail="start_date deve estar no formato YYYY-MM-DD.")
+
+    account_start_date = (current_user.created_at + user_timezone_delta).date()
+    activity_dates = _get_local_activity_dates(current_user, session, user_timezone_delta)
+    current_streak = _calculate_current_streak(activity_dates, today_date)
+    range_end = range_start + timedelta(days=days - 1)
+
+    range_days: List[StreakCalendarDay] = []
+    for offset in range(days):
+        current_date = range_start + timedelta(days=offset)
+        status = _resolve_day_status(current_date, today_date, account_start_date, activity_dates)
+        range_days.append(
+            StreakCalendarDay(
+                date=current_date.isoformat(),
+                day=current_date.day,
+                weekday=(current_date.weekday() + 1) % 7,
+                status=status,
+                has_activity=current_date in activity_dates,
+            )
+        )
+
+    return StreakCalendarRangeSummary(
+        start_date=range_start.isoformat(),
+        end_date=range_end.isoformat(),
+        today=today_date.isoformat(),
+        current_streak=current_streak,
+        days=range_days,
+    )
+
 @router.get("/review-flashcards/{document_id}", response_model=list[models.Flashcard])
 def get_review_flashcards(
     document_id: int,
@@ -148,7 +440,10 @@ def get_srs_stats_for_document(
             return "medium"
         return "low"
 
-    # Buscar flashcards pendentes de REVISÃO (exclui novos com next_review=NULL)
+    flashcard_last_accuracy = _flashcard_last_accuracy_map(session, document_id)
+    question_last_results = _question_last_result_map(session, document_id)
+
+    # Buscar flashcards pendentes de revisão (exclui novos com next_review=NULL)
     fc_stmt = select(models.Flashcard).where(
         models.Flashcard.document_id == document_id,
         models.Flashcard.next_review != None,
@@ -159,7 +454,16 @@ def get_srs_stats_for_document(
 
     high, medium, low = 0, 0, 0
     for fc in fc_pending:
-        bucket = get_priority_bucket(fc.repetitions, fc.interval_days)
+        last_accuracy = flashcard_last_accuracy.get(fc.id)
+        if last_accuracy is not None:
+            if last_accuracy == 0.0:
+                bucket = "high"
+            elif last_accuracy == 0.5:
+                bucket = "medium"
+            else:
+                bucket = "low"
+        else:
+            bucket = get_priority_bucket(fc.repetitions, fc.interval_days)
         if bucket == "high":
             high += 1
         elif bucket == "medium":
@@ -181,7 +485,13 @@ def get_srs_stats_for_document(
     q_count = len(q_pending)
 
     for question in q_pending:
-        bucket = get_priority_bucket(question.repetitions, question.interval_days)
+        last_result = question_last_results.get(question.id)
+        if last_result is False:
+            bucket = "high"
+        elif last_result is True:
+            bucket = "low"
+        else:
+            bucket = get_priority_bucket(question.repetitions, question.interval_days)
         if bucket == "high":
             high += 1
         elif bucket == "medium":
@@ -236,6 +546,7 @@ def get_srs_groups(
     all_fc = session.exec(
         select(models.Flashcard).where(models.Flashcard.document_id == document_id)
     ).all()
+    last_accuracy_by_flashcard = _flashcard_last_accuracy_map(session, document_id)
 
     new_cards = 0
     needs_review = 0
@@ -243,17 +554,19 @@ def get_srs_groups(
     almost_mastered = 0
 
     for fc in all_fc:
-        if fc.next_review is None:
+        last_accuracy = last_accuracy_by_flashcard.get(fc.id)
+
+        if last_accuracy is None and fc.next_review is None:
             # Nunca estudado
             new_cards += 1
-        elif fc.repetitions == 0:
-            # Errou → SM2 resetou repetitions para 0
+        elif last_accuracy == 0.0 or fc.repetitions == 0:
+            # Errou
             needs_review += 1
-        elif fc.interval_days <= 2:
-            # Acertou parcialmente ou está nos primeiros ciclos (intervalo curto)
+        elif last_accuracy == 0.5:
+            # Quase acertou
             learning += 1
         else:
-            # Acertou bem → intervalo longo (3+ dias)
+            # Acertou
             almost_mastered += 1
 
     return {
@@ -280,16 +593,19 @@ def get_srs_group_cards(
     all_fc = session.exec(
         select(models.Flashcard).where(models.Flashcard.document_id == document_id)
     ).all()
+    last_accuracy_by_flashcard = _flashcard_last_accuracy_map(session, document_id)
 
     filtered = []
     for fc in all_fc:
-        if group == "new" and fc.next_review is None:
+        last_accuracy = last_accuracy_by_flashcard.get(fc.id)
+
+        if group == "new" and last_accuracy is None and fc.next_review is None:
             filtered.append(fc)
-        elif group == "needs_review" and fc.next_review is not None and fc.repetitions == 0:
+        elif group == "needs_review" and (last_accuracy == 0.0 or (fc.next_review is not None and fc.repetitions == 0)):
             filtered.append(fc)
-        elif group == "learning" and fc.next_review is not None and fc.repetitions > 0 and fc.interval_days <= 2:
+        elif group == "learning" and last_accuracy == 0.5:
             filtered.append(fc)
-        elif group == "almost_mastered" and fc.next_review is not None and fc.repetitions > 0 and fc.interval_days > 2:
+        elif group == "almost_mastered" and last_accuracy == 1.0:
             filtered.append(fc)
 
     return filtered
@@ -314,17 +630,20 @@ def get_quiz_srs_groups(
         return {"new_questions": 0, "wrong": 0, "correct": 0, "total": 0}
 
     all_questions = quiz.questions
+    last_results_by_question = _question_last_result_map(session, document_id)
 
     new_questions = 0
     wrong = 0
     correct = 0
 
     for q in all_questions:
-        if q.next_review is None:
+        last_result = last_results_by_question.get(q.id)
+
+        if last_result is None and q.next_review is None:
             # Nunca respondida
             new_questions += 1
-        elif q.repetitions == 0:
-            # Respondeu errado (SM2 resetou)
+        elif last_result is False or q.repetitions == 0:
+            # Respondeu errado
             wrong += 1
         else:
             # Respondeu certo
@@ -355,13 +674,16 @@ def get_quiz_srs_group_questions(
     if not quiz:
         return {"id": "grouped", "title": "Grupo Vazio", "document_id": document_id, "questions": []}
 
+    last_results_by_question = _question_last_result_map(session, document_id)
     filtered = []
     for q in quiz.questions:
-        if group == "new" and q.next_review is None:
+        last_result = last_results_by_question.get(q.id)
+
+        if group == "new" and last_result is None and q.next_review is None:
             filtered.append(q)
-        elif group == "wrong" and q.next_review is not None and q.repetitions == 0:
+        elif group == "wrong" and (last_result is False or (q.next_review is not None and q.repetitions == 0)):
             filtered.append(q)
-        elif group == "correct" and q.next_review is not None and q.repetitions > 0:
+        elif group == "correct" and (last_result is True or (last_result is None and q.next_review is not None and q.repetitions > 0)):
             filtered.append(q)
 
     # Ordenar by next_review se não for new (os novos ficam na ordem criada ou random no front)

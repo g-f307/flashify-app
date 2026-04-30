@@ -8,6 +8,34 @@ import random
 
 DAILY_GENERATION_LIMIT = 10
 
+FLASHCARD_TYPE_ALIASES = {
+    "application": models.FlashcardType.EXAMPLE,
+    "aplicacao": models.FlashcardType.EXAMPLE,
+    "aplicação": models.FlashcardType.EXAMPLE,
+}
+
+
+def normalize_flashcard_type(raw_type: object) -> models.FlashcardType:
+    if isinstance(raw_type, models.FlashcardType):
+        return raw_type
+
+    if isinstance(raw_type, str):
+        normalized = raw_type.strip().lower()
+
+        if normalized in FLASHCARD_TYPE_ALIASES:
+            return FLASHCARD_TYPE_ALIASES[normalized]
+
+        try:
+            return models.FlashcardType(normalized)
+        except ValueError:
+            try:
+                return models.FlashcardType[normalized.upper()]
+            except KeyError:
+                pass
+
+    print(f"⚠️ Tipo de flashcard inválido recebido: {raw_type!r}. Usando 'concept' como fallback.")
+    return models.FlashcardType.CONCEPT
+
 def get_or_create_google_user(
     session: Session,
     email: str,
@@ -92,7 +120,11 @@ def create_flashcards_for_document(
     db_flashcards = []
     for fc_data in flashcards_data:
         if "front" in fc_data and "back" in fc_data:
-            db_flashcard = models.Flashcard(**fc_data, document_id=document_id)
+            sanitized_data = {
+                **fc_data,
+                "type": normalize_flashcard_type(fc_data.get("type")),
+            }
+            db_flashcard = models.Flashcard(**sanitized_data, document_id=document_id)
             # next_review fica NULL — card é "Novo" até o primeiro estudo
             db_flashcards.append(db_flashcard)
     if db_flashcards:
@@ -225,6 +257,39 @@ def update_flashcard(db: Session, flashcard_id: int, front: str | None = None, b
     db.refresh(db_flashcard)
     
     return db_flashcard
+
+
+def delete_flashcard_and_related_data(db: Session, flashcard: models.Flashcard) -> None:
+    study_logs = db.exec(
+        select(models.StudyLog).where(models.StudyLog.flashcard_id == flashcard.id)
+    ).all()
+    for log in study_logs:
+        db.delete(log)
+
+    conversations = db.exec(
+        select(models.FlashcardConversation).where(
+            models.FlashcardConversation.flashcard_id == flashcard.id
+        )
+    ).all()
+    for conversation in conversations:
+        db.delete(conversation)
+
+    db.delete(flashcard)
+
+
+def reset_guided_study_state(session: Session, db_document: models.Document) -> None:
+    db_document.guided_study_cache = None
+    session.add(db_document)
+
+    stmt = select(models.GuidedStudySession).where(
+        models.GuidedStudySession.document_id == db_document.id
+    )
+    for stale in session.exec(stmt).all():
+        stale.completed_step_ids = []
+        stale.completed_at = None
+        session.add(stale)
+
+    session.commit()
 
 def delete_document_and_related_data(db: Session, document_id: int) -> bool:
     """

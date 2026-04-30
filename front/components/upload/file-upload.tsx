@@ -21,9 +21,21 @@ export function FileUpload({ onSubmit, isLoading, optionsComponent }: FileUpload
     const selectedFile = event.target.files?.[0]
     if (!selectedFile) return
 
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png']
-    if (!validTypes.includes(selectedFile.type)) {
-      toast.error('Tipo de arquivo inválido. Apenas PDF, JPEG e PNG são suportados.')
+    const validTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'application/octet-stream',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ]
+    const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.docx', '.pptx']
+    const fileExtension = `.${selectedFile.name.split('.').pop()?.toLowerCase() || ''}`
+    const hasAcceptedType = !selectedFile.type || validTypes.includes(selectedFile.type)
+    const hasAcceptedExtension = validExtensions.includes(fileExtension)
+
+    if (!hasAcceptedType || !hasAcceptedExtension) {
+      toast.error('Tipo de arquivo inválido. Apenas PDF, JPEG, PNG, DOCX e PPTX são suportados.')
       return
     }
     setFile(selectedFile)
@@ -74,7 +86,7 @@ export function FileUpload({ onSubmit, isLoading, optionsComponent }: FileUpload
               <p className="mb-2 text-sm text-muted-foreground">
                 <span className="font-semibold">Clique para enviar</span> ou arraste e solte
               </p>
-              <p className="text-xs text-muted-foreground">PDF, PNG ou JPG</p>
+              <p className="text-xs text-muted-foreground">PDF, PNG, JPG, DOCX ou PPTX</p>
             </div>
           )}
           <Input 
@@ -82,7 +94,7 @@ export function FileUpload({ onSubmit, isLoading, optionsComponent }: FileUpload
             type="file" 
             className="hidden" 
             onChange={handleFileChange} 
-            accept=".pdf,.jpg,.jpeg,.png"
+            accept=".pdf,.jpg,.jpeg,.png,.docx,.pptx"
             disabled={isLoading}
           />
         </label>
