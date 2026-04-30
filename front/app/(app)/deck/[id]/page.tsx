@@ -34,7 +34,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { formatDocumentTitle } from "@/lib/utils";
-import { StatsChart } from "@/components/deck/StatsChart"; 
+import { StatsChart } from "@/components/deck/StatsChart";
 import { SrsOverviewPanel } from "@/components/deck/srs-overview-panel";
 import { BulkEditContentDialog } from "@/components/deck/bulk-edit-content-dialog";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,11 @@ const ActionCard = ({
     children,
     delay = 0,
     isLocked = false,
-    action
+    action,
+    onActivate,
+    className,
+    headerClassName,
+    contentClassName,
 }: {
     icon: any;
     iconBgColor: string;
@@ -60,20 +64,35 @@ const ActionCard = ({
     delay?: number;
     isLocked?: boolean;
     action?: React.ReactNode;
+    onActivate?: () => void;
+    className?: string;
+    headerClassName?: string;
+    contentClassName?: string;
 }) => (
     <motion.div
+        className="self-start"
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay }}
     >
         <Card className={cn(
-            "group relative overflow-hidden border-border/50 transition-all duration-300 h-full flex flex-col",
+            "group relative flex flex-col overflow-hidden border-border/50 transition-all duration-300",
             !isLocked && "hover:shadow-xl",
             !isLocked && iconBgColor === "flashcards" && "hover:border-[#FACC15]/50",
             !isLocked && iconBgColor === "quiz" && "hover:border-[#48cfea]/50",
             !isLocked && iconBgColor === "guided" && "hover:border-[#7FD9A0]/45",
-            isLocked && "bg-muted/30"
-        )}>
+            isLocked && "bg-muted/30",
+            onActivate && "cursor-pointer",
+            className
+        )}
+        onClick={(event) => {
+            if (!onActivate) return;
+            const target = event.target as HTMLElement;
+            if (target.closest("button, a, input, textarea, select, [role='button'], [data-card-ignore-click='true']")) {
+                return;
+            }
+            onActivate();
+        }}>
             <div className={cn(
                 "absolute inset-0 opacity-0 transition-opacity duration-500",
                 !isLocked && "group-hover:opacity-100",
@@ -82,7 +101,7 @@ const ActionCard = ({
                 iconBgColor === "guided" && "bg-gradient-to-br from-[#7FD9A0]/10 via-[#7FD9A0]/5 to-transparent dark:from-[#7FD9A0]/12 dark:via-[#7FD9A0]/6"
             )} />
 
-            <CardHeader className={cn("relative pb-4", isLocked && "opacity-50")}>
+            <CardHeader className={cn("relative pb-4", isLocked && "opacity-50", headerClassName)}>
                 {action ? <CardAction>{action}</CardAction> : null}
                 <div className="flex items-start gap-4">
                     <div className={cn(
@@ -111,11 +130,11 @@ const ActionCard = ({
                         )}>
                             {title}
                         </CardTitle>
-                        <CardDescription className="text-sm leading-relaxed">{description}</CardDescription>
+                        <CardDescription className="h-[4.5rem] overflow-hidden text-sm leading-relaxed line-clamp-3">{description}</CardDescription>
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="relative space-y-4 flex-grow flex flex-col justify-end">{children}</CardContent>
+            <CardContent className={cn("relative flex flex-grow flex-col justify-end space-y-4", contentClassName)}>{children}</CardContent>
         </Card>
     </motion.div>
 );
@@ -393,10 +412,9 @@ export default function DeckDashboardPage() {
     const hasFlashcards = stats && stats.flashcards.total > 0;
     const hasQuiz = document.has_quiz;
     const showSrsOverview = srsStats?.srs_enabled ?? false;
-
     const chartData = [
-        { name: 'Flashcards', value: Math.round(stats?.flashcards.progress_percentage || 0), fill: 'hsl(var(--primary))' },
-        { name: 'Quiz (Média)', value: Math.round(stats?.quiz?.average_score || 0), fill: '#48cfea' },
+        { name: 'Flashcards', value: Math.round(stats?.flashcards.progress_percentage || 0), fill: '#FACC15' },
+        { name: 'Quiz', value: Math.round(stats?.quiz?.average_score || 0), fill: '#48cfea' },
     ];
 
     return (
@@ -426,265 +444,263 @@ export default function DeckDashboardPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
                     <div className="lg:col-span-3 space-y-6">
-                        <ActionCard
-                            icon={FileText}
-                            iconBgColor="flashcards"
-                            title="Flashcards"
-                            description="Veja e revise flashcards, otimizando seu aprendizado."
-                            delay={0.1}
-                            isLocked={!hasFlashcards && !isCreatingFlashcards}
-                            action={hasFlashcards ? (
-                                <BulkEditContentDialog
-                                    documentId={document.id}
-                                    mode="flashcards"
-                                    onSaved={fetchDeckData}
-                                    triggerMode="icon"
-                                />
-                            ) : undefined}
-                        >
-                            {isCreatingFlashcards ? (
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                                        <Loader2 className="w-4 h-4 animate-spin text-[#48cfea]" />
-                                        <span>Gerando Flashcards... ({creationProgress}%)</span>
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                            <ActionCard
+                                icon={FileText}
+                                iconBgColor="flashcards"
+                                title="Flashcards"
+                                description="Veja e revise flashcards, otimizando seu aprendizado."
+                                delay={0.1}
+                                isLocked={!hasFlashcards && !isCreatingFlashcards}
+                                className="xl:min-h-[288px]"
+                                onActivate={hasFlashcards && !isCreatingFlashcards ? () => router.push(`/study/${document.id}`) : undefined}
+                                action={hasFlashcards ? (
+                                    <BulkEditContentDialog
+                                        documentId={document.id}
+                                        mode="flashcards"
+                                        onSaved={fetchDeckData}
+                                        triggerMode="icon"
+                                    />
+                                ) : undefined}
+                            >
+                                {isCreatingFlashcards ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                                            <Loader2 className="w-4 h-4 animate-spin text-[#48cfea]" />
+                                            <span>Gerando Flashcards... ({creationProgress}%)</span>
+                                        </div>
+                                        <Progress value={creationProgress} className="h-2 bg-[#FACC15]/20" indicatorClassName="bg-[#FACC15]" />
                                     </div>
-                                    <Progress value={creationProgress} className="h-2 bg-[#FACC15]/20" indicatorClassName="bg-[#FACC15]" />
-                                </div>
-                            ) : hasFlashcards ? (
-                                <div className="space-y-4">
-                                    <Button 
-                                        className="w-full h-12 text-base shadow-md transition-all group" 
-                                        size="lg" 
-                                        asChild
-                                    >
-                                        <Link href={`/study/${document.id}`}>
+                                ) : hasFlashcards ? (
+                                    <div className="space-y-4">
+                                        <Button 
+                                            className="w-full h-12 text-base shadow-md transition-all group" 
+                                            size="lg" 
+                                            asChild
+                                        >
+                                            <Link href={`/study/${document.id}`}>
+                                                <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                                                Iniciar
+                                            </Link>
+                                        </Button>
+                                        {document.srs_enabled && srsGroups && (
+                                            <div className="space-y-2" data-card-ignore-click="true">
+                                                <div 
+                                                    className="flex items-center justify-between mb-1 cursor-pointer hover:bg-[#FACC15]/10 p-1.5 -mx-1.5 rounded-lg transition-colors group/toggle"
+                                                    onClick={() => setShowFlashcardSrs(!showFlashcardSrs)}
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <Brain className="w-4 h-4 text-[#FACC15] group-hover/toggle:scale-110 transition-transform" />
+                                                        <h4 className="text-sm font-semibold">Revisão Inteligente</h4>
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                                        {showFlashcardSrs ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                                                    </Button>
+                                                </div>
+                                                
+                                                <AnimatePresence initial={false}>
+                                                    {showFlashcardSrs && (
+                                                        <motion.div 
+                                                            initial={{ height: 0, opacity: 0 }} 
+                                                            animate={{ height: "auto", opacity: 1 }} 
+                                                            exit={{ height: 0, opacity: 0 }} 
+                                                            transition={{ duration: 0.2 }}
+                                                            className="overflow-hidden space-y-2"
+                                                        >
+                                                            <p className="text-[10px] text-muted-foreground mb-2">O sistema organiza seus cards de acordo com seu desempenho.</p>
+
+                                                            {srsGroups.new_cards > 0 && (
+                                                                <Link href={`/study/${document.id}?group=new`} className="flex items-center gap-3 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
+                                                                    <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <span className="text-sm font-medium">Novos</span>
+                                                                        <p className="text-[10px] text-muted-foreground">Nunca estudados</p>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-blue-500">{srsGroups.new_cards}</span>
+                                                                    <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-blue-500 transition-colors" />
+                                                                </Link>
+                                                            )}
+
+                                                            {srsGroups.needs_review > 0 && (
+                                                                <Link href={`/study/${document.id}?group=needs_review`} className="flex items-center gap-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
+                                                                    <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <span className="text-sm font-medium">Errou</span>
+                                                                        <p className="text-[10px] text-muted-foreground">Revisar novamente</p>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-red-500">{srsGroups.needs_review}</span>
+                                                                    <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-red-500 transition-colors" />
+                                                                </Link>
+                                                            )}
+
+                                                            {srsGroups.learning > 0 && (
+                                                                <Link href={`/study/${document.id}?group=learning`} className="flex items-center gap-3 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
+                                                                    <div className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <span className="text-sm font-medium">Quase acertou</span>
+                                                                        <p className="text-[10px] text-muted-foreground">Na memória recente</p>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-amber-500">{srsGroups.learning}</span>
+                                                                    <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-amber-500 transition-colors" />
+                                                                </Link>
+                                                            )}
+
+                                                            {srsGroups.almost_mastered > 0 && (
+                                                                <Link href={`/study/${document.id}?group=almost_mastered`} className="flex items-center gap-3 bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
+                                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <span className="text-sm font-medium">Acertou</span>
+                                                                        <p className="text-[10px] text-muted-foreground">Retenção de longo prazo</p>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-emerald-500">{srsGroups.almost_mastered}</span>
+                                                                    <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-emerald-500 transition-colors" />
+                                                                </Link>
+                                                            )}
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <Button 
+                                            className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all bg-[#FACC15] hover:bg-[#FACC15]/90 text-black" 
+                                            size="lg" 
+                                            onClick={handleCreateFlashcards}
+                                        >
+                                            <Wand2 className="w-5 h-5 mr-2" />
+                                            Criar Flashcards
+                                        </Button>
+                                        <div className="flex min-h-9 items-center gap-2 rounded-lg border border-dashed border-border/40 bg-muted/30 px-3 py-2 text-sm text-muted-foreground/90 dark:border-white/10 dark:bg-white/[0.03]">
+                                            <Lock className="h-4 w-4 shrink-0" />
+                                            <span className="font-medium">Flashcards não gerados.</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </ActionCard>
+
+                            <ActionCard
+                                icon={Brain}
+                                iconBgColor="quiz"
+                                title="Quiz"
+                                description="Responda perguntas de quiz geradas pela IA."
+                                delay={0.2}
+                                isLocked={!hasQuiz && !isCreatingQuiz}
+                                className="xl:min-h-[288px]"
+                                onActivate={hasQuiz && !isCreatingQuiz ? handleStartQuiz : undefined}
+                                action={hasQuiz ? (
+                                    <BulkEditContentDialog
+                                        documentId={document.id}
+                                        mode="quiz"
+                                        onSaved={fetchDeckData}
+                                        triggerMode="icon"
+                                    />
+                                ) : undefined}
+                            >
+                                {isCreatingQuiz ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                                            <Loader2 className="w-4 h-4 animate-spin text-[#48cfea]" />
+                                            <span>Gerando Quiz... ({creationProgress}%)</span>
+                                        </div>
+                                        <Progress value={creationProgress} className="h-2 bg-[#48cfea]/20" indicatorClassName="bg-[#48cfea]" />
+                                    </div>
+                                ) : hasQuiz ? (
+                                    <div className="space-y-4">
+                                        <Button 
+                                            className="w-full h-12 text-base shadow-md transition-all group bg-[#48cfea] hover:bg-[#48cfea]/90 text-black" 
+                                            size="lg" 
+                                            onClick={handleStartQuiz}
+                                        >
                                             <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                                             Iniciar
-                                        </Link>
-                                    </Button>
-                                    {document.srs_enabled && srsGroups && (
-                                        <div className="space-y-2">
-                                            <div 
-                                                className="flex items-center justify-between mb-1 cursor-pointer hover:bg-[#FACC15]/10 p-1.5 -mx-1.5 rounded-lg transition-colors group/toggle"
-                                                onClick={() => setShowFlashcardSrs(!showFlashcardSrs)}
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <Brain className="w-4 h-4 text-[#FACC15] group-hover/toggle:scale-110 transition-transform" />
-                                                    <h4 className="text-sm font-semibold">Revisão Inteligente</h4>
+                                        </Button>
+                                        {document.srs_enabled && quizSrsGroups && (
+                                            <div className="space-y-2" data-card-ignore-click="true">
+                                                <div 
+                                                    className="flex items-center justify-between mb-1 cursor-pointer hover:bg-[#48cfea]/10 p-1.5 -mx-1.5 rounded-lg transition-colors group/toggle"
+                                                    onClick={() => setShowQuizSrs(!showQuizSrs)}
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <Brain className="w-4 h-4 text-[#48cfea] group-hover/toggle:scale-110 transition-transform" />
+                                                        <h4 className="text-sm font-semibold">Revisão Inteligente</h4>
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                                        {showQuizSrs ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                                                    </Button>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6">
-                                                    {showFlashcardSrs ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                                                </Button>
+
+                                                <AnimatePresence initial={false}>
+                                                    {showQuizSrs && (
+                                                        <motion.div 
+                                                            initial={{ height: 0, opacity: 0 }} 
+                                                            animate={{ height: "auto", opacity: 1 }} 
+                                                            exit={{ height: 0, opacity: 0 }} 
+                                                            transition={{ duration: 0.2 }}
+                                                            className="overflow-hidden space-y-2"
+                                                        >
+                                                            <p className="text-[10px] text-muted-foreground mb-2">O sistema acompanha seu desempenho em cada questão.</p>
+
+                                                            {quizSrsGroups.new_questions > 0 && (
+                                                                <Link href={`/quiz/${document.id}?group=new`} className="flex items-center gap-3 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
+                                                                    <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <span className="text-sm font-medium">Novas</span>
+                                                                        <p className="text-[10px] text-muted-foreground">Nunca respondidas</p>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-blue-500">{quizSrsGroups.new_questions}</span>
+                                                                    <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-blue-500 transition-colors" />
+                                                                </Link>
+                                                            )}
+
+                                                            {quizSrsGroups.wrong > 0 && (
+                                                                <Link href={`/quiz/${document.id}?group=wrong`} className="flex items-center gap-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
+                                                                    <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <span className="text-sm font-medium">Errou</span>
+                                                                        <p className="text-[10px] text-muted-foreground">Questões que precisa revisar</p>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-red-500">{quizSrsGroups.wrong}</span>
+                                                                    <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-red-500 transition-colors" />
+                                                                </Link>
+                                                            )}
+
+                                                            {quizSrsGroups.correct > 0 && (
+                                                                <Link href={`/quiz/${document.id}?group=correct`} className="flex items-center gap-3 bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
+                                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <span className="text-sm font-medium">Acertou</span>
+                                                                        <p className="text-[10px] text-muted-foreground">Questões dominadas</p>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-emerald-500">{quizSrsGroups.correct}</span>
+                                                                    <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-emerald-500 transition-colors" />
+                                                                </Link>
+                                                            )}
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
                                             </div>
-                                            
-                                            <AnimatePresence initial={false}>
-                                                {showFlashcardSrs && (
-                                                    <motion.div 
-                                                        initial={{ height: 0, opacity: 0 }} 
-                                                        animate={{ height: "auto", opacity: 1 }} 
-                                                        exit={{ height: 0, opacity: 0 }} 
-                                                        transition={{ duration: 0.2 }}
-                                                        className="overflow-hidden space-y-2"
-                                                    >
-                                                        <p className="text-[10px] text-muted-foreground mb-2">O sistema organiza seus cards de acordo com seu desempenho.</p>
-
-                                                        {srsGroups.new_cards > 0 && (
-                                                            <Link href={`/study/${document.id}?group=new`} className="flex items-center gap-3 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
-                                                                <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <span className="text-sm font-medium">Novos</span>
-                                                                    <p className="text-[10px] text-muted-foreground">Nunca estudados</p>
-                                                                </div>
-                                                                <span className="text-sm font-bold text-blue-500">{srsGroups.new_cards}</span>
-                                                                <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-blue-500 transition-colors" />
-                                                            </Link>
-                                                        )}
-
-                                                        {srsGroups.needs_review > 0 && (
-                                                            <Link href={`/study/${document.id}?group=needs_review`} className="flex items-center gap-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
-                                                                <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <span className="text-sm font-medium">Errou</span>
-                                                                    <p className="text-[10px] text-muted-foreground">Revisar novamente</p>
-                                                                </div>
-                                                                <span className="text-sm font-bold text-red-500">{srsGroups.needs_review}</span>
-                                                                <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-red-500 transition-colors" />
-                                                            </Link>
-                                                        )}
-
-                                                        {srsGroups.learning > 0 && (
-                                                            <Link href={`/study/${document.id}?group=learning`} className="flex items-center gap-3 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
-                                                                <div className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <span className="text-sm font-medium">Quase acertou</span>
-                                                                    <p className="text-[10px] text-muted-foreground">Na memória recente</p>
-                                                                </div>
-                                                                <span className="text-sm font-bold text-amber-500">{srsGroups.learning}</span>
-                                                                <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-amber-500 transition-colors" />
-                                                            </Link>
-                                                        )}
-
-                                                        {srsGroups.almost_mastered > 0 && (
-                                                            <Link href={`/study/${document.id}?group=almost_mastered`} className="flex items-center gap-3 bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
-                                                                <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <span className="text-sm font-medium">Acertou</span>
-                                                                    <p className="text-[10px] text-muted-foreground">Retenção de longo prazo</p>
-                                                                </div>
-                                                                <span className="text-sm font-bold text-emerald-500">{srsGroups.almost_mastered}</span>
-                                                                <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-emerald-500 transition-colors" />
-                                                            </Link>
-                                                        )}
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="space-y-4 text-center pt-4">
-                                    <div className="flex justify-center">
-                                        <div className="p-3 bg-muted rounded-full">
-                                            <Lock className="w-6 h-6 text-muted-foreground" />
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <Button 
+                                            className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all bg-[#48cfea] hover:bg-[#48cfea]/90 text-black" 
+                                            size="lg" 
+                                            onClick={handleCreateQuiz}
+                                        >
+                                            <Wand2 className="w-5 h-5 mr-2" />
+                                            Criar Quiz
+                                        </Button>
+                                        <div className="flex min-h-9 items-center gap-2 rounded-lg border border-dashed border-border/40 bg-muted/30 px-3 py-2 text-sm text-muted-foreground/90 dark:border-white/10 dark:bg-white/[0.03]">
+                                            <Lock className="h-4 w-4 shrink-0" />
+                                            <span className="font-medium">Quiz ainda não foi gerado.</span>
                                         </div>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        Flashcards ainda não foram gerados.
-                                    </p>
-                                    <Button 
-                                        className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all bg-[#FACC15] hover:bg-[#FACC15]/90 text-black" 
-                                        size="lg" 
-                                        onClick={handleCreateFlashcards}
-                                    >
-                                        <Wand2 className="w-5 h-5 mr-2" />
-                                        Criar Flashcards
-                                    </Button>
-                                </div>
-                            )}
-                        </ActionCard>
-
-                        <ActionCard
-                            icon={Brain}
-                            iconBgColor="quiz"
-                            title="Quiz"
-                            description="Teste os seus conhecimentos com perguntas de múltipla escolha geradas pela IA."
-                            delay={0.2}
-                            isLocked={!hasQuiz && !isCreatingQuiz}
-                            action={hasQuiz ? (
-                                <BulkEditContentDialog
-                                    documentId={document.id}
-                                    mode="quiz"
-                                    onSaved={fetchDeckData}
-                                    triggerMode="icon"
-                                />
-                            ) : undefined}
-                        >
-                            {isCreatingQuiz ? (
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                                        <span>Gerando Quiz... ({creationProgress}%)</span>
-                                    </div>
-                                    <Progress value={creationProgress} className="h-2 bg-[#48cfea]/20" indicatorClassName="bg-[#48cfea]" />
-                                </div>
-                            ) : hasQuiz ? (
-                                <div className="space-y-4">
-                                    <Button 
-                                        className="w-full h-12 text-base shadow-md transition-all group bg-[#48cfea] hover:bg-[#48cfea]/90 text-black" 
-                                        size="lg" 
-                                        onClick={handleStartQuiz}
-                                    >
-                                        <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                                        Iniciar
-                                    </Button>
-                                    {document.srs_enabled && quizSrsGroups && (
-                                        <div className="space-y-2">
-                                            <div 
-                                                className="flex items-center justify-between mb-1 cursor-pointer hover:bg-[#48cfea]/10 p-1.5 -mx-1.5 rounded-lg transition-colors group/toggle"
-                                                onClick={() => setShowQuizSrs(!showQuizSrs)}
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <Brain className="w-4 h-4 text-[#48cfea] group-hover/toggle:scale-110 transition-transform" />
-                                                    <h4 className="text-sm font-semibold">Revisão Inteligente</h4>
-                                                </div>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6">
-                                                    {showQuizSrs ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                                                </Button>
-                                            </div>
-
-                                            <AnimatePresence initial={false}>
-                                                {showQuizSrs && (
-                                                    <motion.div 
-                                                        initial={{ height: 0, opacity: 0 }} 
-                                                        animate={{ height: "auto", opacity: 1 }} 
-                                                        exit={{ height: 0, opacity: 0 }} 
-                                                        transition={{ duration: 0.2 }}
-                                                        className="overflow-hidden space-y-2"
-                                                    >
-                                                        <p className="text-[10px] text-muted-foreground mb-2">O sistema acompanha seu desempenho em cada questão.</p>
-
-                                                        {quizSrsGroups.new_questions > 0 && (
-                                                            <Link href={`/quiz/${document.id}?group=new`} className="flex items-center gap-3 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
-                                                                <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <span className="text-sm font-medium">Novas</span>
-                                                                    <p className="text-[10px] text-muted-foreground">Nunca respondidas</p>
-                                                                </div>
-                                                                <span className="text-sm font-bold text-blue-500">{quizSrsGroups.new_questions}</span>
-                                                                <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-blue-500 transition-colors" />
-                                                            </Link>
-                                                        )}
-
-                                                        {quizSrsGroups.wrong > 0 && (
-                                                            <Link href={`/quiz/${document.id}?group=wrong`} className="flex items-center gap-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
-                                                                <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <span className="text-sm font-medium">Errou</span>
-                                                                    <p className="text-[10px] text-muted-foreground">Questões que precisa revisar</p>
-                                                                </div>
-                                                                <span className="text-sm font-bold text-red-500">{quizSrsGroups.wrong}</span>
-                                                                <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-red-500 transition-colors" />
-                                                            </Link>
-                                                        )}
-
-                                                        {quizSrsGroups.correct > 0 && (
-                                                            <Link href={`/quiz/${document.id}?group=correct`} className="flex items-center gap-3 bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 transition-all group/item cursor-pointer">
-                                                                <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <span className="text-sm font-medium">Acertou</span>
-                                                                    <p className="text-[10px] text-muted-foreground">Questões dominadas</p>
-                                                                </div>
-                                                                <span className="text-sm font-bold text-emerald-500">{quizSrsGroups.correct}</span>
-                                                                <Play className="w-4 h-4 text-muted-foreground group-hover/item:text-emerald-500 transition-colors" />
-                                                            </Link>
-                                                        )}
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="space-y-4 text-center pt-4">
-                                    <div className="flex justify-center">
-                                        <div className="p-3 bg-muted rounded-full">
-                                            <Lock className="w-6 h-6 text-muted-foreground" />
-                                        </div>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        Quiz ainda não foi gerado.
-                                    </p>
-                                    <Button 
-                                        className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all bg-[#48cfea] hover:bg-[#48cfea]/90 text-black" 
-                                        size="lg" 
-                                        onClick={handleCreateQuiz}
-                                    >
-                                        <Wand2 className="w-5 h-5 mr-2" />
-                                        Criar Quiz
-                                    </Button>
-                                </div>
-                            )}
-                        </ActionCard>
+                                )}
+                            </ActionCard>
+                        </div>
 
                         <ActionCard
                             icon={Sparkles}
@@ -693,18 +709,14 @@ export default function DeckDashboardPage() {
                             description="Siga uma trilha mista com explicações rápidas e perguntas de validação por blocos do assunto."
                             delay={0.3}
                             isLocked={!hasFlashcards || !hasQuiz}
+                            className="min-h-0"
+                            headerClassName="pb-1"
+                            contentClassName="space-y-2"
                         >
                             {hasFlashcards && hasQuiz ? (
-                                <div className="space-y-4">
-                                    {guidedProgress?.is_completed && (
-                                        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                                            <p className="text-[11px] leading-relaxed text-muted-foreground">
-                                                Trilha concluída! Você pode refazê-la para revisar o conteúdo.
-                                            </p>
-                                        </div>
-                                    )}
+                                <div className="space-y-2.5">
                                     <Button
-                                        className="w-full h-12 text-base shadow-md transition-all group bg-[#7FD9A0] hover:bg-[#6fca91] text-black"
+                                        className="w-full h-11 text-base shadow-md transition-all group bg-[#7FD9A0] hover:bg-[#6fca91] text-black"
                                         size="lg"
                                         onClick={handleStartGuidedStudy}
                                     >
@@ -714,7 +726,7 @@ export default function DeckDashboardPage() {
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="w-full text-xs text-muted-foreground hover:text-foreground"
+                                        className="h-8 w-full text-xs text-muted-foreground hover:text-foreground"
                                         onClick={handleRestructureGuided}
                                         disabled={isRestructuring}
                                     >
@@ -725,10 +737,10 @@ export default function DeckDashboardPage() {
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="space-y-4 text-center pt-4">
+                                <div className="space-y-2.5 text-center pt-2.5">
                                     <div className="flex justify-center">
-                                        <div className="p-3 bg-muted rounded-full">
-                                            <Lock className="w-6 h-6 text-muted-foreground" />
+                                        <div className="rounded-full bg-muted p-2.5">
+                                            <Lock className="w-5 h-5 text-muted-foreground" />
                                         </div>
                                     </div>
                                     <p className="text-sm text-muted-foreground">
@@ -739,7 +751,7 @@ export default function DeckDashboardPage() {
                         </ActionCard>
                     </div>
 
-                    <div className={cn("lg:col-span-2 space-y-6", showSrsOverview && "lg:-mt-24 lg:space-y-2")}>
+                    <div className={cn("lg:col-span-2 space-y-6 lg:-mt-[5.5rem]", showSrsOverview && "lg:-mt-[8.5rem] lg:space-y-2")}>
                         {showSrsOverview && (
                             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45, delay: 0.15 }}>
                                 <SrsOverviewPanel
@@ -751,94 +763,86 @@ export default function DeckDashboardPage() {
                         )}
 
                         <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
-                            <Card className="border-border/50 sticky top-6 overflow-hidden h-full">
-                                <CardHeader className="relative pb-4">
+                            <Card className="border-border/50 sticky top-0 h-full min-h-[calc(100%+2rem)] gap-2 overflow-hidden">
+                                <CardHeader className="relative pb-0">
                                     <CardTitle className="text-xl">Estatísticas</CardTitle>
-                                    <CardDescription>Visão Geral</CardDescription>
                                 </CardHeader>
-                                <CardContent className="relative space-y-4">
-                                    <div className="h-48 w-full rounded-lg flex items-center justify-center text-sm text-muted-foreground">
-                                        {stats ? <StatsChart data={chartData} /> : <div className="h-full w-full bg-muted rounded-lg animate-pulse" />}
-                                    </div>
-                                    
-                                    <div className="space-y-3">
-                                        <h4 className="font-semibold">Flashcards</h4>
-                                        {hasFlashcards ? (
-                                            <div className="text-sm space-y-1">
-                                                <div className="flex justify-between"><span>Conhecidos</span><span>{stats?.flashcards.known ?? '--'}</span></div>
-                                                <div className="flex justify-between"><span>Ainda aprendendo</span><span>{stats?.flashcards.learning ?? '--'}</span></div>
-                                                <Progress value={stats?.flashcards.progress_percentage || 0} className="h-2 mt-2" />
-                                                <p className="text-xs text-muted-foreground text-right">{Math.round(stats?.flashcards.progress_percentage || 0)}% de acerto</p>
+                                <CardContent className="relative space-y-2.5 pt-0">
+                                    <div className="overflow-hidden rounded-2xl border border-black/10 bg-muted/15 px-3 pt-0.5 pb-0 dark:border-white/10">
+                                        <div className="mb-0.5 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#FACC15]" />
+                                                <span className="text-[11px] text-muted-foreground">Flashcards</span>
+                                                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#48cfea] ml-2" />
+                                                <span className="text-[11px] text-muted-foreground">Quiz</span>
                                             </div>
-                                        ) : (
-                                            <p className="text-xs text-muted-foreground text-center py-2">Crie flashcards para ver estatísticas.</p>
-                                        )}
+                                            <span className="text-[11px] text-muted-foreground">0-100%</span>
+                                        </div>
+                                        <div className="h-52 w-full">
+                                            {stats ? <StatsChart data={chartData} /> : <div className="h-full w-full animate-pulse rounded-xl bg-muted" />}
+                                        </div>
                                     </div>
-                                    
-                                    <div className="space-y-3">
-                                        <h4 className="font-semibold">Quiz</h4>
-                                        {hasQuiz && stats?.quiz && stats.quiz.total_attempts > 0 ? (
-                                            <div className="text-sm space-y-1">
-                                                <div className="flex justify-between"><span>Última pontuação</span><span>{stats.quiz.last_score ?? '--'}%</span></div>
-                                                <div className="flex justify-between"><span>Média</span><span>{stats.quiz.average_score ?? '--'}%</span></div>
-                                                <Progress value={stats.quiz.average_score || 0} className="h-2 mt-2 bg-[#48cfea]/20" indicatorClassName="bg-[#48cfea]" />
-                                                <p className="text-xs text-muted-foreground text-right">{stats.quiz.total_attempts} tentativa(s)</p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-muted-foreground text-center py-2">
-                                                {hasQuiz ? "Responda o quiz para ver suas estatísticas." : "Crie o quiz para ver suas estatísticas."}
+
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="rounded-2xl border border-[#FACC15]/60 bg-[#FACC15]/8 p-3 dark:border-[#FACC15]/55">
+                                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Flashcards</p>
+                                            <p className="mt-2 text-2xl font-bold leading-none">
+                                                {hasFlashcards ? Math.round(stats?.flashcards.progress_percentage || 0) : 0}
+                                                <span className="ml-1 text-sm text-muted-foreground">%</span>
                                             </p>
-                                        )}
+                                            <p className="mt-2 text-[11px] text-muted-foreground">
+                                                {stats?.flashcards.known ?? 0} de {stats?.flashcards.total ?? 0}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-2xl border border-[#48cfea]/60 bg-[#48cfea]/8 p-3 dark:border-[#48cfea]/55">
+                                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Quiz</p>
+                                            <p className="mt-2 text-2xl font-bold leading-none">
+                                                {hasQuiz && stats?.quiz?.average_score ? Math.round(stats.quiz.average_score) : 0}
+                                                <span className="ml-1 text-sm text-muted-foreground">%</span>
+                                            </p>
+                                            <p className="mt-2 text-[11px] text-muted-foreground">
+                                                {stats?.quiz?.total_attempts ?? 0} tentativa(s)
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-2xl border border-[#7FD9A0]/60 bg-[#7FD9A0]/8 p-3 dark:border-[#7FD9A0]/55">
+                                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Guiado</p>
+                                            <p className="mt-2 text-2xl font-bold leading-none">
+                                                {hasFlashcards && hasQuiz && guidedProgress && guidedProgress.total_steps > 0
+                                                    ? Math.round((guidedProgress.completed_step_ids.length / guidedProgress.total_steps) * 100)
+                                                    : 0}
+                                                <span className="ml-1 text-sm text-muted-foreground">%</span>
+                                            </p>
+                                            <p className="mt-2 text-[11px] text-muted-foreground">
+                                                {hasFlashcards && hasQuiz && guidedProgress
+                                                    ? `${guidedProgress.completed_step_ids.length}/${guidedProgress.total_steps}`
+                                                    : "sem trilha"}
+                                            </p>
+                                        </div>
                                     </div>
 
-                                    {hasFlashcards && hasQuiz && guidedProgress && (
-                                        <div className="space-y-3">
-                                            <h4 className="font-semibold">Estudo Guiado</h4>
-                                            <div className="text-sm space-y-1">
-                                                <div className="flex justify-between">
-                                                    <span>Progresso</span>
-                                                    <span>{guidedProgress.completed_step_ids.length}/{guidedProgress.total_steps} passos</span>
-                                                </div>
-                                                <Progress
-                                                    value={guidedProgress.total_steps > 0
-                                                        ? (guidedProgress.completed_step_ids.length / guidedProgress.total_steps) * 100
-                                                        : 0}
-                                                    className="h-2 mt-2 bg-[#7FD9A0]/20"
-                                                    indicatorClassName="bg-[#7FD9A0]"
-                                                />
-                                                <p className="text-xs text-muted-foreground text-right">
-                                                    {guidedProgress.is_completed
-                                                        ? "Trilha concluída"
-                                                        : `${Math.round((guidedProgress.completed_step_ids.length / guidedProgress.total_steps) * 100)}% concluído`}
-                                                </p>
+                                    <div className="flex items-center justify-between rounded-2xl border border-black/10 bg-muted/15 px-3 py-2.5 dark:border-white/10">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-sm font-medium">SRS</span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-5 w-5 text-muted-foreground hover:text-[#48cfea]"
+                                                    asChild
+                                                >
+                                                    <Link href="/support/saiba-mais/revisao-inteligente" aria-label="Saiba mais sobre revisão inteligente">
+                                                        <HelpCircle className="w-3.5 h-3.5" />
+                                                    </Link>
+                                                </Button>
                                             </div>
+                                            <p className="text-[11px] text-muted-foreground">Revisão diária automática</p>
                                         </div>
-                                    )}
-
-                                    <div className="my-5 h-px w-full bg-neutral-200 dark:bg-white/10" />
-                                    <div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="space-y-0.5">
-                                                <div className="flex items-center gap-1.5">
-                                                    <h4 className="font-medium text-sm">Revisão Diária (SRS)</h4>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-5 w-5 text-muted-foreground hover:text-[#48cfea]"
-                                                        asChild
-                                                    >
-                                                        <Link href="/support/saiba-mais/revisao-inteligente" aria-label="Saiba mais sobre revisão inteligente">
-                                                            <HelpCircle className="w-3.5 h-3.5" />
-                                                        </Link>
-                                                    </Button>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">O algoritmo agenda automaticamente os estudos</p>
-                                            </div>
-                                            <Switch
-                                                checked={document.srs_enabled}
-                                                onCheckedChange={handleToggleSrs}
-                                            />
-                                        </div>
+                                        <Switch
+                                            checked={document.srs_enabled}
+                                            onCheckedChange={handleToggleSrs}
+                                        />
                                     </div>
                                 </CardContent>
                             </Card>
