@@ -1,7 +1,7 @@
 # back/app/routers/documents.py
 
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import re
 from typing import Optional, List, Sequence, TypeVar
@@ -221,7 +221,22 @@ def _guided_study_requires_ai_generation(db_document: models.Document) -> bool:
 
     try:
         cached = schemas.GuidedStudyResponse.model_validate(db_document.guided_study_cache)
-        return cached.summary.is_fallback
+        if not cached.summary.is_fallback:
+            return False
+
+        raw_cache = db_document.guided_study_cache or {}
+        retry_not_before = raw_cache.get("_fallback_retry_not_before")
+        if isinstance(retry_not_before, str):
+            try:
+                retry_not_before_dt = datetime.fromisoformat(retry_not_before)
+                if retry_not_before_dt.tzinfo is None:
+                    retry_not_before_dt = retry_not_before_dt.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) < retry_not_before_dt:
+                    return False
+            except ValueError:
+                pass
+
+        return True
     except Exception:
         return True
 
@@ -233,15 +248,24 @@ def _build_guided_study_response(
     if db_document.guided_study_cache:
         try:
             cached = schemas.GuidedStudyResponse.model_validate(db_document.guided_study_cache)
-            # If the previous generation fell back to deterministic distribution,
-            # discard the cache and give the AI another chance on this load.
             if not cached.summary.is_fallback:
-                print(f"[guided-study] doc={db_document.id} cache HIT (is_fallback=False) → returning cached")
+                print(f"[guided-study] doc={db_document.id} cache HIT (ai) → returning cached")
                 return cached
-            print(f"[guided-study] doc={db_document.id} cache HIT but is_fallback=True → discarding, calling AI")
-            db_document.guided_study_cache = None
-            session.add(db_document)
-            session.commit()
+
+            raw_cache = db_document.guided_study_cache or {}
+            retry_not_before = raw_cache.get("_fallback_retry_not_before")
+            if isinstance(retry_not_before, str):
+                try:
+                    retry_not_before_dt = datetime.fromisoformat(retry_not_before)
+                    if retry_not_before_dt.tzinfo is None:
+                        retry_not_before_dt = retry_not_before_dt.replace(tzinfo=timezone.utc)
+                    if datetime.now(timezone.utc) < retry_not_before_dt:
+                        print(f"[guided-study] doc={db_document.id} cache HIT (fallback, cooldown) → returning cached")
+                        return cached
+                except ValueError:
+                    pass
+
+            print(f"[guided-study] doc={db_document.id} cache HIT (fallback) → retrying AI generation")
         except Exception:
             pass
 
@@ -382,11 +406,34 @@ def _build_guided_study_response(
         ),
     )
 
-    db_document.guided_study_cache = response.model_dump()
+    cache_payload = response.model_dump()
+    if is_fallback:
+        cache_payload["_fallback_retry_not_before"] = (
+            datetime.now(timezone.utc) + timedelta(seconds=20)
+        ).isoformat()
+    db_document.guided_study_cache = cache_payload
     session.add(db_document)
     session.commit()
 
     return response
+
+
+def _ensure_exact_flashcard_count(flashcards_data: Sequence[dict], expected_count: int) -> None:
+    actual_count = len(flashcards_data or [])
+    if actual_count != expected_count:
+        raise HTTPException(
+            status_code=500,
+            detail=f"A IA retornou {actual_count} flashcards, mas eram esperados {expected_count}.",
+        )
+
+
+def _ensure_exact_quiz_question_count(quiz_data: Optional[dict], expected_count: int) -> None:
+    actual_count = len((quiz_data or {}).get("questions", []))
+    if actual_count != expected_count:
+        raise HTTPException(
+            status_code=500,
+            detail=f"A IA retornou {actual_count} perguntas, mas eram esperadas {expected_count}.",
+        )
 
 @router.post("/upload", response_model=models.Document, status_code=status.HTTP_202_ACCEPTED)
 def upload_document(
@@ -402,8 +449,14 @@ def upload_document(
     difficulty: str = Form("Médio"),
     num_questions: int = Form(5),
 ):
+    required_generations = 2 if content_type == "both" else 1
+
     # 🆕 VERIFICAR LIMITE ANTES DE PROCESSAR
-    can_generate, remaining = crud.can_user_generate_deck(session, current_user)
+    can_generate, remaining = crud.can_user_generate_deck(
+        session,
+        current_user,
+        required_generations=required_generations,
+    )
     
     if not can_generate:
         generation_info = crud.get_user_generation_info(session, current_user)
@@ -458,8 +511,14 @@ def create_document_from_text(
     current_user: CurrentUser,
     session: Session = Depends(get_session)
 ):
+    required_generations = 2 if text_input.content_type == "both" else 1
+
     # 🆕 VERIFICAR LIMITE ANTES DE PROCESSAR
-    can_generate, remaining = crud.can_user_generate_deck(session, current_user)
+    can_generate, remaining = crud.can_user_generate_deck(
+        session,
+        current_user,
+        required_generations=required_generations,
+    )
     
     if not can_generate:
         generation_info = crud.get_user_generation_info(session, current_user)
@@ -810,7 +869,7 @@ def get_document_guided_study(
     current_user: CurrentUser,
     session: Session = Depends(get_session),
 ):
-    db_document = crud.get_document_with_details(session, document_id)
+    db_document = crud.get_document_with_details_for_update(session, document_id)
     if not db_document or db_document.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Documento não encontrado")
 
@@ -836,7 +895,7 @@ def get_document_guided_study(
 
     response = _build_guided_study_response(db_document, session)
 
-    if requires_generation:
+    if requires_generation and not response.summary.is_fallback:
         crud.increment_user_generation_count(session, current_user.id)
 
     return response
@@ -857,12 +916,20 @@ def get_guided_study_progress(
         models.GuidedStudySession.document_id == document_id,
     )
     db_session = session.exec(statement).first()
-
-    if not db_session:
-        raise HTTPException(status_code=404, detail="Nenhuma sessão guiada encontrada")
-
     cached = db_document.guided_study_cache
     total_steps = cached["summary"]["steps_count"] if cached else 0
+    now = datetime.now(timezone.utc)
+
+    if not db_session:
+        return schemas.GuidedStudyProgressRead(
+            document_id=document_id,
+            completed_step_ids=[],
+            total_steps=total_steps,
+            started_at=now,
+            last_accessed_at=now,
+            completed_at=None,
+            is_completed=False,
+        )
 
     return schemas.GuidedStudyProgressRead(
         document_id=document_id,
@@ -883,7 +950,7 @@ def restructure_guided_study(
 ):
     """Limpa o cache da trilha guiada e reseta a sessão do usuário.
     A próxima abertura do estudo guiado gerará uma nova estrutura via IA."""
-    db_document = crud.get_document(session, document_id)
+    db_document = crud.get_document_with_details_for_update(session, document_id)
     if not db_document or db_document.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Documento não encontrado")
 
@@ -902,9 +969,10 @@ def restructure_guided_study(
         )
 
     _clear_guided_study_cache(db_document, session)
-    db_document = crud.get_document_with_details(session, document_id)
-    _build_guided_study_response(db_document, session)
-    crud.increment_user_generation_count(session, current_user.id)
+    db_document = crud.get_document_with_details_for_update(session, document_id)
+    response = _build_guided_study_response(db_document, session)
+    if not response.summary.is_fallback:
+        crud.increment_user_generation_count(session, current_user.id)
     return {"message": "Trilha reestruturada com sucesso."}
 
 
@@ -1068,6 +1136,7 @@ def generate_quiz_for_existing_document(
 
     if not quiz_data_dict:
         raise HTTPException(status_code=500, detail="A IA não conseguiu gerar o quiz.")
+    _ensure_exact_quiz_question_count(quiz_data_dict, num_questions)
 
     # 🆕 EMBARALHAR AS ALTERNATIVAS ANTES DE CRIAR O QUIZ
     quiz_data_dict = crud.shuffle_quiz_answers(quiz_data_dict)
@@ -1124,6 +1193,7 @@ def generate_flashcards_for_existing_document(
 
     if not flashcards_data:
         raise HTTPException(status_code=500, detail="A IA não conseguiu gerar os flashcards.")
+    _ensure_exact_flashcard_count(flashcards_data, num_flashcards)
 
     db_flashcards = crud.create_flashcards_for_document(
         session=session,
@@ -1213,6 +1283,7 @@ Agora, com base no MESMO CONTEÚDO ORIGINAL abaixo, gere {requested_count} NOVOS
 
     if not new_flashcards_data:
         raise HTTPException(status_code=500, detail="A IA não conseguiu gerar novos flashcards.")
+    _ensure_exact_flashcard_count(new_flashcards_data, requested_count)
 
     db_flashcards = crud.create_flashcards_for_document(
         session=session,
@@ -1299,6 +1370,7 @@ Agora, com base no MESMO CONTEÚDO ORIGINAL abaixo, gere {requested_count} NOVAS
 
     if not new_quiz_data or 'questions' not in new_quiz_data:
         raise HTTPException(status_code=500, detail="A IA não conseguiu gerar novas perguntas.")
+    _ensure_exact_quiz_question_count(new_quiz_data, requested_count)
 
     # 🆕 EMBARALHAR AS ALTERNATIVAS DAS NOVAS PERGUNTAS
     new_quiz_data = crud.shuffle_quiz_answers(new_quiz_data)

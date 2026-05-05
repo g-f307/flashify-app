@@ -180,9 +180,7 @@ def get_document_with_details(session: Session, document_id: int) -> Optional[mo
     """
     Busca um documento pelo seu ID e carrega de forma explícita (eager load)
     as suas relações de flashcards e quiz completo (com perguntas e respostas).
-    ATUALIZADO: Agora força uma nova query do banco, ignorando qualquer cache de sessão.
     """
-    # Usa uma query explícita com selectinload para carregar todas as relações
     stmt = (
         select(models.Document)
         .where(models.Document.id == document_id)
@@ -193,17 +191,39 @@ def get_document_with_details(session: Session, document_id: int) -> Optional[mo
     )
     db_document = session.exec(stmt).first()
     
-    # Força o reload completo do objeto a partir do banco de dados
     if db_document:
-        session.expire(db_document)
-        session.refresh(db_document)
-
         if getattr(db_document, "quiz", None) and getattr(db_document.quiz, "questions", None):
             db_document.quiz.questions = sorted(
                 db_document.quiz.questions,
                 key=lambda question: question.id or 0,
             )
                 
+    return db_document
+
+
+def get_document_with_details_for_update(session: Session, document_id: int) -> Optional[models.Document]:
+    """
+    Busca um documento com relações carregadas e trava a linha do documento
+    para evitar gerações concorrentes do mesmo estudo guiado.
+    """
+    stmt = (
+        select(models.Document)
+        .where(models.Document.id == document_id)
+        .with_for_update()
+        .options(
+            selectinload(models.Document.flashcards),
+            selectinload(models.Document.quiz).selectinload(models.Quiz.questions).selectinload(models.Question.answers)
+        )
+    )
+    db_document = session.exec(stmt).first()
+
+    if db_document:
+        if getattr(db_document, "quiz", None) and getattr(db_document.quiz, "questions", None):
+            db_document.quiz.questions = sorted(
+                db_document.quiz.questions,
+                key=lambda question: question.id or 0,
+            )
+
     return db_document
 
 def get_flashcard(session: Session, flashcard_id: int, user_id: int) -> models.Flashcard | None:
@@ -439,8 +459,18 @@ def check_and_reset_daily_limit(session: Session, user: models.User) -> None:
         user.daily_generation_count = 0
         session.add(user)
         session.commit()
+        return
 
-def can_user_generate_deck(session: Session, user: models.User) -> tuple[bool, int]:
+    if user.daily_generation_count > DAILY_GENERATION_LIMIT:
+        user.daily_generation_count = DAILY_GENERATION_LIMIT
+        session.add(user)
+        session.commit()
+
+def can_user_generate_deck(
+    session: Session,
+    user: models.User,
+    required_generations: int = 1,
+) -> tuple[bool, int]:
     """
     Verifica se o usuário pode gerar um novo deck.
     Retorna (pode_gerar, gerações_restantes)
@@ -451,19 +481,24 @@ def can_user_generate_deck(session: Session, user: models.User) -> tuple[bool, i
     # Atualiza o usuário após possível reset
     session.refresh(user)
     
-    can_generate = user.daily_generation_count < DAILY_GENERATION_LIMIT
+    can_generate = (user.daily_generation_count + required_generations) <= DAILY_GENERATION_LIMIT
     remaining = max(0, DAILY_GENERATION_LIMIT - user.daily_generation_count)
     
     return can_generate, remaining
 
-def increment_user_generation_count(session: Session, user_id: int) -> None:
+def increment_user_generation_count(session: Session, user_id: int, amount: int = 1) -> None:
     """
     Incrementa o contador de gerações do usuário.
     Deve ser chamado APENAS quando a geração for bem-sucedida.
     """
     user = session.get(models.User, user_id)
-    if user:
-        user.daily_generation_count += 1
+    if user and amount > 0:
+        check_and_reset_daily_limit(session, user)
+        session.refresh(user)
+        user.daily_generation_count = min(
+            DAILY_GENERATION_LIMIT,
+            user.daily_generation_count + amount,
+        )
         session.add(user)
         session.commit()
 

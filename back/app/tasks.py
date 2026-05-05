@@ -27,6 +27,7 @@ def process_document(
     num_questions: int
 ):
     print(f"[TASK] Iniciando processamento para Doc ID: {document_id} com content_type: '{content_type}'")
+    generation_units = 2 if content_type == "both" else 1
     
     with Session(engine) as session:
         db_document = crud.get_document(session=session, document_id=document_id)
@@ -77,6 +78,10 @@ def process_document(
                 flashcards_data = generate_flashcards_from_text(
                     text=extracted_text, num_flashcards=num_flashcards, difficulty=difficulty
                 )
+                if len(flashcards_data or []) != num_flashcards:
+                    raise ValueError(
+                        f"A IA retornou {len(flashcards_data or [])} flashcards, mas eram esperados {num_flashcards}."
+                    )
                 
                 db_document.current_step = "parsing flashcards"
                 session.add(db_document)
@@ -97,6 +102,11 @@ def process_document(
                 quiz_data_dict = generate_quiz_from_text(
                     text=extracted_text, num_questions=num_questions, difficulty=difficulty
                 )
+                actual_questions = len(quiz_data_dict.get("questions", [])) if quiz_data_dict else 0
+                if actual_questions != num_questions:
+                    raise ValueError(
+                        f"A IA retornou {actual_questions} perguntas, mas eram esperadas {num_questions}."
+                    )
                 
                 # 🆕 EMBARALHAR AS ALTERNATIVAS ANTES DE SALVAR
                 if quiz_data_dict:
@@ -137,11 +147,11 @@ def process_document(
             session.commit()
             
             # 🆕 INCREMENTAR CONTADOR APENAS QUANDO GERAÇÃO FOR BEM-SUCEDIDA
-            crud.increment_user_generation_count(session, db_document.user_id)
+            crud.increment_user_generation_count(session, db_document.user_id, amount=generation_units)
             
             print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
             print(f"[TASK] Documento {document_id} processado com sucesso.")
-            print(f"[TASK] ✅ Contador de gerações incrementado para usuário {db_document.user_id}")
+            print(f"[TASK] ✅ Contador de gerações incrementado em {generation_units} para usuário {db_document.user_id}")
 
         except Exception as e:
             session.rollback()

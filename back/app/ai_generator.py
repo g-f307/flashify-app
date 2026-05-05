@@ -1,5 +1,6 @@
 # back/app/ai_generator.py
 import os
+import ast
 import json
 import time
 from typing import List, Dict, Any, Optional
@@ -16,6 +17,292 @@ if not GOOGLE_API_KEY:
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
+DEFAULT_SAFETY_SETTINGS = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+]
+
+_MODEL_CACHE: dict[tuple[str, str], genai.GenerativeModel] = {}
+
+
+def _get_model(
+    *,
+    temperature: float,
+    max_output_tokens: int = 8192,
+    response_mime_type: Optional[str] = None,
+) -> genai.GenerativeModel:
+    cache_key = (f"{temperature}:{max_output_tokens}", response_mime_type or "")
+    cached_model = _MODEL_CACHE.get(cache_key)
+    if cached_model is not None:
+        return cached_model
+
+    generation_config: dict[str, Any] = {
+        "temperature": temperature,
+        "top_p": 1,
+        "top_k": 1,
+        "max_output_tokens": max_output_tokens,
+    }
+    if response_mime_type:
+        generation_config["response_mime_type"] = response_mime_type
+
+    model = genai.GenerativeModel(
+        model_name=GEMINI_MODEL,
+        generation_config=generation_config,
+        safety_settings=DEFAULT_SAFETY_SETTINGS,
+    )
+    _MODEL_CACHE[cache_key] = model
+    return model
+
+
+def _normalize_text_snippet(text: str, max_chars: int) -> str:
+    return " ".join((text or "").split())[:max_chars]
+
+
+def _compact_flashcard_payload(flashcards: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
+    return [
+        {
+            "id": item["id"],
+            "front": _normalize_text_snippet(item.get("front", ""), 140),
+            "back": _normalize_text_snippet(item.get("back", ""), 220),
+        }
+        for item in flashcards[:limit]
+    ]
+
+
+def _compact_question_payload(questions: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
+    return [
+        {
+            "id": item["id"],
+            "text": _normalize_text_snippet(item.get("text", ""), 180),
+        }
+        for item in questions[:limit]
+    ]
+
+
+def _build_guided_study_prompt_parts(
+    *,
+    context_snippet: str,
+    flashcards_payload: List[Dict[str, Any]],
+    questions_payload: List[Dict[str, Any]],
+    compact: bool,
+) -> List[str]:
+    prompt_parts = [
+        "Você é um especialista em design instrucional universitário.",
+        "Organize APENAS os IDs já existentes em tópicos pedagógicos.",
+        "Retorne somente JSON válido.",
+        "",
+        "REGRAS OBRIGATÓRIAS:",
+        "- Use somente os IDs fornecidos.",
+        "- Não invente IDs, títulos extras ou campos extras.",
+        "- Cada tópico deve ter pelo menos 1 flashcard_id e 1 question_id.",
+        "- Cada ID pode aparecer no máximo uma vez.",
+        "- Prefira menos tópicos, mais coesos.",
+        '- Responda exatamente no formato: {"topics":[{"title":"...", "flashcard_ids":[1,2], "question_ids":[10]}]}',
+        "",
+        "TÍTULOS:",
+        "- 2 a 4 palavras.",
+        "- Específicos ao conteúdo.",
+        "- Sem perguntas e sem 'Tópico X'.",
+        "",
+    ]
+
+    if context_snippet:
+        prompt_parts.extend([
+            "CONTEXTO:",
+            context_snippet,
+            "",
+        ])
+
+    prompt_parts.extend([
+        "FLASHCARDS:",
+        json.dumps(flashcards_payload, ensure_ascii=False),
+        "",
+        "PERGUNTAS:",
+        json.dumps(questions_payload, ensure_ascii=False),
+    ])
+
+    if compact:
+        prompt_parts.extend([
+            "",
+            "IMPORTANTE:",
+            "- Se estiver em dúvida, agrupe por afinidade semântica básica.",
+            "- JSON puro, sem markdown.",
+        ])
+    else:
+        prompt_parts.extend([
+            "",
+            "OBJETIVO PEDAGÓGICO:",
+            "- Começar do básico e avançar para aplicação.",
+            "- Manter equilíbrio entre introdução e validação.",
+            "",
+            "EQUILÍBRIO:",
+            "- Cada tópico deve ter entre 2 e 5 flashcard_ids.",
+            "- Cada tópico deve ter entre 1 e 3 question_ids.",
+            "- Prefira 2 a 4 tópicos; no máximo 6.",
+            "- Distribua os itens proporcionalmente.",
+            "",
+            "IMPORTANTE:",
+            "- Cubra os IDs mais relacionados entre si.",
+            "- JSON puro, sem markdown.",
+        ])
+
+    return prompt_parts
+
+
+def _extract_json_object(text: str) -> str:
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        return text
+    return text[start:end + 1]
+
+
+def _parse_jsonish_object(raw_text: str) -> Dict[str, Any]:
+    cleaned_text = (raw_text or "").strip().replace("```json", "").replace("```", "")
+    candidates = [cleaned_text, _extract_json_object(cleaned_text)]
+
+    for candidate in candidates:
+        candidate = candidate.strip()
+        if not candidate:
+            continue
+
+        try:
+            data = json.loads(candidate)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+
+        try:
+            data = ast.literal_eval(candidate)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+
+    raise json.JSONDecodeError("Não foi possível interpretar o JSON retornado pela IA.", cleaned_text, 0)
+
+
+def _extract_response_text(response: Any) -> str:
+    direct_text = getattr(response, "text", None)
+    if isinstance(direct_text, str) and direct_text.strip():
+        return direct_text
+
+    candidates = getattr(response, "candidates", None) or []
+    text_parts: list[str] = []
+
+    for candidate in candidates:
+        content = getattr(candidate, "content", None)
+        parts = getattr(content, "parts", None) or []
+        for part in parts:
+            part_text = getattr(part, "text", None)
+            if isinstance(part_text, str) and part_text.strip():
+                text_parts.append(part_text)
+
+    return "\n".join(text_parts).strip()
+
+
+def _normalize_flashcards(raw_flashcards: Any, requested_count: int) -> List[Dict[str, Any]]:
+    if not isinstance(raw_flashcards, list):
+        return []
+
+    normalized: List[Dict[str, Any]] = []
+    seen_fronts: set[str] = set()
+
+    for item in raw_flashcards:
+        if not isinstance(item, dict):
+            continue
+
+        front = " ".join(str(item.get("front", "")).split()).strip()
+        back = " ".join(str(item.get("back", "")).split()).strip()
+        raw_type = str(item.get("type", "concept")).strip().lower() or "concept"
+
+        if not front or not back:
+            continue
+
+        dedupe_key = front.casefold()
+        if dedupe_key in seen_fronts:
+            continue
+
+        seen_fronts.add(dedupe_key)
+        normalized.append(
+            {
+                "front": front,
+                "back": back,
+                "type": raw_type,
+            }
+        )
+
+        if len(normalized) >= requested_count:
+            break
+
+    return normalized
+
+
+def _normalize_quiz_questions(raw_questions: Any, requested_count: int) -> List[Dict[str, Any]]:
+    if not isinstance(raw_questions, list):
+        return []
+
+    normalized: List[Dict[str, Any]] = []
+    seen_prompts: set[str] = set()
+
+    for item in raw_questions:
+        if not isinstance(item, dict):
+            continue
+
+        question_text = " ".join(str(item.get("text", "")).split()).strip()
+        if not question_text:
+            continue
+
+        dedupe_key = question_text.casefold()
+        if dedupe_key in seen_prompts:
+            continue
+
+        raw_answers = item.get("answers", [])
+        if not isinstance(raw_answers, list):
+            continue
+
+        normalized_answers: List[Dict[str, Any]] = []
+        correct_count = 0
+
+        for answer in raw_answers:
+            if not isinstance(answer, dict):
+                continue
+
+            answer_text = " ".join(str(answer.get("text", "")).split()).strip()
+            if not answer_text:
+                continue
+
+            is_correct = bool(answer.get("is_correct", False))
+            if is_correct:
+                correct_count += 1
+
+            normalized_answers.append(
+                {
+                    "text": answer_text,
+                    "is_correct": is_correct,
+                    "explanation": " ".join(str(answer.get("explanation", "")).split()).strip() or None,
+                }
+            )
+
+        if len(normalized_answers) != 5 or correct_count != 1:
+            continue
+
+        seen_prompts.add(dedupe_key)
+        normalized.append(
+            {
+                "text": question_text,
+                "answers": normalized_answers,
+            }
+        )
+
+        if len(normalized) >= requested_count:
+            break
+
+    return normalized
+
 # --- Função existente (permanece igual) ---
 def chat_about_flashcard(
     message: str,
@@ -29,10 +316,12 @@ def chat_about_flashcard(
 
     history_text = ""
     if conversation_history:
-        for entry in conversation_history[-5:]:
-            history_text += f"Usuário: {entry['user']}\nAssistente: {entry['assistant']}\n\n"
+        for entry in conversation_history[-3:]:
+            user_text = _normalize_text_snippet(entry.get("user", ""), 220)
+            assistant_text = _normalize_text_snippet(entry.get("assistant", ""), 420)
+            history_text += f"Usuário: {user_text}\nAssistente: {assistant_text}\n\n"
 
-    context_snippet = document_context[:3000] if document_context else ""
+    context_snippet = _normalize_text_snippet(document_context, 1800) if document_context else ""
 
     prompt = f"""
     Você é um PROFESSOR UNIVERSITÁRIO ESPECIALISTA atuando como tutor personalizado.
@@ -67,7 +356,7 @@ def chat_about_flashcard(
     Responda como um professor dedicado que quer genuinamente ajudar o aluno a compreender e aprofundar o conhecimento:"""
 
     try:
-        model = genai.GenerativeModel(GEMINI_MODEL)
+        model = _get_model(temperature=0.45, max_output_tokens=4096)
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
@@ -75,7 +364,10 @@ def chat_about_flashcard(
 
 # --- Função nova e melhorada ---
 def generate_flashcards_from_text(
-    text: str, num_flashcards: int = 10, difficulty: str = "Médio"
+    text: str,
+    num_flashcards: int = 10,
+    difficulty: str = "Médio",
+    _attempt: int = 0,
 ) -> List[Dict[str, Any]]:
     """
     Gera flashcards otimizados: perguntas diretas e respostas concisas.
@@ -84,20 +376,7 @@ def generate_flashcards_from_text(
         print("Texto de entrada está vazio. Pulando a geração de flashcards.")
         return []
 
-    generation_config = {
-        "temperature": 0.7, "top_p": 1, "top_k": 1, "max_output_tokens": 8192,
-    }
-    safety_settings = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    ]
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        generation_config=generation_config,
-        safety_settings=safety_settings,
-    )
+    model = _get_model(temperature=0.7, max_output_tokens=8192)
     
     difficulty_map = {
         "Fácil": {
@@ -312,11 +591,25 @@ Foque em {difficulty_instruction}."""
         )
         elapsed = time.time() - start
         print(f"⏱️ Tempo de resposta Gemini: {elapsed:.2f}s")
-        cleaned_response_text = response.text.strip().replace("```json", "").replace("```", "")
-        data = json.loads(cleaned_response_text)
+        data = _parse_jsonish_object(response.text)
         if "flashcards" in data and isinstance(data["flashcards"], list):
-            print("✅ Flashcards gerados com sucesso pelo Gemini.")
-            return data["flashcards"]
+            normalized_flashcards = _normalize_flashcards(data["flashcards"], num_flashcards)
+            if len(normalized_flashcards) < num_flashcards and _attempt < 1:
+                missing_count = num_flashcards - len(normalized_flashcards)
+                print(f"⚠️ Gemini retornou {len(normalized_flashcards)}/{num_flashcards} flashcards válidos. Tentando completar {missing_count}.")
+                supplemental_flashcards = generate_flashcards_from_text(
+                    text=text,
+                    num_flashcards=missing_count,
+                    difficulty=difficulty,
+                    _attempt=_attempt + 1,
+                )
+                normalized_flashcards = _normalize_flashcards(
+                    normalized_flashcards + supplemental_flashcards,
+                    num_flashcards,
+                )
+
+            print(f"✅ Flashcards gerados com sucesso pelo Gemini ({len(normalized_flashcards)}/{num_flashcards}).")
+            return normalized_flashcards
         else:
             print("❌ Erro: resposta da IA não continha a estrutura esperada ('flashcards').")
             raise ValueError("Resposta da IA malformada.")
@@ -325,7 +618,10 @@ Foque em {difficulty_instruction}."""
         raise e
 
 def generate_quiz_from_text(
-    text: str, num_questions: int = 5, difficulty: str = "Médio"
+    text: str,
+    num_questions: int = 5,
+    difficulty: str = "Médio",
+    _attempt: int = 0,
 ) -> Optional[Dict[str, Any]]:
     """
     Gera quizzes otimizados com alternativas equilibradas e não previsíveis.
@@ -334,20 +630,7 @@ def generate_quiz_from_text(
         print("Texto de entrada está vazio. Pulando a geração de quiz.")
         return None
         
-    generation_config = {
-        "temperature": 0.8, "top_p": 1, "top_k": 1, "max_output_tokens": 8192,
-    }
-    safety_settings = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    ]
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        generation_config=generation_config,
-        safety_settings=safety_settings,
-    )
+    model = _get_model(temperature=0.8, max_output_tokens=8192)
     
     difficulty_map = {
         "Fácil": {
@@ -566,11 +849,29 @@ Foque em {difficulty_instruction}."""
         )
         elapsed = time.time() - start
         print(f"⏱️ Tempo de resposta Gemini (Quiz): {elapsed:.2f}s")
-        cleaned_response_text = response.text.strip().replace("```json", "").replace("```", "")
-        data = json.loads(cleaned_response_text)
+        data = _parse_jsonish_object(response.text)
         if "title" in data and "questions" in data and isinstance(data["questions"], list):
-            print("✅ Quiz gerado com sucesso pelo Gemini.")
-            return data
+            normalized_questions = _normalize_quiz_questions(data["questions"], num_questions)
+            if len(normalized_questions) < num_questions and _attempt < 1:
+                missing_count = num_questions - len(normalized_questions)
+                print(f"⚠️ Gemini retornou {len(normalized_questions)}/{num_questions} perguntas válidas. Tentando completar {missing_count}.")
+                supplemental_quiz = generate_quiz_from_text(
+                    text=text,
+                    num_questions=missing_count,
+                    difficulty=difficulty,
+                    _attempt=_attempt + 1,
+                )
+                supplemental_questions = supplemental_quiz.get("questions", []) if supplemental_quiz else []
+                normalized_questions = _normalize_quiz_questions(
+                    normalized_questions + supplemental_questions,
+                    num_questions,
+                )
+
+            print(f"✅ Quiz gerado com sucesso pelo Gemini ({len(normalized_questions)}/{num_questions}).")
+            return {
+                "title": " ".join(str(data.get("title", "Quiz sobre o Texto")).split()).strip() or "Quiz sobre o Texto",
+                "questions": normalized_questions,
+            }
         else:
             print("❌ Erro: resposta da IA não continha a estrutura esperada ('title', 'questions').")
             raise ValueError("Resposta da IA malformada.")
@@ -592,107 +893,63 @@ def generate_guided_study_topics(
         print("Flashcards ou perguntas ausentes. Pulando estruturação guiada com IA.")
         return None
 
-    generation_config = {
-        "temperature": 0.4,
-        "top_p": 1,
-        "top_k": 1,
-        "max_output_tokens": 8192,
-    }
-    safety_settings = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    ]
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        generation_config=generation_config,
-        safety_settings=safety_settings,
-    )
-
-    context_snippet = (text or "").strip()[:12000]
-    flashcards_payload = [
+    context_snippet = _normalize_text_snippet(text, 3200)
+    flashcards_payload = _compact_flashcard_payload(flashcards, len(flashcards))
+    questions_payload = _compact_question_payload(questions, len(questions))
+    attempts = [
         {
-            "id": item["id"],
-            "front": item["front"],
-            "back": item["back"],
-        }
-        for item in flashcards[:24]
-    ]
-    questions_payload = [
+            "label": "full-json",
+            "model": _get_model(
+                temperature=0.35,
+                max_output_tokens=4096,
+                response_mime_type="application/json",
+            ),
+            "prompt_parts": _build_guided_study_prompt_parts(
+                context_snippet=context_snippet or "",
+                flashcards_payload=flashcards_payload,
+                questions_payload=questions_payload,
+                compact=False,
+            ),
+        },
         {
-            "id": item["id"],
-            "text": item["text"],
-        }
-        for item in questions[:24]
+            "label": "compact-json",
+            "model": _get_model(
+                temperature=0.2,
+                max_output_tokens=3072,
+                response_mime_type=None,
+            ),
+            "prompt_parts": _build_guided_study_prompt_parts(
+                context_snippet="",
+                flashcards_payload=flashcards_payload,
+                questions_payload=questions_payload,
+                compact=True,
+            ),
+        },
     ]
 
-    prompt_parts = [
-        "Você é um especialista em design instrucional universitário.",
-        "Sua tarefa é organizar um deck de estudo guiado usando APENAS os flashcards e perguntas já existentes.",
-        "",
-        "OBJETIVO:",
-        "- Criar uma progressão lógica do básico ao mais complexo.",
-        "- Agrupar conteúdo relacionado em blocos temáticos coesos.",
-        "- Dentro de cada bloco: flashcards introduzem o conceito, perguntas validam o aprendizado.",
-        "",
-        "REGRAS DE CONTEÚDO (obrigatórias):",
-        "- NÃO invente flashcards nem perguntas — use somente os IDs fornecidos.",
-        "- Cada ID deve aparecer exatamente uma vez em todo o JSON.",
-        "- Todo tópico deve ter ao menos 1 flashcard_id E ao menos 1 question_id.",
-        "- Se não houver perguntas suficientes, prefira menos tópicos mais completos.",
-        "",
-        "REGRAS DE EQUILÍBRIO PEDAGÓGICO (obrigatórias):",
-        "- Cada tópico deve ter entre 2 e 5 flashcard_ids.",
-        "- Cada tópico deve ter entre 1 e 3 question_ids.",
-        "- Prefira 2-4 tópicos no total; use no máximo 6.",
-        "- Distribua flashcards e perguntas de forma proporcional entre os tópicos.",
-        "- Evite tópicos com muitos flashcards e poucos (ou nenhum) validação.",
-        "",
-        "REGRAS PARA OS TÍTULOS (obrigatórias):",
-        "- O título deve nomear o conceito ou área de conhecimento do bloco.",
-        "- Use entre 2 e 4 palavras.",
-        "- NÃO use frases completas, perguntas, artigos ('o', 'a', 'os') no início nem 'Tópico X'.",
-        "- Correto: 'Termodinâmica básica', 'Estruturas celulares', 'Contratos e obrigações'.",
-        "- Errado: 'O que é termodinâmica?', 'Conceitos do capítulo', 'Tópico sobre saúde'.",
-        "",
-        "FORMATO DE SAÍDA:",
-        "Responda APENAS com JSON puro, sem markdown nem comentários.",
-        'Estrutura: {"topics":[{"title":"...", "flashcard_ids":[...], "question_ids":[...]}]}',
-        "",
-        "CONTEXTO DO MATERIAL:",
-        context_snippet or "Sem texto extraído. Baseie-se somente nos flashcards e perguntas.",
-        "",
-        "FLASHCARDS DISPONÍVEIS:",
-        json.dumps(flashcards_payload, ensure_ascii=False),
-        "",
-        "PERGUNTAS DISPONÍVEIS:",
-        json.dumps(questions_payload, ensure_ascii=False),
-        "",
-        "EXEMPLO VÁLIDO (siga este padrão de equilíbrio):",
-        """{"topics":[
-  {"title":"Fundamentos do tema", "flashcard_ids":[1,2,3], "question_ids":[10,11]},
-  {"title":"Aplicações práticas", "flashcard_ids":[4,5], "question_ids":[12]},
-  {"title":"Casos e relações", "flashcard_ids":[6,7,8], "question_ids":[13,14]}
-]}""",
-    ]
+    for attempt_index, attempt in enumerate(attempts, start=1):
+        try:
+            print(f"Enviando conteúdo para o Gemini estruturar o estudo guiado. tentativa={attempt_index} modo={attempt['label']}")
+            start = time.time()
+            response = attempt["model"].generate_content(
+                attempt["prompt_parts"],
+                request_options={"timeout": 90.0},
+            )
+            elapsed = time.time() - start
+            print(f"⏱️ Tempo de resposta Gemini (Estudo guiado, tentativa {attempt_index}): {elapsed:.2f}s")
 
-    try:
-        print("Enviando conteúdo para o Gemini estruturar o estudo guiado.")
-        start = time.time()
-        response = model.generate_content(
-            prompt_parts,
-            request_options={"timeout": 90.0},
-        )
-        elapsed = time.time() - start
-        print(f"⏱️ Tempo de resposta Gemini (Estudo guiado): {elapsed:.2f}s")
-        cleaned_response_text = response.text.strip().replace("```json", "").replace("```", "")
-        data = json.loads(cleaned_response_text)
-        if "topics" in data and isinstance(data["topics"], list):
-            print("✅ Estrutura guiada gerada com sucesso pelo Gemini.")
-            return data
-        print("❌ Erro: resposta da IA não continha a estrutura esperada ('topics').")
-        return None
-    except Exception as e:
-        print(f"🚨 Erro ao estruturar estudo guiado: {type(e).__name__} - {e}")
-        return None
+            response_text = _extract_response_text(response)
+            if not response_text:
+                print(f"⚠️ Gemini retornou resposta vazia no estudo guiado. tentativa={attempt_index}")
+                continue
+
+            data = _parse_jsonish_object(response_text)
+            if "topics" in data and isinstance(data["topics"], list):
+                print(f"✅ Estrutura guiada gerada com sucesso pelo Gemini na tentativa {attempt_index}.")
+                return data
+
+            print(f"❌ Estudo guiado: resposta sem 'topics' válida na tentativa {attempt_index}.")
+        except Exception as e:
+            print(f"🚨 Erro ao estruturar estudo guiado (tentativa {attempt_index}): {type(e).__name__} - {e}")
+
+    return None
