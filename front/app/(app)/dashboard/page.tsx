@@ -242,11 +242,18 @@ const getDailyHeadline = (
   }
 
   if (pendingDeckCount <= 2) {
-    const phrases = [
-      "Dois deckzinhos pedindo atenção. Nada dramático, mas eles notaram sua ausência.",
-      "Tem pouca coisa esperando. Dá para resolver bonito hoje.",
-      "O dia veio educado: poucas revisões, bom ritmo e chance real de fechar tudo.",
-    ];
+    const phrases =
+      pendingDeckCount === 1
+        ? [
+            "Um deck levantou a mão. Serviço rápido, sem novela.",
+            "Tem só um deck na fila. Dá para resolver antes do café esfriar.",
+            "Hoje veio manso: uma revisão e a chance real de zerar a pendência.",
+          ]
+        : [
+            "Dois deckzinhos pedindo atenção. Nada dramático, mas eles notaram sua ausência.",
+            "Tem pouca coisa esperando. Dá para resolver bonito hoje.",
+            "O dia veio educado: poucas revisões, bom ritmo e chance real de fechar tudo.",
+          ];
     const index = (pendingDeckCount + totalPending + safeName.length) % phrases.length;
     return {
       greeting: `Olá, ${safeName}`,

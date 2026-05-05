@@ -90,35 +90,11 @@ export function LoadingScreen({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="text-center space-y-2"
+          className="text-center"
         >
           <p className="text-foreground/90 text-base sm:text-lg font-medium">
             {message}
           </p>
-          
-          {/* Pontos animados inline com o texto */}
-          <motion.div
-            className="flex justify-center space-x-1.5"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-          >
-            {[0, 1, 2].map((i) => (
-              <motion.div
-                key={i}
-                className="w-1.5 h-1.5 bg-primary rounded-full"
-                animate={{ 
-                  opacity: [0.3, 1, 0.3]
-                }}
-                transition={{ 
-                  duration: 1.2, 
-                  repeat: Infinity, 
-                  delay: i * 0.2,
-                  ease: "easeInOut"
-                }}
-              />
-            ))}
-          </motion.div>
         </motion.div>
       </div>
     </div>
