@@ -10,7 +10,7 @@ interface GenerationLimitContextType {
   limitInfo: GenerationLimitInfo | null;
   loading: boolean;
   refreshLimitInfo: () => Promise<void>;
-  incrementUsage: () => void;
+  incrementUsage: (amount?: number) => void;
 }
 
 const GenerationLimitContext = createContext<GenerationLimitContextType | undefined>(undefined);
@@ -52,12 +52,12 @@ export function GenerationLimitProvider({ children }: { children: ReactNode }) {
   }, [fetchLimitInfo]);
 
   // Função otimista para incrementar localmente (feedback imediato)
-  const incrementUsage = useCallback(() => {
+  const incrementUsage = useCallback((amount: number = 1) => {
     if (limitInfo) {
       setLimitInfo({
         ...limitInfo,
-        used: limitInfo.used + 1,
-        remaining: Math.max(0, limitInfo.remaining - 1)
+        used: limitInfo.used + amount,
+        remaining: Math.max(0, limitInfo.remaining - amount)
       });
     }
   }, [limitInfo]);

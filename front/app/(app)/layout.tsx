@@ -293,7 +293,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 isActive = pathname.startsWith('/library') || 
                            pathname.startsWith('/deck/') || 
                            pathname.startsWith('/study/') || 
-                           pathname.startsWith('/quiz/');
+                           pathname.startsWith('/quiz/') ||
+                           pathname.startsWith('/guided/');
               } else {
                 isActive = pathname.startsWith(item.href);
               }

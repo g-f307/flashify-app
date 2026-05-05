@@ -97,6 +97,12 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     num_questions: 5,
   });
 
+  const requestedGeneratesFlashcards =
+    data.contentType === "flashcards" || data.contentType === "both";
+  const requestedGeneratesQuizzes =
+    data.contentType === "quiz" || data.contentType === "both";
+  const requestedGenerationUnits = data.contentType === "both" ? 2 : 1;
+
   const handleNext = () => setStep((s) => Math.min(s + 1, steps.length));
   const handleBack = () => setStep((s) => Math.max(s - 1, 1));
 
@@ -188,7 +194,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     if (fileError) return toast.error(fileError);
 
     // Verifica limite antes de submeter
-    if (limitInfo && limitInfo.remaining === 0) {
+    if (limitInfo && limitInfo.remaining < requestedGenerationUnits) {
       setLimitDialogInfo({
         message: "Limite diário atingido",
         limit: limitInfo.limit,
@@ -203,9 +209,6 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     try {
       let document: Document;
       
-      const generates_flashcards = data.contentType === 'flashcards' || data.contentType === 'both';
-      const generates_quizzes = data.contentType === 'quiz' || data.contentType === 'both';
-
       const baseParams = {
         title: data.name,
         folderId: folderId,
@@ -213,8 +216,8 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         difficulty: data.difficulty,
         num_questions: data.num_questions,
         contentType: data.contentType, 
-        generates_flashcards,
-        generates_quizzes,
+        generates_flashcards: requestedGeneratesFlashcards,
+        generates_quizzes: requestedGeneratesQuizzes,
       };
 
       if (data.inputType === 'upload' && data.file) {
@@ -224,7 +227,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
       }
 
       // 🆕 ATUALIZAR O CONTEXT - Isso vai refletir na sidebar IMEDIATAMENTE!
-      incrementUsage(); // Atualização otimista (feedback imediato)
+      incrementUsage(requestedGenerationUnits); // Atualização otimista (feedback imediato)
       
       // 🆕 Atualizar do servidor em background (garante sincronização)
       refreshLimitInfo().catch(err => {
@@ -312,8 +315,8 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
           <CardContent className="flex justify-center items-center py-8 sm:py-12 px-4">
             <ContentLoader 
               currentStepMessage={processingDocument?.current_step}
-              generatesFlashcards={processingDocument?.generates_flashcards ?? false}
-              generatesQuizzes={processingDocument?.generates_quizzes ?? false}
+              generatesFlashcards={requestedGeneratesFlashcards}
+              generatesQuizzes={requestedGeneratesQuizzes}
             />
           </CardContent>
         </div>
@@ -579,7 +582,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                 <Button 
                   onClick={handleSubmit} 
                   className="w-full !mt-6 sm:!mt-8 h-11 sm:h-12 text-sm sm:text-base font-semibold" 
-                  disabled={isSubmitting || isProcessing || (limitInfo?.remaining === 0)}
+                  disabled={isSubmitting || isProcessing || ((limitInfo?.remaining ?? 0) < requestedGenerationUnits)}
                 >
                     {isSubmitting ? (
                       <>

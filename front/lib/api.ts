@@ -302,6 +302,8 @@ type CreateFromTextParams = {
   text: string;
   title: string;
   folderId?: number;
+  generates_flashcards: boolean;
+  generates_quizzes: boolean;
   contentType: string;
   num_flashcards: number;
   difficulty: string;
@@ -473,6 +475,8 @@ class ApiClient {
         text: params.text,
         title: params.title,
         folder_id: params.folderId,
+        generate_flashcards: params.generates_flashcards,
+        generate_quizzes: params.generates_quizzes,
         content_type: params.contentType,
         num_flashcards: params.num_flashcards,
         difficulty: params.difficulty,

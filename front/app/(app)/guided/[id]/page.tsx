@@ -27,7 +27,6 @@ import {
   ChevronDown,
   ChevronUp,
   Layers3,
-  Loader2,
   Brain,
   Play,
   RotateCcw,
@@ -40,6 +39,7 @@ import { FlashcardStage } from "@/components/study/flashcard-stage";
 import { QuestionStage } from "@/components/quiz/question-stage";
 import { GuidedStudyReport } from "@/components/study/guided-study-report";
 import { useGenerationLimit } from "@/contexts/generation-limit-context";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 type FlattenedStep = {
   topic: GuidedStudyTopic;
@@ -203,12 +203,7 @@ export default function GuidedStudyPage() {
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground animate-pulse">Montando sua trilha guiada...</p>
-      </div>
-    );
+    return <LoadingScreen message="Montando sua trilha guiada..." fullScreen={false} />;
   }
 
   // ── Error ──────────────────────────────────────────────────────────────────
