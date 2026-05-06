@@ -162,9 +162,9 @@ export function PerformanceReportResponsive({
 
   return (
     <>
-      <div className="min-h-screen bg-background px-4 py-4 md:px-5 md:py-4">
-        <div className="mx-auto max-w-4xl">
-          <Card className="overflow-hidden animate-in fade-in-50 duration-500 border border-border/70 bg-card/95 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#facc15]/45 hover:shadow-[0_0_0_1px_rgba(250,204,21,0.18),0_22px_54px_-24px_rgba(250,204,21,0.34)] dark:border-zinc-800 dark:bg-[#23262f]/95 dark:hover:border-[#facc15]/24 dark:hover:shadow-[0_0_0_1px_rgba(250,204,21,0.12),0_22px_54px_-24px_rgba(250,204,21,0.22)] md:p-6 lg:min-h-[calc(100vh-2rem)] lg:max-h-[calc(100vh-2rem)] lg:p-6">
+      <div className="min-h-screen overflow-x-hidden bg-background px-3 py-4 md:px-5 md:py-4">
+        <div className="mx-auto w-full max-w-4xl min-w-0">
+          <Card className="w-full min-w-0 overflow-hidden animate-in fade-in-50 duration-500 border border-border/70 bg-card/95 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#facc15]/45 hover:shadow-[0_0_0_1px_rgba(250,204,21,0.18),0_22px_54px_-24px_rgba(250,204,21,0.34)] dark:border-zinc-800 dark:bg-[#23262f]/95 dark:hover:border-[#facc15]/24 dark:hover:shadow-[0_0_0_1px_rgba(250,204,21,0.12),0_22px_54px_-24px_rgba(250,204,21,0.22)] md:p-6 lg:min-h-[calc(100vh-2rem)] lg:max-h-[calc(100vh-2rem)] lg:p-6">
             <div className="mb-4 flex items-center justify-between lg:mb-3">
               <Button
                 onClick={onBack}
@@ -180,12 +180,12 @@ export function PerformanceReportResponsive({
               <div className="h-10 w-10" />
             </div>
 
-            <div className="grid gap-4 lg:h-[calc(100%-3rem)] lg:grid-cols-[minmax(280px,0.95fr)_minmax(0,1.05fr)] lg:grid-rows-[1fr_auto]">
+            <div className="grid w-full min-w-0 gap-4 lg:h-[calc(100%-3rem)] lg:grid-cols-[minmax(280px,0.95fr)_minmax(0,1.05fr)] lg:grid-rows-[1fr_auto]">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="flex min-h-[260px] flex-col items-center justify-center rounded-3xl border border-[rgba(250,204,21,0.22)] bg-gradient-to-br from-[#facc15]/10 via-transparent to-[#f59e0b]/5 px-5 py-8 text-center shadow-[inset_0_1px_0_rgba(250,204,21,0.06)] dark:border-[rgba(250,204,21,0.16)] dark:from-[#facc15]/8 dark:via-transparent dark:to-[#f59e0b]/4 dark:shadow-[inset_0_1px_0_rgba(250,204,21,0.05)] lg:min-h-0 lg:px-7 lg:py-8"
+                className="flex w-full min-w-0 min-h-[260px] flex-col items-center justify-center rounded-3xl border border-[rgba(250,204,21,0.22)] bg-gradient-to-br from-[#facc15]/10 via-transparent to-[#f59e0b]/5 px-4 py-8 text-center shadow-[inset_0_1px_0_rgba(250,204,21,0.06)] dark:border-[rgba(250,204,21,0.16)] dark:from-[#facc15]/8 dark:via-transparent dark:to-[#f59e0b]/4 dark:shadow-[inset_0_1px_0_rgba(250,204,21,0.05)] lg:min-h-0 lg:px-7 lg:py-8"
               >
                 <div className="mb-4 flex justify-center">
                   <div className="relative inline-flex items-center justify-center">
@@ -215,7 +215,7 @@ export function PerformanceReportResponsive({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
-                className="grid gap-4 lg:grid-cols-[190px_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr]"
+                className="grid w-full min-w-0 gap-4 lg:grid-cols-[190px_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr]"
               >
                 <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2">
                   <div className="rounded-2xl border border-[rgba(250,204,21,0.24)] bg-[#facc15]/10 p-4 dark:border-[rgba(250,204,21,0.16)] dark:bg-[rgba(250,204,21,0.08)]">
@@ -325,7 +325,7 @@ export function PerformanceReportResponsive({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.15 }}
-                className="lg:col-span-2 lg:row-start-2"
+                className="w-full min-w-0 lg:col-span-2 lg:row-start-2"
               >
                 <div className="flex flex-col gap-3">
                   {recommendations.showReviewOption && (
