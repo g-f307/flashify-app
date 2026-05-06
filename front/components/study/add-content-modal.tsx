@@ -78,6 +78,29 @@ const LOADING_MESSAGES = {
   ],
 };
 
+const STATUS_THEME = {
+  flashcards: {
+    panel: "from-[#facc15]/12",
+    value: "text-[#e0a800]",
+    progress: "from-[#facc15] to-[#f59e0b]",
+    accentBg: "bg-[#facc15]/10",
+    accentText: "text-[#e0a800]",
+    accentIcon: "text-[#e0a800]",
+    selected: "border-[#facc15] bg-[#facc15]/10 text-[#e0a800]",
+    cta: "bg-[#facc15] text-black hover:bg-[#eab308]",
+  },
+  questions: {
+    panel: "from-[#6BDEF3]/10",
+    value: "text-[#6BDEF3]",
+    progress: "from-[#6BDEF3] to-[#6BDEF3]/80",
+    accentBg: "bg-[#48cfea]/10",
+    accentText: "text-[#48cfea]",
+    accentIcon: "text-[#48cfea]",
+    selected: "border-[#48cfea] bg-[#48cfea]/10 text-[#48cfea]",
+    cta: "bg-[#48cfea] text-black hover:bg-[#36bfdc]",
+  },
+} as const;
+
 export function AddContentModal({
   isOpen,
   onClose,
@@ -115,6 +138,7 @@ export function AddContentModal({
 
   const labels = contentLabels[contentType];
   const Icon = labels.icon;
+  const statusTheme = STATUS_THEME[contentType];
 
   const selectedDifficulty = DIFFICULTY_OPTIONS.find(
     (opt) => opt.value === difficulty
@@ -198,8 +222,8 @@ export function AddContentModal({
       <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Icon className="w-5 h-5 text-primary" />
+            <div className={`rounded-lg p-2 ${statusTheme.accentBg}`}>
+              <Icon className={`h-5 w-5 ${statusTheme.accentIcon}`} />
             </div>
             {labels.title}
           </DialogTitle>
@@ -228,9 +252,9 @@ export function AddContentModal({
                     repeat: Infinity,
                     ease: "easeInOut",
                   }}
-                  className="p-4 rounded-full bg-primary/10"
+                  className={`rounded-full p-4 ${statusTheme.accentBg}`}
                 >
-                  <Sparkles className="w-8 h-8 text-primary" />
+                  <Sparkles className={`h-8 w-8 ${statusTheme.accentIcon}`} />
                 </motion.div>
 
                 <div className="text-center space-y-2 w-full">
@@ -255,8 +279,8 @@ export function AddContentModal({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-4 py-3 rounded-lg">
-                  <Zap className="w-4 h-4 text-primary" />
+                <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-4 py-3 text-xs text-muted-foreground">
+                  <Zap className={`h-4 w-4 ${statusTheme.accentIcon}`} />
                   <span>Isto pode levar alguns segundos. Aguarde...</span>
                 </div>
               </div>
@@ -270,12 +294,12 @@ export function AddContentModal({
               className="space-y-6 py-4"
             >
               {/* Status Atual */}
-              <div className="rounded-xl border border-border bg-gradient-to-br from-[#6BDEF3]/10 to-transparent p-5 space-y-3 dark:border-neutral-800">
+              <div className={`rounded-xl border border-border bg-gradient-to-br ${statusTheme.panel} to-transparent p-5 space-y-3 dark:border-neutral-800`}>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">
                     Status do Deck
                   </span>
-                  <span className="text-lg font-bold text-[#6BDEF3]">
+                  <span className={`text-lg font-bold ${statusTheme.value}`}>
                     {currentCount} / {maxLimit}
                   </span>
                 </div>
@@ -286,7 +310,7 @@ export function AddContentModal({
                       initial={{ width: 0 }}
                       animate={{ width: `${(currentCount / maxLimit) * 100}%` }}
                       transition={{ duration: 0.5, ease: "easeOut" }}
-                      className="h-full bg-gradient-to-r from-[#6BDEF3] to-[#6BDEF3]/80"
+                      className={`h-full bg-gradient-to-r ${statusTheme.progress}`}
                     />
                   </div>
 
@@ -296,7 +320,7 @@ export function AddContentModal({
                         labels.plural.slice(1)}{" "}
                       atuais
                     </span>
-                    <span className="font-medium text-[#6BDEF3]">
+                    <span className={`font-medium ${statusTheme.value}`}>
                       {availableSlots} disponíveis
                     </span>
                   </div>
@@ -337,7 +361,7 @@ export function AddContentModal({
                               isDisabled
                                 ? "border-border bg-muted text-muted-foreground opacity-50 cursor-not-allowed dark:border-neutral-800"
                                 : isSelected
-                                ? "border-primary bg-primary/10 text-primary"
+                                ? statusTheme.selected
                                 : "border-border text-foreground hover:bg-accent dark:border-neutral-800"
                             }
                           `}
@@ -426,7 +450,7 @@ export function AddContentModal({
                             transition-colors cursor-pointer
                             ${
                               isSelected
-                                ? "border-primary bg-primary/10 text-primary"
+                                ? statusTheme.selected
                                 : "border-border text-foreground hover:bg-accent dark:border-neutral-800"
                             }
                           `}
@@ -470,7 +494,7 @@ export function AddContentModal({
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-3xl font-bold text-primary">
+                    <div className={`text-3xl font-bold ${statusTheme.accentText}`}>
                       {quantity < 1 ? 0 : quantity}
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -513,7 +537,7 @@ export function AddContentModal({
             <Button
               onClick={handleConfirm}
               disabled={isOverLimit}
-              className="gap-2"
+              className={`gap-2 ${statusTheme.cta}`}
             >
               <Plus className="w-4 h-4" />
               Adicionar{" "}

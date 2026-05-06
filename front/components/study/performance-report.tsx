@@ -1,22 +1,32 @@
-// front/components/study/performance-report.tsx
 "use client";
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, RotateCcw, RefreshCw, Plus, TrendingUp, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { CircularProgress } from './circular-progress';
-import { StatsBadge } from './stats-badge';
-import { AddContentModal } from './add-content-modal';
-import { apiClient } from '@/lib/api';
-import { toast } from 'sonner';
-import { useGenerationLimit } from "@/contexts/generation-limit-context"; 
-import { 
-  PerformanceStats, 
-  getMotivationalMessage, 
-  getActionRecommendations 
-} from '@/lib/performance-utils';
+import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Target,
+  TrendingUp,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { AddContentModal } from "./add-content-modal";
+import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
+import { useGenerationLimit } from "@/contexts/generation-limit-context";
+import {
+  PerformanceStats,
+  getActionRecommendations,
+  getMotivationalMessage,
+} from "@/lib/performance-utils";
+
+const FLASH_YELLOW = "#facc15";
+const FLASH_YELLOW_DARK = "#f59e0b";
+const MAX_FLASHCARDS = 20;
 
 interface PerformanceReportResponsiveProps {
   stats: PerformanceStats;
@@ -30,7 +40,68 @@ interface PerformanceReportResponsiveProps {
   onContentAdded?: () => void;
 }
 
-const MAX_FLASHCARDS = 20;
+function FlashcardScoreRing({
+  percentage,
+  correctCards,
+  totalCards,
+}: {
+  percentage: number;
+  correctCards: number;
+  totalCards: number;
+}) {
+  const size = 172;
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center">
+      <svg width={size} height={size} className="-rotate-90">
+        <defs>
+          <linearGradient id="flashcard-report-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={FLASH_YELLOW} />
+            <stop offset="100%" stopColor={FLASH_YELLOW_DARK} />
+          </linearGradient>
+        </defs>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(72, 207, 234, 0.16)"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="url(#flashcard-report-ring)"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="text-3xl font-bold text-foreground md:text-4xl">{percentage}%</span>
+        <span className="mt-1 text-xs text-muted-foreground md:text-sm">
+          {correctCards}/{totalCards} domina
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function getRetentionLabel(percentage: number) {
+  if (percentage >= 85) return "Alta";
+  if (percentage >= 65) return "Boa";
+  if (percentage >= 45) return "Em evolução";
+  return "Precisa reforçar";
+}
 
 export function PerformanceReportResponsive({
   stats,
@@ -41,16 +112,24 @@ export function PerformanceReportResponsive({
   onContinueReview,
   onPracticeQuestions,
   onBack,
-  onContentAdded
+  onContentAdded,
 }: PerformanceReportResponsiveProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  const { refreshLimitInfo } = useGenerationLimit(); 
+  const { refreshLimitInfo } = useGenerationLimit();
 
   const message = getMotivationalMessage(stats.performanceLevel, stats.accuracyPercentage);
   const recommendations = getActionRecommendations(stats);
-
   const canAddMore = totalCards < MAX_FLASHCARDS;
+
+  const report = useMemo(() => {
+    const learningCards = stats.partialCards + stats.incorrectCards;
+    return {
+      retentionLabel: getRetentionLabel(stats.accuracyPercentage),
+      learningCards,
+      masteredCards: stats.correctCards,
+    };
+  }, [stats]);
 
   const handleAddFlashcards = async (quantity: number, difficulty: string) => {
     setIsAdding(true);
@@ -60,7 +139,7 @@ export function PerformanceReportResponsive({
       setIsAddModalOpen(false);
 
       await refreshLimitInfo();
-      
+
       if (onContentAdded) {
         onContentAdded();
       }
@@ -68,11 +147,11 @@ export function PerformanceReportResponsive({
       if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
         toast.error("Limite diário atingido", {
           description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
-          duration: 5000
+          duration: 5000,
         });
       } else {
         toast.error("Erro ao adicionar flashcards", {
-          description: error.message
+          description: error.message,
         });
       }
       throw error;
@@ -83,191 +162,216 @@ export function PerformanceReportResponsive({
 
   return (
     <>
-      <div className="min-h-screen bg-background p-4 pt-4 md:pt-8">
-        <div className="max-w-4xl mx-auto">
-          <Card className="p-6 md:p-8 lg:p-12 glow-on-hover mt-4 md:mt-8">
-            <div className="flex items-center justify-between mb-6 md:mb-8">
+      <div className="min-h-screen bg-background px-4 py-4 md:px-5 md:py-4">
+        <div className="mx-auto max-w-4xl">
+          <Card className="overflow-hidden animate-in fade-in-50 duration-500 border border-border/70 bg-card/95 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#facc15]/45 hover:shadow-[0_0_0_1px_rgba(250,204,21,0.18),0_22px_54px_-24px_rgba(250,204,21,0.34)] dark:border-zinc-800 dark:bg-[#23262f]/95 dark:hover:border-[#facc15]/24 dark:hover:shadow-[0_0_0_1px_rgba(250,204,21,0.12),0_22px_54px_-24px_rgba(250,204,21,0.22)] md:p-6 lg:min-h-[calc(100vh-2rem)] lg:max-h-[calc(100vh-2rem)] lg:p-6">
+            <div className="mb-4 flex items-center justify-between lg:mb-3">
               <Button
                 onClick={onBack}
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-foreground hover:bg-accent"
+                className="text-muted-foreground hover:bg-accent hover:text-foreground"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="h-5 w-5" />
               </Button>
-              
-              <div className="text-muted-foreground text-sm font-medium">
-                {totalCards} / {totalCards}
-              </div>
-              
-              <div className="w-10 h-10"></div> 
+              <span className="text-sm font-medium text-muted-foreground">
+                Estudo finalizado
+              </span>
+              <div className="h-10 w-10" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
-              
+            <div className="grid gap-4 lg:h-[calc(100%-3rem)] lg:grid-cols-[minmax(280px,0.95fr)_minmax(0,1.05fr)] lg:grid-rows-[1fr_auto]">
               <motion.div
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6 }}
-                className="text-center lg:col-span-1 flex flex-col items-center"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="flex min-h-[260px] flex-col items-center justify-center rounded-3xl border border-[rgba(250,204,21,0.22)] bg-gradient-to-br from-[#facc15]/10 via-transparent to-[#f59e0b]/5 px-5 py-8 text-center shadow-[inset_0_1px_0_rgba(250,204,21,0.06)] dark:border-[rgba(250,204,21,0.16)] dark:from-[#facc15]/8 dark:via-transparent dark:to-[#f59e0b]/4 dark:shadow-[inset_0_1px_0_rgba(250,204,21,0.05)] lg:min-h-0 lg:px-7 lg:py-8"
               >
-                <motion.div
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ 
-                    duration: 0.6,
-                    type: "spring",
-                    stiffness: 200,
-                    damping: 15
-                  }}
-                  className="mb-6 flex justify-center"
-                >
+                <div className="mb-4 flex justify-center">
                   <div className="relative inline-flex items-center justify-center">
-                    <div className="absolute -top-2 -right-2 w-4 h-4 bg-secondary rounded-full opacity-80"></div>
-                    <div className="absolute -bottom-1 -left-3 w-3 h-3 bg-primary rounded-full opacity-60"></div>
-                    <div className="absolute top-3 -left-2 w-2 h-2 bg-secondary rounded-full opacity-70"></div>
-                    <div className="absolute -top-1 left-4 w-2 h-2 bg-primary rounded-full opacity-80"></div>
-                    
-                    <div className="bg-primary p-4 lg:p-5 rounded-2xl shadow-lg relative z-10">
-                      <span className="text-2xl lg:text-3xl">{message.emoji}</span>
+                    <div className="absolute -top-2 -right-2 h-4 w-4 rounded-full bg-amber-300 opacity-80" />
+                    <div className="absolute -bottom-1 -left-3 h-3 w-3 rounded-full bg-[#facc15] opacity-60" />
+                    <div className="absolute top-3 -left-2 h-2 w-2 rounded-full bg-yellow-200 opacity-80" />
+                    <div className="absolute -top-1 left-4 h-2 w-2 rounded-full bg-[#f59e0b] opacity-75" />
+
+                    <div className="relative z-10 rounded-2xl bg-[#facc15] p-4 text-black shadow-lg">
+                      <span className="text-2xl">{message.emoji}</span>
                     </div>
-                    
-                    <div className="absolute -bottom-2 right-1 w-3 h-3 bg-secondary rounded-full opacity-60"></div>
-                    <div className="absolute top-1 right-3 w-2 h-2 bg-primary rounded-full opacity-70"></div>
+
+                    <div className="absolute -bottom-2 right-1 h-3 w-3 rounded-full bg-amber-300 opacity-60" />
+                    <div className="absolute top-1 right-3 h-2 w-2 rounded-full bg-yellow-300 opacity-70" />
                   </div>
-                </motion.div>
+                </div>
 
-                <motion.h1
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                  className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4 text-center"
-                >
+                <h1 className="max-w-sm text-3xl font-bold leading-tight text-foreground lg:text-[2.45rem]">
                   {message.title}
-                </motion.h1>
-
-                <motion.p
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.4 }}
-                  className="text-muted-foreground text-base md:text-lg leading-relaxed text-center max-w-xs"
-                >
+                </h1>
+                <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground md:text-base">
                   {message.subtitle}
-                </motion.p>
-
-                {/* SRS Review Summary */}
-                {isReviewMode && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.6 }}
-                    className="mt-4 space-y-2 w-full max-w-xs"
-                  >
-                    {stats.correctCards > 0 && (
-                      <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-                        <TrendingUp className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                          <strong>{stats.correctCards}</strong> {stats.correctCards === 1 ? 'card promovido' : 'cards promovidos'} — próxima revisão em alguns dias
-                        </span>
-                      </div>
-                    )}
-                    {(stats.incorrectCards + stats.partialCards) > 0 && (
-                      <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                        <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                        <span className="text-xs text-amber-600 dark:text-amber-400">
-                          <strong>{stats.incorrectCards + stats.partialCards}</strong> {(stats.incorrectCards + stats.partialCards) === 1 ? 'card voltou' : 'cards voltaram'} para a fila — revisão em breve
-                        </span>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
+                </p>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="flex flex-col items-center lg:col-span-1"
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="grid gap-4 lg:grid-cols-[190px_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr]"
               >
-                <h2 className="text-foreground text-lg font-semibold mb-6 text-center">
-                  Seu progresso
-                </h2>
-                
-                <div className="flex justify-center mb-4">
-                  <CircularProgress
-                    percentage={stats.accuracyPercentage}
-                    correctCount={stats.correctCards}
-                    partialCount={stats.partialCards}
-                    totalCount={stats.totalCards}
-                    size={200}
-                    strokeWidth={12}
-                  />
+                <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2">
+                  <div className="rounded-2xl border border-[rgba(250,204,21,0.24)] bg-[#facc15]/10 p-4 dark:border-[rgba(250,204,21,0.16)] dark:bg-[rgba(250,204,21,0.08)]">
+                    <div className="flex items-center gap-2 text-sm font-medium text-[#b77906] dark:text-[#f8de7e]">
+                      <Target className="h-4 w-4" />
+                      Desempenho geral
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-foreground">
+                      {stats.accuracyPercentage}%
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-[rgba(250,204,21,0.24)] bg-[#facc15]/10 p-4 dark:border-[rgba(250,204,21,0.16)] dark:bg-[rgba(250,204,21,0.08)]">
+                    <div className="flex items-center gap-2 text-sm font-medium text-[#b77906] dark:text-[#f8de7e]">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Retenção
+                    </div>
+                    <p className="mt-2 text-2xl font-bold leading-tight text-foreground">
+                      {report.retentionLabel}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 dark:border-zinc-800 lg:row-span-2">
+                  <p className="mb-4 text-sm font-semibold text-foreground">Progresso</p>
+                  <div className="flex h-full items-center justify-center">
+                    <FlashcardScoreRing
+                      percentage={stats.accuracyPercentage}
+                      correctCards={stats.correctCards}
+                      totalCards={stats.totalCards}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4 min-w-0">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 px-3 py-3 dark:border-zinc-800">
+                      <p className="truncate text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground sm:text-[11px]">
+                        Sabe
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        {report.masteredCards}
+                      </p>
+                    </div>
+                    <div className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 px-3 py-3 dark:border-zinc-800">
+                      <p className="truncate text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground sm:text-[11px]">
+                        Revê
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        {report.learningCards}
+                      </p>
+                    </div>
+                    <div className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 px-3 py-3 dark:border-zinc-800">
+                      <p className="truncate text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground sm:text-[11px]">
+                        Total
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        {stats.totalCards}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 dark:border-zinc-800">
+                    <h2 className="text-sm font-semibold text-foreground">Resumo</h2>
+                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
+                      <p>
+                        <strong className="text-foreground">{stats.correctCards}</strong> cards dominados em{" "}
+                        <strong className="text-foreground">{stats.totalCards}</strong>.
+                      </p>
+                      <p>
+                        <strong className="text-foreground">{report.learningCards}</strong> ainda pedem reforço.
+                      </p>
+                      <p>
+                        Nível atual: <strong className="text-foreground">{report.retentionLabel}</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  {isReviewMode && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {stats.correctCards > 0 && (
+                        <div className="rounded-2xl border border-emerald-500/18 bg-emerald-500/8 px-4 py-3">
+                          <div className="flex items-start gap-2">
+                            <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                            <div className="text-sm text-emerald-700 dark:text-emerald-300">
+                              <strong>{stats.correctCards}</strong> {stats.correctCards === 1 ? "card promovido" : "cards promovidos"}.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {report.learningCards > 0 && (
+                        <div className="rounded-2xl border border-amber-500/18 bg-amber-500/8 px-4 py-3">
+                          <div className="flex items-start gap-2">
+                            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                            <div className="text-sm text-amber-700 dark:text-amber-300">
+                              <strong>{report.learningCards}</strong> {report.learningCards === 1 ? "card voltou para a fila" : "cards voltaram para a fila"}.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-                className="flex flex-col items-center lg:col-span-1"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15 }}
+                className="lg:col-span-2 lg:row-start-2"
               >
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.8 }}
-                  className="flex flex-col gap-4 mb-8 w-full max-w-xs"
-                >
-                  <StatsBadge
-                    label="Sabe"
-                    count={stats.correctCards}
-                    variant="success"
-                    delay={0.1}
-                  />
-                  <StatsBadge
-                    label="Ainda aprendendo"
-                    count={stats.partialCards + stats.incorrectCards}
-                    variant="warning"
-                    delay={0.2}
-                  />
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 1.0 }}
-                  className="flex flex-col gap-4 w-full max-w-xs"
-                >
+                <div className="flex flex-col gap-3">
                   {recommendations.showReviewOption && (
                     <Button
                       onClick={onContinueReview}
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-lg text-base font-medium shadow-lg glow-on-hover whitespace-normal break-words text-balance"
+                      className="w-full min-w-0 rounded-lg bg-[#facc15] px-4 py-4 text-base font-medium text-black hover:bg-[#eab308]"
                       size="lg"
                     >
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      {recommendations.secondaryAction}
+                      <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
+                      <span className="truncate">{recommendations.secondaryAction}</span>
                     </Button>
                   )}
 
                   {canAddMore && (
                     <Button
                       onClick={() => setIsAddModalOpen(true)}
-                      className="w-full bg-cyan-400 hover:bg-cyan-500 text-gray-900 py-4 rounded-lg text-base font-medium shadow-lg hover:shadow-cyan-400/50 transition-all duration-300"
+                      variant="outline"
+                      className="w-full min-w-0 rounded-lg border-[#facc15]/30 px-4 py-4 text-base font-medium text-foreground hover:bg-[#facc15]/10 dark:border-[#facc15]/20"
                       size="lg"
                       disabled={isAdding}
                     >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Mais Flashcards
+                      <Plus className="mr-2 h-4 w-4 shrink-0 text-[#d97706]" />
+                      <span className="truncate">Adicionar mais flashcards</span>
                     </Button>
                   )}
 
-                  <button
+                  <Button
                     onClick={onRestart}
-                    className="text-muted-foreground hover:text-foreground text-sm underline transition-colors duration-200 flex items-center justify-center gap-1 py-2"
+                    variant="ghost"
+                    className="w-full min-w-0 rounded-lg px-4 py-4 text-base font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                    size="lg"
                   >
-                    <RotateCcw className="w-4 h-4" />
-                    Reiniciar Deck
-                  </button>
-                </motion.div>
+                    <RotateCcw className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">Reiniciar deck</span>
+                  </Button>
+
+                  <Button
+                    onClick={onBack}
+                    variant="ghost"
+                    className="w-full min-w-0 rounded-lg px-4 py-4 text-base font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                    size="lg"
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">Voltar ao deck</span>
+                  </Button>
+                </div>
               </motion.div>
             </div>
           </Card>
