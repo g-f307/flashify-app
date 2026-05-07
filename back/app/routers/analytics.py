@@ -111,6 +111,23 @@ class AnalyticsUserEventRow(BaseModel):
     quiz_id: Optional[int] = None
 
 
+class AnalyticsAdminHistoryRow(BaseModel):
+    event_name: str
+    occurred_at: datetime
+    actor_user_id: Optional[int] = None
+    actor_email: Optional[str] = None
+    summary: Optional[str] = None
+
+
+class AnalyticsAdminNoteRow(BaseModel):
+    id: int
+    note: str
+    created_at: datetime
+    author_user_id: int
+    author_email: Optional[str] = None
+    author_username: Optional[str] = None
+
+
 class AnalyticsUserDetail(AnalyticsUserRow):
     is_team: bool
     is_test_user: bool
@@ -123,12 +140,18 @@ class AnalyticsUserDetail(AnalyticsUserRow):
     first_touch_at: Optional[datetime] = None
     recent_documents: list[AnalyticsUserDocumentRow]
     recent_events: list[AnalyticsUserEventRow]
+    admin_history: list[AnalyticsAdminHistoryRow]
+    admin_notes: list[AnalyticsAdminNoteRow]
 
 
 class AdminUserUpdateRequest(BaseModel):
     is_team: Optional[bool] = None
     is_test_user: Optional[bool] = None
     is_blocked: Optional[bool] = None
+
+
+class AdminUserNoteCreateRequest(BaseModel):
+    note: str
 
 
 def _range_start(days: int) -> datetime:
@@ -142,6 +165,9 @@ def _apply_user_filters(
     utm_source: Optional[str] = None,
     utm_campaign: Optional[str] = None,
     lifecycle_stage: Optional[str] = None,
+    is_team: Optional[bool] = None,
+    is_test_user: Optional[bool] = None,
+    is_blocked: Optional[bool] = None,
     include_internal: bool = False,
 ):
     if not include_internal:
@@ -154,6 +180,12 @@ def _apply_user_filters(
         statement = statement.where(models.User.utm_campaign == utm_campaign)
     if lifecycle_stage:
         statement = statement.where(models.User.lifecycle_stage == lifecycle_stage)
+    if is_team is not None:
+        statement = statement.where(models.User.is_team == is_team)
+    if is_test_user is not None:
+        statement = statement.where(models.User.is_test_user == is_test_user)
+    if is_blocked is not None:
+        statement = statement.where(models.User.is_blocked == is_blocked)
     return statement
 
 
@@ -259,6 +291,9 @@ def _count_filtered_users(
     utm_source: Optional[str] = None,
     utm_campaign: Optional[str] = None,
     lifecycle_stage: Optional[str] = None,
+    is_team: Optional[bool] = None,
+    is_test_user: Optional[bool] = None,
+    is_blocked: Optional[bool] = None,
     include_internal: bool = False,
     extra_where: tuple = (),
 ) -> int:
@@ -272,9 +307,32 @@ def _count_filtered_users(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
+
+
+def _build_admin_history_row(event: models.ProductEvent) -> AnalyticsAdminHistoryRow:
+    properties = event.properties or {}
+    changed_fields = properties.get("changed_fields")
+    note_preview = properties.get("note_preview")
+
+    summary = None
+    if isinstance(changed_fields, dict) and changed_fields:
+        summary = ", ".join(f"{field}={value}" for field, value in changed_fields.items())
+    elif note_preview:
+        summary = str(note_preview)
+
+    return AnalyticsAdminHistoryRow(
+        event_name=event.event_name,
+        occurred_at=event.occurred_at,
+        actor_user_id=properties.get("actor_user_id"),
+        actor_email=properties.get("actor_email"),
+        summary=summary,
+    )
 
 
 @router.get("/overview", response_model=AnalyticsOverview)
@@ -286,6 +344,9 @@ def get_analytics_overview(
     utm_source: Optional[str] = Query(None),
     utm_campaign: Optional[str] = Query(None),
     lifecycle_stage: Optional[str] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
     include_internal: bool = Query(False),
 ):
     del current_user
@@ -298,6 +359,9 @@ def get_analytics_overview(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
@@ -308,6 +372,9 @@ def get_analytics_overview(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
@@ -318,6 +385,9 @@ def get_analytics_overview(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
@@ -328,6 +398,9 @@ def get_analytics_overview(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
@@ -340,6 +413,9 @@ def get_analytics_overview(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
@@ -352,6 +428,9 @@ def get_analytics_overview(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
@@ -364,6 +443,9 @@ def get_analytics_overview(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
@@ -377,6 +459,9 @@ def get_analytics_overview(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
@@ -417,6 +502,9 @@ def get_acquisition_summary(
     limit: int = Query(10, ge=1, le=50),
     days: Optional[int] = Query(None, ge=1, le=365),
     provider: Optional[models.AuthProvider] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
     include_internal: bool = Query(False),
 ):
     del current_user
@@ -434,6 +522,9 @@ def get_acquisition_summary(
         _apply_user_filters(
             base_unattributed,
             provider=provider,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).one() or 0
@@ -445,6 +536,9 @@ def get_acquisition_summary(
             .order_by(func.count(models.User.id).desc(), models.User.utm_source.asc())
             .limit(limit),
             provider=provider,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).all()
@@ -456,6 +550,9 @@ def get_acquisition_summary(
             .order_by(func.count(models.User.id).desc(), models.User.utm_campaign.asc())
             .limit(limit),
             provider=provider,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).all()
@@ -483,6 +580,9 @@ def get_analytics_funnel(
     provider: Optional[models.AuthProvider] = Query(None),
     utm_source: Optional[str] = Query(None),
     utm_campaign: Optional[str] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
     include_internal: bool = Query(False),
 ):
     del current_user
@@ -494,6 +594,9 @@ def get_analytics_funnel(
         provider=provider,
         utm_source=utm_source,
         utm_campaign=utm_campaign,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=cohort_filter,
     )
@@ -502,6 +605,9 @@ def get_analytics_funnel(
         provider=provider,
         utm_source=utm_source,
         utm_campaign=utm_campaign,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=cohort_filter + (models.User.first_deck_created_at.is_not(None),),
     )
@@ -510,6 +616,9 @@ def get_analytics_funnel(
         provider=provider,
         utm_source=utm_source,
         utm_campaign=utm_campaign,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=cohort_filter + (models.User.first_study_at.is_not(None),),
     )
@@ -518,6 +627,9 @@ def get_analytics_funnel(
         provider=provider,
         utm_source=utm_source,
         utm_campaign=utm_campaign,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=cohort_filter + (models.User.first_quiz_at.is_not(None),),
     )
@@ -526,6 +638,9 @@ def get_analytics_funnel(
         provider=provider,
         utm_source=utm_source,
         utm_campaign=utm_campaign,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=cohort_filter + (models.User.activated_at.is_not(None),),
     )
@@ -571,6 +686,9 @@ def get_analytics_retention(
     utm_source: Optional[str] = Query(None),
     utm_campaign: Optional[str] = Query(None),
     lifecycle_stage: Optional[str] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
     include_internal: bool = Query(False),
 ):
     del current_user
@@ -587,6 +705,9 @@ def get_analytics_retention(
         utm_source=utm_source,
         utm_campaign=utm_campaign,
         lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=(models.User.last_login_at >= one_day,),
     )
@@ -596,6 +717,9 @@ def get_analytics_retention(
         utm_source=utm_source,
         utm_campaign=utm_campaign,
         lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=(models.User.last_login_at >= seven_days,),
     )
@@ -605,6 +729,9 @@ def get_analytics_retention(
         utm_source=utm_source,
         utm_campaign=utm_campaign,
         lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=(models.User.last_login_at >= thirty_days,),
     )
@@ -614,6 +741,9 @@ def get_analytics_retention(
         utm_source=utm_source,
         utm_campaign=utm_campaign,
         lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=(
             models.User.last_login_at >= seven_days,
@@ -626,6 +756,9 @@ def get_analytics_retention(
         utm_source=utm_source,
         utm_campaign=utm_campaign,
         lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=(
             models.User.last_login_at >= thirty_days,
@@ -638,6 +771,9 @@ def get_analytics_retention(
         utm_source=utm_source,
         utm_campaign=utm_campaign,
         lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=(
             models.User.activated_at.is_not(None),
@@ -651,6 +787,9 @@ def get_analytics_retention(
         utm_source=utm_source,
         utm_campaign=utm_campaign,
         lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
         include_internal=include_internal,
         extra_where=(
             models.User.activated_at.is_not(None),
@@ -678,6 +817,9 @@ def get_acquisition_performance(
     provider: Optional[models.AuthProvider] = Query(None),
     utm_source: Optional[str] = Query(None),
     utm_campaign: Optional[str] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
     include_internal: bool = Query(False),
     limit: int = Query(8, ge=1, le=20),
 ):
@@ -692,6 +834,9 @@ def get_acquisition_performance(
             provider=provider,
             utm_source=utm_source,
             utm_campaign=utm_campaign,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).all()
@@ -714,6 +859,9 @@ def get_analytics_users(
     utm_source: Optional[str] = Query(None),
     utm_campaign: Optional[str] = Query(None),
     lifecycle_stage: Optional[str] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
     include_internal: bool = Query(False),
 ):
     del current_user
@@ -726,6 +874,9 @@ def get_analytics_users(
             utm_source=utm_source,
             utm_campaign=utm_campaign,
             lifecycle_stage=lifecycle_stage,
+            is_team=is_team,
+            is_test_user=is_test_user,
+            is_blocked=is_blocked,
             include_internal=include_internal,
         )
     ).all()
@@ -759,6 +910,21 @@ def get_analytics_user_detail(
         .order_by(models.ProductEvent.occurred_at.desc())
         .limit(8)
     ).all()
+    admin_history = session.exec(
+        select(models.ProductEvent)
+        .where(
+            models.ProductEvent.user_id == user_id,
+            models.ProductEvent.event_name.in_(["admin_user_flags_updated", "admin_user_note_added"]),
+        )
+        .order_by(models.ProductEvent.occurred_at.desc())
+        .limit(12)
+    ).all()
+    admin_notes = session.exec(
+        select(models.UserAdminNote)
+        .where(models.UserAdminNote.user_id == user_id)
+        .order_by(models.UserAdminNote.created_at.desc())
+        .limit(20)
+    ).all()
 
     return AnalyticsUserDetail(
         **base_row.model_dump(),
@@ -790,6 +956,18 @@ def get_analytics_user_detail(
                 quiz_id=event.quiz_id,
             )
             for event in recent_events
+        ],
+        admin_history=[_build_admin_history_row(event) for event in admin_history],
+        admin_notes=[
+            AnalyticsAdminNoteRow(
+                id=note.id or 0,
+                note=note.note,
+                created_at=note.created_at,
+                author_user_id=note.author_user_id,
+                author_email=(session.get(models.User, note.author_user_id).email if session.get(models.User, note.author_user_id) else None),
+                author_username=(session.get(models.User, note.author_user_id).username if session.get(models.User, note.author_user_id) else None),
+            )
+            for note in admin_notes
         ],
     )
 
@@ -828,11 +1006,60 @@ def update_analytics_user_admin_state(
         analytics_service.track_product_event(
             session,
             "admin_user_flags_updated",
-            user_id=current_user.id,
+            user_id=user.id,
             properties={
+                "actor_user_id": current_user.id,
+                "actor_email": current_user.email,
                 "target_user_id": user.id,
                 "changed_fields": changed_fields,
             },
         )
 
     return get_analytics_user_detail(user_id=user_id, current_user=current_user, session=session)
+
+
+@router.post("/users/{user_id}/notes", response_model=AnalyticsAdminNoteRow)
+def create_analytics_user_note(
+    user_id: int,
+    payload: AdminUserNoteCreateRequest,
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+):
+    user = session.get(models.User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    note_text = payload.note.strip()
+    if not note_text:
+        raise HTTPException(status_code=400, detail="A nota não pode ficar vazia.")
+
+    note = models.UserAdminNote(
+        user_id=user_id,
+        author_user_id=current_user.id or 0,
+        note=note_text,
+    )
+    session.add(note)
+    session.commit()
+    session.refresh(note)
+
+    analytics_service.track_product_event(
+        session,
+        "admin_user_note_added",
+        user_id=user.id,
+        properties={
+            "actor_user_id": current_user.id,
+            "actor_email": current_user.email,
+            "target_user_id": user.id,
+            "note_id": note.id,
+            "note_preview": note_text[:120],
+        },
+    )
+
+    return AnalyticsAdminNoteRow(
+        id=note.id or 0,
+        note=note.note,
+        created_at=note.created_at,
+        author_user_id=note.author_user_id,
+        author_email=current_user.email,
+        author_username=current_user.username,
+    )
