@@ -34,6 +34,7 @@ export interface AnalyticsOverview {
   total_users: number;
   new_users_7d: number;
   active_users_7d: number;
+  activated_users_7d: number;
   users_with_decks: number;
   users_who_studied: number;
   users_who_completed_quiz: number;
@@ -59,12 +60,27 @@ export interface AnalyticsUserRow {
   provider: string;
   created_at: string;
   last_login_at: string | null;
+  first_login_at: string | null;
+  first_deck_created_at: string | null;
+  first_study_at: string | null;
+  first_quiz_at: string | null;
+  activated_at: string | null;
   lifecycle_stage: string | null;
   utm_source: string | null;
   utm_campaign: string | null;
   total_decks: number;
   flashcards_studied: number;
   quizzes_completed: number;
+}
+
+export interface AnalyticsFilters {
+  days?: number;
+  provider?: "local" | "google";
+  utm_source?: string;
+  utm_campaign?: string;
+  lifecycle_stage?: string;
+  include_internal?: boolean;
+  limit?: number;
 }
 
 export interface Token {
@@ -370,6 +386,22 @@ class ApiClient {
     return null;
   }
 
+  private buildQuery(
+    params: Record<string, string | number | boolean | undefined | null> | AnalyticsFilters
+  ): string {
+    const search = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") {
+        return;
+      }
+      search.set(key, String(value));
+    });
+
+    const serialized = search.toString();
+    return serialized ? `?${serialized}` : "";
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit & { useJsonContentType?: boolean } = {}
@@ -482,16 +514,16 @@ class ApiClient {
     return this.request<User>('/users/me');
   }
 
-  async getAnalyticsOverview(): Promise<AnalyticsOverview> {
-    return this.request<AnalyticsOverview>('/analytics/overview');
+  async getAnalyticsOverview(filters: AnalyticsFilters = {}): Promise<AnalyticsOverview> {
+    return this.request<AnalyticsOverview>(`/analytics/overview${this.buildQuery(filters)}`);
   }
 
-  async getAcquisitionSummary(limit = 10): Promise<AcquisitionSummary> {
-    return this.request<AcquisitionSummary>(`/analytics/acquisition?limit=${limit}`);
+  async getAcquisitionSummary(filters: AnalyticsFilters = {}): Promise<AcquisitionSummary> {
+    return this.request<AcquisitionSummary>(`/analytics/acquisition${this.buildQuery(filters)}`);
   }
 
-  async getAnalyticsUsers(limit = 50): Promise<AnalyticsUserRow[]> {
-    return this.request<AnalyticsUserRow[]>(`/analytics/users?limit=${limit}`);
+  async getAnalyticsUsers(filters: AnalyticsFilters = {}): Promise<AnalyticsUserRow[]> {
+    return this.request<AnalyticsUserRow[]>(`/analytics/users${this.buildQuery(filters)}`);
   }
 
   async getFolders(): Promise<Folder[]> {
