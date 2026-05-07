@@ -57,6 +57,24 @@ class AcquisitionSummary(BaseModel):
     top_campaigns: list[AcquisitionBreakdownItem]
 
 
+class AcquisitionPerformanceRow(BaseModel):
+    dimension: str
+    users: int
+    activated_users: int
+    studied_users: int
+    quiz_users: int
+    consistent_users: int
+    activation_rate: float
+    study_rate: float
+    consistency_rate: float
+
+
+class AcquisitionPerformance(BaseModel):
+    attributed_users: int
+    top_sources: list[AcquisitionPerformanceRow]
+    top_campaigns: list[AcquisitionPerformanceRow]
+
+
 class AnalyticsUserRow(BaseModel):
     id: int
     username: str
@@ -169,6 +187,69 @@ def _build_user_row(session: Session, user: models.User) -> AnalyticsUserRow:
         flashcards_studied=flashcards_studied,
         quizzes_completed=quizzes_completed,
     )
+
+
+def _build_acquisition_rows(
+    users: list[models.User],
+    *,
+    field_name: str,
+    limit: int,
+) -> list[AcquisitionPerformanceRow]:
+    grouped: dict[str, dict[str, int]] = {}
+    recent_threshold = _range_start(7)
+
+    for user in users:
+        dimension_value = getattr(user, field_name, None)
+        if not dimension_value:
+            continue
+
+        bucket = grouped.setdefault(
+            dimension_value,
+            {
+                "users": 0,
+                "activated_users": 0,
+                "studied_users": 0,
+                "quiz_users": 0,
+                "consistent_users": 0,
+            },
+        )
+        bucket["users"] += 1
+        if user.activated_at is not None:
+            bucket["activated_users"] += 1
+        if user.first_study_at is not None:
+            bucket["studied_users"] += 1
+        if user.first_quiz_at is not None:
+            bucket["quiz_users"] += 1
+        if user.activated_at is not None and user.last_login_at is not None and user.last_login_at >= recent_threshold:
+            bucket["consistent_users"] += 1
+
+    rows: list[AcquisitionPerformanceRow] = []
+    for dimension, counts in grouped.items():
+        users_count = counts["users"]
+        rows.append(
+            AcquisitionPerformanceRow(
+                dimension=dimension,
+                users=users_count,
+                activated_users=counts["activated_users"],
+                studied_users=counts["studied_users"],
+                quiz_users=counts["quiz_users"],
+                consistent_users=counts["consistent_users"],
+                activation_rate=round((counts["activated_users"] / users_count) * 100, 1) if users_count else 0.0,
+                study_rate=round((counts["studied_users"] / users_count) * 100, 1) if users_count else 0.0,
+                consistency_rate=round((counts["consistent_users"] / users_count) * 100, 1) if users_count else 0.0,
+            )
+        )
+
+    rows.sort(
+        key=lambda row: (
+            row.activated_users,
+            row.consistent_users,
+            row.users,
+            row.dimension.lower(),
+        ),
+        reverse=True,
+    )
+    return rows[:limit]
 
 
 def _count_filtered_users(
@@ -586,6 +667,41 @@ def get_analytics_retention(
         returning_users_30d=returning_users_30d,
         activation_retention_7d=activation_retention_7d,
         activation_retention_30d=activation_retention_30d,
+    )
+
+
+@router.get("/acquisition-performance", response_model=AcquisitionPerformance)
+def get_acquisition_performance(
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+    days: int = Query(30, ge=1, le=365),
+    provider: Optional[models.AuthProvider] = Query(None),
+    utm_source: Optional[str] = Query(None),
+    utm_campaign: Optional[str] = Query(None),
+    include_internal: bool = Query(False),
+    limit: int = Query(8, ge=1, le=20),
+):
+    del current_user
+    range_start = _range_start(days)
+
+    users = session.exec(
+        _apply_user_filters(
+            select(models.User)
+            .where(models.User.created_at >= range_start)
+            .order_by(models.User.created_at.desc()),
+            provider=provider,
+            utm_source=utm_source,
+            utm_campaign=utm_campaign,
+            include_internal=include_internal,
+        )
+    ).all()
+
+    attributed_users = sum(1 for user in users if user.utm_source)
+
+    return AcquisitionPerformance(
+        attributed_users=attributed_users,
+        top_sources=_build_acquisition_rows(users, field_name="utm_source", limit=limit),
+        top_campaigns=_build_acquisition_rows(users, field_name="utm_campaign", limit=limit),
     )
 
 
