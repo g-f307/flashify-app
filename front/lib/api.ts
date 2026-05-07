@@ -1,4 +1,5 @@
 import { AuthContextType } from "@/contexts/auth-context"; 
+import { AcquisitionContext } from "@/lib/acquisition";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:9000';
 
@@ -9,6 +10,7 @@ export interface User {
   is_active: boolean;
   profile_picture_url?: string; 
   provider: 'local' | 'google';
+  is_team: boolean;
 }
 
 export interface PasswordUpdateRequest {
@@ -25,6 +27,44 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
+  acquisition_context?: AcquisitionContext | null;
+}
+
+export interface AnalyticsOverview {
+  total_users: number;
+  new_users_7d: number;
+  active_users_7d: number;
+  users_with_decks: number;
+  users_who_studied: number;
+  users_who_completed_quiz: number;
+  decks_created_7d: number;
+  decks_completed_7d: number;
+}
+
+export interface AcquisitionBreakdownItem {
+  source: string;
+  users: number;
+}
+
+export interface AcquisitionSummary {
+  unattributed_users: number;
+  top_sources: AcquisitionBreakdownItem[];
+  top_campaigns: AcquisitionBreakdownItem[];
+}
+
+export interface AnalyticsUserRow {
+  id: number;
+  username: string;
+  email: string;
+  provider: string;
+  created_at: string;
+  last_login_at: string | null;
+  lifecycle_stage: string | null;
+  utm_source: string | null;
+  utm_campaign: string | null;
+  total_decks: number;
+  flashcards_studied: number;
+  quizzes_completed: number;
 }
 
 export interface Token {
@@ -424,11 +464,11 @@ class ApiClient {
     });
   }
 
-  async googleLogin(code: string): Promise<Token> {
+  async googleLogin(code: string, acquisitionContext?: AcquisitionContext | null): Promise<Token> {
     const response = await fetch(`${this.baseURL}/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, acquisition_context: acquisitionContext }),
     });
 
     if (!response.ok) {
@@ -440,6 +480,18 @@ class ApiClient {
 
   async getCurrentUser(): Promise<User> {
     return this.request<User>('/users/me');
+  }
+
+  async getAnalyticsOverview(): Promise<AnalyticsOverview> {
+    return this.request<AnalyticsOverview>('/analytics/overview');
+  }
+
+  async getAcquisitionSummary(limit = 10): Promise<AcquisitionSummary> {
+    return this.request<AcquisitionSummary>(`/analytics/acquisition?limit=${limit}`);
+  }
+
+  async getAnalyticsUsers(limit = 50): Promise<AnalyticsUserRow[]> {
+    return this.request<AnalyticsUserRow[]>(`/analytics/users?limit=${limit}`);
   }
 
   async getFolders(): Promise<Folder[]> {

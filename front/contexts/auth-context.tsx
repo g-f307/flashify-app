@@ -4,6 +4,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { apiClient, User, LoginRequest, RegisterRequest } from "@/lib/api";
 import { setToken, clearToken, getToken } from "@/lib/auth";
+import { getAcquisitionContext } from "@/lib/acquisition";
 import { useRouter, usePathname } from "next/navigation"; 
 import { useLoading } from "@/components/providers/loading-provider";
 
@@ -95,7 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const googleLogin = async (code: string) => {
     showAuthLoading("Conectando com Google...");
     try {
-      const tokenData = await apiClient.googleLogin(code);
+      const tokenData = await apiClient.googleLogin(code, getAcquisitionContext());
       setToken(tokenData.access_token);
       const userData = await apiClient.getCurrentUser();
       setUser(userData);
@@ -120,7 +121,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (userData: RegisterRequest) => {
     showAuthLoading("Criando sua conta...");
     try {
-      await apiClient.register(userData);
+      await apiClient.register({
+        ...userData,
+        acquisition_context: userData.acquisition_context ?? getAcquisitionContext(),
+      });
       
       showAuthLoading("Conta criada! Fazendo login...");
       
