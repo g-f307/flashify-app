@@ -6,6 +6,7 @@ from sqlmodel import Session, select  # ✅ ADICIONAR select aqui
 from .worker import celery_app
 from .database import engine
 from . import crud, models, schemas
+from .analytics import track_product_event
 from .text_extractor import extract_text_from_file
 from .ai_generator import generate_flashcards_from_text, generate_quiz_from_text
 from .email_service import email_service
@@ -145,6 +146,17 @@ def process_document(
             db_document.processing_progress = 100
             session.add(db_document)
             session.commit()
+            track_product_event(
+                session,
+                "deck_processing_completed",
+                user_id=db_document.user_id,
+                document_id=db_document.id,
+                properties={
+                    "content_type": content_type,
+                    "flashcards_created": len(flashcards_data or []),
+                    "quiz_created": bool(quiz_data_dict),
+                },
+            )
             
             # 🆕 INCREMENTAR CONTADOR APENAS QUANDO GERAÇÃO FOR BEM-SUCEDIDA
             crud.increment_user_generation_count(session, db_document.user_id, amount=generation_units)
@@ -160,13 +172,26 @@ def process_document(
                 final_error = f"Falha final após {self.max_retries + 1} tentativas. {error_message}"
                 db_document.status = models.DocumentStatus.FAILED
                 db_document.current_step = final_error
+                session.add(db_document)
+                session.commit()
+                track_product_event(
+                    session,
+                    "deck_processing_failed",
+                    user_id=db_document.user_id,
+                    document_id=db_document.id,
+                    properties={
+                        "content_type": content_type,
+                        "error": str(e),
+                        "retries": self.request.retries,
+                    },
+                )
                 print(f"[TASK] Tarefa para doc {document_id} FALHOU PERMANENTEMENTE: {traceback.format_exc()}")
             else:
                 retry_count = self.request.retries + 1
                 db_document.current_step = f"Tentativa {retry_count}/{self.max_retries + 1} falhou. {error_message}"
                 print(f"[TASK] Tarefa para doc {document_id} falhou. Tentando novamente... Erro: {str(e)}")
-            session.add(db_document)
-            session.commit()
+                session.add(db_document)
+                session.commit()
             raise e
         
 # 🆕 NOVA TASK: Enviar e-mails de inatividade
