@@ -28,6 +28,7 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import {
   AdminUserUpdateRequest,
+  AcquisitionPerformance,
   AcquisitionSummary,
   AnalyticsFilters,
   AnalyticsFunnel,
@@ -124,6 +125,12 @@ const DEFAULT_OVERVIEW: AnalyticsOverview = {
 
 const DEFAULT_ACQUISITION: AcquisitionSummary = {
   unattributed_users: 0,
+  top_sources: [],
+  top_campaigns: [],
+};
+
+const DEFAULT_ACQUISITION_PERFORMANCE: AcquisitionPerformance = {
+  attributed_users: 0,
   top_sources: [],
   top_campaigns: [],
 };
@@ -304,6 +311,7 @@ export default function AdminPage() {
   });
   const [overview, setOverview] = useState<AnalyticsOverview>(DEFAULT_OVERVIEW);
   const [acquisition, setAcquisition] = useState<AcquisitionSummary>(DEFAULT_ACQUISITION);
+  const [acquisitionPerformance, setAcquisitionPerformance] = useState<AcquisitionPerformance>(DEFAULT_ACQUISITION_PERFORMANCE);
   const [funnel, setFunnel] = useState<AnalyticsFunnel>(DEFAULT_FUNNEL);
   const [retention, setRetention] = useState<AnalyticsRetention>(DEFAULT_RETENTION);
   const [users, setUsers] = useState<AnalyticsUserRow[]>([]);
@@ -418,14 +426,16 @@ export default function AdminPage() {
     Promise.all([
       apiClient.getAnalyticsOverview(apiFilters),
       apiClient.getAcquisitionSummary({ ...apiFilters, limit: 8 }),
+      apiClient.getAcquisitionPerformance({ ...apiFilters, limit: 6 }),
       apiClient.getAnalyticsFunnel(apiFilters),
       apiClient.getAnalyticsRetention(apiFilters),
       apiClient.getAnalyticsUsers({ ...apiFilters, limit: 200 }),
     ])
-      .then(([overviewResponse, acquisitionResponse, funnelResponse, retentionResponse, usersResponse]) => {
+      .then(([overviewResponse, acquisitionResponse, acquisitionPerformanceResponse, funnelResponse, retentionResponse, usersResponse]) => {
         if (cancelled) return;
         setOverview(overviewResponse);
         setAcquisition(acquisitionResponse);
+        setAcquisitionPerformance(acquisitionPerformanceResponse);
         setFunnel(funnelResponse);
         setRetention(retentionResponse);
         setUsers(usersResponse);
@@ -1299,6 +1309,7 @@ export default function AdminPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="h-auto bg-muted/60 p-1">
           <TabsTrigger value="overview" className="px-4 py-2">Visão geral</TabsTrigger>
+          <TabsTrigger value="campaigns" className="px-4 py-2">Campanhas</TabsTrigger>
           <TabsTrigger value="users" className="px-4 py-2">Usuários</TabsTrigger>
         </TabsList>
 
@@ -1441,6 +1452,158 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="campaigns" className="space-y-4">
+          <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+              <CardHeader>
+                <CardTitle className="text-xl">Qualidade da aquisição</CardTitle>
+                <CardDescription>
+                  Volume atribuído comparado com ativação e consistência de uso no recorte atual.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2">
+                {[
+                  ["Atribuídos", acquisitionPerformance.attributed_users, "Usuários com origem conhecida"],
+                  ["Sem atribuição", acquisition.unattributed_users, "Entraram sem `utm_source`"],
+                  [
+                    "Melhor fonte",
+                    acquisitionPerformance.top_sources[0]?.dimension || "—",
+                    acquisitionPerformance.top_sources[0]
+                      ? `${acquisitionPerformance.top_sources[0].activation_rate}% de ativação`
+                      : "Sem dados suficientes",
+                  ],
+                  [
+                    "Melhor campanha",
+                    acquisitionPerformance.top_campaigns[0]?.dimension || "—",
+                    acquisitionPerformance.top_campaigns[0]
+                      ? `${acquisitionPerformance.top_campaigns[0].consistency_rate}% de consistência`
+                      : "Sem dados suficientes",
+                  ],
+                ].map(([label, value, helper]) => (
+                  <div key={label} className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+                    <p className="mt-3 text-2xl font-semibold text-foreground break-words">{value}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{helper}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+              <CardHeader>
+                <CardTitle className="text-xl">Como ler este módulo</CardTitle>
+                <CardDescription>
+                  O foco aqui não é só volume de cadastro, e sim qualidade da aquisição.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                  <p className="font-medium text-foreground">Ativação</p>
+                  <p className="mt-1">Percentual da origem ou campanha que realmente alcançou o marco de ativação.</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                  <p className="font-medium text-foreground">Estudo</p>
+                  <p className="mt-1">Mostra quantos usuários chegaram ao comportamento mínimo de uso real.</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                  <p className="font-medium text-foreground">Consistência</p>
+                  <p className="mt-1">Conta usuários já ativados que continuam ativos nos últimos 7 dias.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-2">
+            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+              <CardHeader>
+                <CardTitle className="text-xl">Performance por origem</CardTitle>
+                <CardDescription>
+                  Comparativo entre volume e qualidade por `utm_source`.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {acquisitionPerformance.top_sources.length ? acquisitionPerformance.top_sources.map((row) => (
+                  <div key={row.dimension} className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-foreground">{row.dimension}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {row.users} usuários • {row.activated_users} ativados • {row.consistent_users} consistentes
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:border-[#48cfea]/25 dark:bg-[#48cfea]/14 dark:text-[#87ebfb]">
+                        {row.activation_rate}%
+                      </Badge>
+                    </div>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Ativação</p>
+                        <p className="mt-1 text-sm font-medium text-foreground">{row.activation_rate}%</p>
+                      </div>
+                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Estudo</p>
+                        <p className="mt-1 text-sm font-medium text-foreground">{row.study_rate}%</p>
+                      </div>
+                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Consistência</p>
+                        <p className="mt-1 text-sm font-medium text-foreground">{row.consistency_rate}%</p>
+                      </div>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-8 text-sm text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    Nenhuma origem atribuída neste recorte.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+              <CardHeader>
+                <CardTitle className="text-xl">Performance por campanha</CardTitle>
+                <CardDescription>
+                  Campanhas ordenadas por ativação e consistência, não só por volume.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {acquisitionPerformance.top_campaigns.length ? acquisitionPerformance.top_campaigns.map((row) => (
+                  <div key={row.dimension} className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-words font-medium text-foreground">{row.dimension}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {row.users} usuários • {row.studied_users} estudaram • {row.quiz_users} chegaram ao quiz
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:border-[#facc15]/25 dark:bg-[#facc15]/14 dark:text-[#ffe27c]">
+                        {row.consistency_rate}%
+                      </Badge>
+                    </div>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Ativação</p>
+                        <p className="mt-1 text-sm font-medium text-foreground">{row.activation_rate}%</p>
+                      </div>
+                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Estudo</p>
+                        <p className="mt-1 text-sm font-medium text-foreground">{row.study_rate}%</p>
+                      </div>
+                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Consistência</p>
+                        <p className="mt-1 text-sm font-medium text-foreground">{row.consistency_rate}%</p>
+                      </div>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-8 text-sm text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    Nenhuma campanha atribuída neste recorte.
+                  </div>
+                )}
               </CardContent>
             </Card>
           </section>
