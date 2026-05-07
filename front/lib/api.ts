@@ -76,6 +76,24 @@ export interface AcquisitionSummary {
   top_campaigns: AcquisitionBreakdownItem[];
 }
 
+export interface AcquisitionPerformanceRow {
+  dimension: string;
+  users: number;
+  activated_users: number;
+  studied_users: number;
+  quiz_users: number;
+  consistent_users: number;
+  activation_rate: number;
+  study_rate: number;
+  consistency_rate: number;
+}
+
+export interface AcquisitionPerformance {
+  attributed_users: number;
+  top_sources: AcquisitionPerformanceRow[];
+  top_campaigns: AcquisitionPerformanceRow[];
+}
+
 export interface AnalyticsUserRow {
   id: number;
   username: string;
@@ -579,6 +597,10 @@ class ApiClient {
 
   async getAcquisitionSummary(filters: AnalyticsFilters = {}): Promise<AcquisitionSummary> {
     return this.request<AcquisitionSummary>(`/analytics/acquisition${this.buildQuery(filters)}`);
+  }
+
+  async getAcquisitionPerformance(filters: AnalyticsFilters = {}): Promise<AcquisitionPerformance> {
+    return this.request<AcquisitionPerformance>(`/analytics/acquisition-performance${this.buildQuery(filters)}`);
   }
 
   async getAnalyticsFunnel(filters: AnalyticsFilters = {}): Promise<AnalyticsFunnel> {
