@@ -5,6 +5,7 @@ from sqlmodel import Session
 from typing_extensions import Annotated
 
 from .. import crud, models, security, schemas
+from ..analytics import track_product_event
 from ..database import get_session
 from ..study_ordering import order_due_for_review
 
@@ -112,6 +113,19 @@ def submit_quiz_attempt(
     session.add(quiz_attempt)
     session.commit()
     session.refresh(quiz_attempt)
+    track_product_event(
+        session,
+        "quiz_completed",
+        user_id=current_user.id,
+        document_id=quiz.document_id,
+        quiz_id=quiz_id,
+        properties={
+            "attempt_id": quiz_attempt.id,
+            "score": request.score,
+            "correct_answers": request.correct_answers,
+            "total_questions": request.total_questions,
+        },
+    )
     
     return {"message": "Resultado do quiz guardado com sucesso."}
 
