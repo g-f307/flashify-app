@@ -15,6 +15,7 @@ import {
   Home,
   Library,
   TrendingUp,
+  Shield,
   Menu,
   Clock,
   MessageCircle, 
@@ -250,6 +251,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return null;
   }
 
+  const visibleSidebarItems = user.is_team
+    ? [...sidebarItems.slice(0, 4), { href: "/admin", label: "Admin", icon: Shield }, ...sidebarItems.slice(4)]
+    : sidebarItems;
+
   const AppLogo = () => (
     <Link href="/dashboard" className="flex items-center justify-center gap-2">
       <Image 
@@ -283,7 +288,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         <nav className="flex-1 p-4 overflow-y-auto">
           <ul className="space-y-2">
-            {sidebarItems.map((item) => {
+            {visibleSidebarItems.map((item) => {
               const Icon = item.icon;
               
               let isActive = false;
