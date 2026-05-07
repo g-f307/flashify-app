@@ -27,8 +27,10 @@ import {
 
 import { useAuth } from "@/contexts/auth-context";
 import {
+  AdminUserUpdateRequest,
   AcquisitionSummary,
   AnalyticsFilters,
+  AnalyticsUserDetail,
   AnalyticsOverview,
   AnalyticsUserRow,
   apiClient,
@@ -49,6 +51,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -63,6 +73,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type FilterState = {
@@ -287,6 +298,12 @@ export default function AdminPage() {
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [pdfOptions, setPdfOptions] = useState<PdfExportOptions>(DEFAULT_PDF_OPTIONS);
+  const [isUserSheetOpen, setIsUserSheetOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedUserDetail, setSelectedUserDetail] = useState<AnalyticsUserDetail | null>(null);
+  const [isUserDetailLoading, setIsUserDetailLoading] = useState(false);
+  const [isSavingUserAdmin, setIsSavingUserAdmin] = useState(false);
+  const [userAdminDraft, setUserAdminDraft] = useState<AdminUserUpdateRequest>({});
 
   const apiFilters = useMemo(() => buildFilters(filters), [filters]);
   const userSourceOptions = useMemo(
@@ -332,6 +349,11 @@ export default function AdminPage() {
   const activationRate = overview.total_users > 0
     ? Math.round((overview.activated_users_7d / overview.total_users) * 100)
     : 0;
+  const isEditingSelf = selectedUserDetail?.id === user.id;
+  const invalidSelfAdminChange = Boolean(
+    isEditingSelf &&
+      (userAdminDraft.is_team === false || userAdminDraft.is_blocked === true)
+  );
 
   const filtersSummary = useMemo(
     () => [
@@ -427,6 +449,58 @@ export default function AdminPage() {
     setSortKey(key);
     setSortDirection(key === "username" || key === "utm_source" || key === "provider" ? "asc" : "desc");
   };
+
+  const openUserSheet = (userId: number) => {
+    setSelectedUserId(userId);
+    setIsUserSheetOpen(true);
+  };
+
+  const loadUserDetail = async (userId: number) => {
+    setIsUserDetailLoading(true);
+    try {
+      const detail = await apiClient.getAnalyticsUserDetail(userId);
+      setSelectedUserDetail(detail);
+      setUserAdminDraft({
+        is_team: detail.is_team,
+        is_test_user: detail.is_test_user,
+        is_blocked: detail.is_blocked,
+      });
+    } catch (detailError) {
+      console.error("Erro ao carregar detalhe do usuário:", detailError);
+      setError("Não foi possível carregar os detalhes do usuário.");
+    } finally {
+      setIsUserDetailLoading(false);
+    }
+  };
+
+  const saveAdminFlags = async () => {
+    if (!selectedUserDetail?.id) return;
+
+    setIsSavingUserAdmin(true);
+    setError(null);
+    try {
+      const updated = await apiClient.updateAnalyticsUser(selectedUserDetail.id, userAdminDraft);
+      setSelectedUserDetail(updated);
+      setUserAdminDraft({
+        is_team: updated.is_team,
+        is_test_user: updated.is_test_user,
+        is_blocked: updated.is_blocked,
+      });
+      loadAdminData();
+    } catch (saveError) {
+      console.error("Erro ao salvar flags administrativas:", saveError);
+      setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar as alterações administrativas.");
+    } finally {
+      setIsSavingUserAdmin(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isUserSheetOpen || selectedUserId === null) {
+      return;
+    }
+    loadUserDetail(selectedUserId);
+  }, [isUserSheetOpen, selectedUserId]);
 
   const exportCsv = () => {
     const rows = sortedUsers.map((entry) => ({
@@ -1378,6 +1452,7 @@ export default function AdminPage() {
                         <ArrowDownWideNarrow className="h-3.5 w-3.5 text-muted-foreground" />
                       </button>
                     </TableHead>
+                    <TableHead>Ações</TableHead>
                     <TableHead className="pr-3">
                       <button type="button" onClick={() => toggleSort("last_login_at")} className="inline-flex items-center gap-1.5">
                         Último login
@@ -1447,6 +1522,16 @@ export default function AdminPage() {
                           </div>
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openUserSheet(entry.id)}
+                          className="gap-2"
+                        >
+                          Ver detalhe
+                        </Button>
+                      </TableCell>
                       <TableCell className="pr-3 text-sm text-muted-foreground">
                         {formatDateTime(entry.last_login_at)}
                       </TableCell>
@@ -1454,7 +1539,7 @@ export default function AdminPage() {
                   ))}
                   {!paginatedUsers.length ? (
                     <TableRow className="border-border/50 dark:border-zinc-800/70">
-                      <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                      <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                         Nenhum usuário encontrado para os filtros e busca atuais.
                       </TableCell>
                     </TableRow>
@@ -1592,6 +1677,248 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Sheet
+        open={isUserSheetOpen}
+        onOpenChange={(open) => {
+          setIsUserSheetOpen(open);
+          if (!open) {
+            setSelectedUserId(null);
+            setSelectedUserDetail(null);
+          }
+        }}
+      >
+        <SheetContent side="right" className="w-full overflow-y-auto border-l border-border/70 bg-background dark:border-zinc-800/80 sm:max-w-2xl">
+          <SheetHeader className="space-y-2 border-b border-border/60 pb-5 dark:border-zinc-800/80">
+            <SheetTitle className="text-xl">Detalhe do usuário</SheetTitle>
+            <SheetDescription>
+              Contexto operacional, aquisição, milestones e controles administrativos da conta selecionada.
+            </SheetDescription>
+          </SheetHeader>
+
+          {isUserDetailLoading || !selectedUserDetail ? (
+            <div className="flex min-h-[40vh] items-center justify-center">
+              <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/90 px-5 py-4 shadow-sm">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">Carregando detalhe do usuário...</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-5 p-4">
+              <div className="rounded-3xl border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0.82))] p-5 shadow-sm dark:border-zinc-800/80 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(24,24,27,0.92))]">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-2">
+                    <div>
+                      <h3 className="text-xl font-semibold text-foreground">{selectedUserDetail.username}</h3>
+                      <p className="text-sm text-muted-foreground">{selectedUserDetail.email}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="border-border/60 bg-background/80 dark:border-zinc-800/80 dark:bg-zinc-950/45">
+                        {selectedUserDetail.provider}
+                      </Badge>
+                      <Badge variant="outline" className="border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:text-[#87ebfb]">
+                        {getLifecycleLabel(selectedUserDetail.lifecycle_stage)}
+                      </Badge>
+                      {selectedUserDetail.is_team ? (
+                        <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                          Equipe interna
+                        </Badge>
+                      ) : null}
+                      {selectedUserDetail.is_test_user ? (
+                        <Badge variant="outline" className="border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:text-[#ffe27c]">
+                          Conta de teste
+                        </Badge>
+                      ) : null}
+                      {selectedUserDetail.is_blocked ? (
+                        <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">
+                          Bloqueado
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Decks</p>
+                      <p className="mt-2 text-xl font-semibold text-foreground">{selectedUserDetail.total_decks}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Estudos</p>
+                      <p className="mt-2 text-xl font-semibold text-foreground">{selectedUserDetail.flashcards_studied}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Quizzes</p>
+                      <p className="mt-2 text-xl font-semibold text-foreground">{selectedUserDetail.quizzes_completed}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Aquisição e contexto</CardTitle>
+                    <CardDescription>Primeiro toque e sinais de origem dessa conta.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    {[
+                      ["Origem", selectedUserDetail.utm_source || "Sem origem"],
+                      ["Campanha", selectedUserDetail.utm_campaign || "Sem campanha"],
+                      ["Medium", selectedUserDetail.utm_medium || "Sem medium"],
+                      ["Term", selectedUserDetail.utm_term || "Sem term"],
+                      ["Primeiro toque", formatDateTime(selectedUserDetail.first_touch_at)],
+                      ["Landing page", selectedUserDetail.landing_page || "Sem landing page"],
+                      ["Referrer", selectedUserDetail.referrer || "Sem referrer"],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+                        <p className="mt-2 break-all text-foreground">{value}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Milestones do funil</CardTitle>
+                    <CardDescription>Marcos de ativação e evolução no produto.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {[
+                      ["Cadastro", formatDateTime(selectedUserDetail.created_at)],
+                      ["Primeiro login", formatDateTime(selectedUserDetail.first_login_at)],
+                      ["Primeiro deck", formatDateTime(selectedUserDetail.first_deck_created_at)],
+                      ["Primeiro estudo", formatDateTime(selectedUserDetail.first_study_at)],
+                      ["Primeiro quiz", formatDateTime(selectedUserDetail.first_quiz_at)],
+                      ["Ativação", formatDateTime(selectedUserDetail.activated_at)],
+                      ["Último login", formatDateTime(selectedUserDetail.last_login_at)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                        <span className="text-sm text-muted-foreground">{label}</span>
+                        <span className="text-sm font-medium text-foreground">{value}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+                <CardHeader>
+                  <CardTitle className="text-base">Controles administrativos</CardTitle>
+                  <CardDescription>Flags internas para operação, marketing e suporte.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    <div>
+                      <p className="font-medium text-foreground">Equipe interna</p>
+                      <p className="text-sm text-muted-foreground">Permite acesso aos módulos internos do admin.</p>
+                    </div>
+                    <Switch
+                      checked={Boolean(userAdminDraft.is_team)}
+                      onCheckedChange={(checked) => setUserAdminDraft((prev) => ({ ...prev, is_team: checked }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    <div>
+                      <p className="font-medium text-foreground">Conta de teste</p>
+                      <p className="text-sm text-muted-foreground">Exclui a conta das leituras padrão quando internos ficam ocultos.</p>
+                    </div>
+                    <Switch
+                      checked={Boolean(userAdminDraft.is_test_user)}
+                      onCheckedChange={(checked) => setUserAdminDraft((prev) => ({ ...prev, is_test_user: checked }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    <div>
+                      <p className="font-medium text-foreground">Bloquear conta</p>
+                      <p className="text-sm text-muted-foreground">Impede acesso quando houver necessidade operacional.</p>
+                    </div>
+                    <Switch
+                      checked={Boolean(userAdminDraft.is_blocked)}
+                      onCheckedChange={(checked) => setUserAdminDraft((prev) => ({ ...prev, is_blocked: checked }))}
+                    />
+                  </div>
+                  {invalidSelfAdminChange ? (
+                    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                      Você não pode remover seu próprio acesso de equipe nem bloquear sua própria conta.
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Documentos recentes</CardTitle>
+                    <CardDescription>Últimos decks e processamento dessa conta.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {selectedUserDetail.recent_documents.length ? selectedUserDetail.recent_documents.map((document) => (
+                      <div key={document.id} className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-foreground">{document.title}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {formatDateTime(document.created_at)} • {document.total_flashcards} flashcards
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="border-border/60 bg-background/80 dark:border-zinc-800/80 dark:bg-zinc-950/45">
+                            {document.status}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {document.has_quiz ? "Possui quiz gerado" : "Sem quiz gerado"}
+                        </p>
+                      </div>
+                    )) : (
+                      <p className="text-sm text-muted-foreground">Nenhum documento encontrado para este usuário.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Eventos recentes</CardTitle>
+                    <CardDescription>Últimos sinais gravados pelo tracking do produto.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {selectedUserDetail.recent_events.length ? selectedUserDetail.recent_events.map((event, index) => (
+                      <div key={`${event.event_name}-${event.occurred_at}-${index}`} className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <Badge
+                              variant="outline"
+                              className="block w-fit max-w-full whitespace-normal break-words border-border/60 bg-background/80 px-2.5 py-1 text-left leading-relaxed text-foreground dark:border-zinc-800/80 dark:bg-zinc-950/45"
+                            >
+                              {event.event_name}
+                            </Badge>
+                          </div>
+                          <span className="shrink-0 text-right text-xs text-muted-foreground">{formatDateTime(event.occurred_at)}</span>
+                        </div>
+                        <p className="mt-2 break-words text-xs text-muted-foreground">
+                          {event.document_id ? `Documento #${event.document_id}` : "Sem documento"} • {event.quiz_id ? `Quiz #${event.quiz_id}` : "Sem quiz"}
+                        </p>
+                      </div>
+                    )) : (
+                      <p className="text-sm text-muted-foreground">Nenhum evento recente para este usuário.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          <SheetFooter className="border-t border-border/60 bg-background/95 dark:border-zinc-800/80">
+            <Button variant="outline" onClick={() => setIsUserSheetOpen(false)}>
+              Fechar
+            </Button>
+            <Button onClick={saveAdminFlags} disabled={isUserDetailLoading || isSavingUserAdmin || invalidSelfAdminChange || !selectedUserDetail}>
+              {isSavingUserAdmin ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Salvar alterações
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
