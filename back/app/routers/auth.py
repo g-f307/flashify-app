@@ -10,6 +10,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 from .. import crud, models, schemas, security
+from ..analytics import track_product_event
 from ..database import get_session
 from ..email_service import email_service  # 🆕 IMPORTAR
 
@@ -32,6 +33,12 @@ async def create_new_user(user: schemas.UserCreate, session: Session = Depends(g
         )
     
     created_user = crud.create_user(session=session, user_create=user)
+    track_product_event(
+        session,
+        "user_registered",
+        user_id=created_user.id,
+        properties={"provider": created_user.provider.value},
+    )
     
     # 🆕 ENVIAR E-MAIL DE BOAS-VINDAS (assíncrono, não bloqueia)
     try:
@@ -66,6 +73,12 @@ def login_for_access_token(
     session.commit()
     
     access_token = security.create_access_token(subject=user.email)
+    track_product_event(
+        session,
+        "user_logged_in",
+        user_id=user.id,
+        properties={"provider": user.provider.value, "method": "password"},
+    )
     
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -126,6 +139,14 @@ async def auth_google(
         username=username,
         profile_picture_url=profile_picture_url
     )
+    is_new_user = (datetime.now(timezone.utc) - db_user.created_at).total_seconds() < 60
+    if is_new_user:
+        track_product_event(
+            session,
+            "user_registered",
+            user_id=db_user.id,
+            properties={"provider": db_user.provider.value},
+        )
     
     # 🆕 ATUALIZAR ÚLTIMO LOGIN
     db_user.last_login_at = datetime.now(timezone.utc)
@@ -134,7 +155,6 @@ async def auth_google(
     session.commit()
     
     # 🆕 SE FOR NOVO USUÁRIO (acabou de ser criado), ENVIAR E-MAIL DE BOAS-VINDAS
-    is_new_user = (datetime.now(timezone.utc) - db_user.created_at).total_seconds() < 60
     if is_new_user:
         try:
             await email_service.send_welcome_email(
@@ -145,6 +165,12 @@ async def auth_google(
             print(f"⚠️ Falha ao enviar e-mail de boas-vindas: {e}")
     
     jwt_token = security.create_access_token(subject=db_user.email)
+    track_product_event(
+        session,
+        "user_logged_in",
+        user_id=db_user.id,
+        properties={"provider": db_user.provider.value, "method": "google_oauth"},
+    )
     return {"access_token": jwt_token, "token_type": "bearer"}
 
 class GoogleIdTokenRequest(SQLModel):
@@ -210,9 +236,28 @@ async def auth_google_mobile(
             username=name,
             profile_picture_url=picture
         )
+        is_new_user = (datetime.now(timezone.utc) - db_user.created_at).total_seconds() < 60
+        if is_new_user:
+            track_product_event(
+                session,
+                "user_registered",
+                user_id=db_user.id,
+                properties={"provider": db_user.provider.value},
+            )
+
+        db_user.last_login_at = datetime.now(timezone.utc)
+        db_user.inactivity_email_sent = False
+        session.add(db_user)
+        session.commit()
         
         # 6. Gerar JWT token da nossa aplicação
         jwt_token = security.create_access_token(subject=db_user.email)
+        track_product_event(
+            session,
+            "user_logged_in",
+            user_id=db_user.id,
+            properties={"provider": db_user.provider.value, "method": "google_mobile"},
+        )
         
         print(f"🎫 Token JWT gerado para: {db_user.email}")
         
