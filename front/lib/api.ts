@@ -73,6 +73,42 @@ export interface AnalyticsUserRow {
   quizzes_completed: number;
 }
 
+export interface AnalyticsUserDocumentRow {
+  id: number;
+  title: string;
+  status: string;
+  created_at: string;
+  total_flashcards: number;
+  has_quiz: boolean;
+}
+
+export interface AnalyticsUserEventRow {
+  event_name: string;
+  occurred_at: string;
+  document_id: number | null;
+  quiz_id: number | null;
+}
+
+export interface AnalyticsUserDetail extends AnalyticsUserRow {
+  is_team: boolean;
+  is_test_user: boolean;
+  is_blocked: boolean;
+  utm_medium: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  referrer: string | null;
+  landing_page: string | null;
+  first_touch_at: string | null;
+  recent_documents: AnalyticsUserDocumentRow[];
+  recent_events: AnalyticsUserEventRow[];
+}
+
+export interface AdminUserUpdateRequest {
+  is_team?: boolean;
+  is_test_user?: boolean;
+  is_blocked?: boolean;
+}
+
 export interface AnalyticsFilters {
   days?: number;
   provider?: "local" | "google";
@@ -524,6 +560,17 @@ class ApiClient {
 
   async getAnalyticsUsers(filters: AnalyticsFilters = {}): Promise<AnalyticsUserRow[]> {
     return this.request<AnalyticsUserRow[]>(`/analytics/users${this.buildQuery(filters)}`);
+  }
+
+  async getAnalyticsUserDetail(userId: number): Promise<AnalyticsUserDetail> {
+    return this.request<AnalyticsUserDetail>(`/analytics/users/${userId}`);
+  }
+
+  async updateAnalyticsUser(userId: number, data: AdminUserUpdateRequest): Promise<AnalyticsUserDetail> {
+    return this.request<AnalyticsUserDetail>(`/analytics/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
   }
 
   async getFolders(): Promise<Folder[]> {
