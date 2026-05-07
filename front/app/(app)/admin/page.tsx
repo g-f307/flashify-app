@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -8,8 +8,10 @@ import {
   ArrowDownWideNarrow,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   CircleDot,
   CopyPlus,
   Download,
@@ -79,6 +81,20 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  LabelList,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type FilterState = {
   days: string;
@@ -338,40 +354,331 @@ function MetricCard({
   title,
   value,
   description,
+  footerLabel,
+  footerValue,
   icon: Icon,
   tone = "blue",
 }: {
   title: string;
   value: string | number;
   description: string;
+  footerLabel: string;
+  footerValue: string | number;
   icon: ComponentType<{ className?: string }>;
   tone?: "blue" | "yellow" | "emerald" | "slate";
 }) {
   const toneClass = {
-    blue: "from-[#48cfea]/18 via-[#48cfea]/8 to-transparent border-[#48cfea]/30",
-    yellow: "from-[#facc15]/18 via-[#facc15]/8 to-transparent border-[#facc15]/30",
-    emerald: "from-emerald-500/16 via-emerald-500/8 to-transparent border-emerald-500/30",
-    slate: "from-slate-500/14 via-slate-500/6 to-transparent border-slate-500/20",
+    blue: "border-[#48cfea]/30",
+    yellow: "border-[#facc15]/30",
+    emerald: "border-emerald-500/30",
+    slate: "border-slate-500/20",
+  }[tone];
+
+  const iconClass = {
+    blue: "bg-[#48cfea]/10 text-[#0f5f6f] dark:bg-[#48cfea]/14 dark:text-[#87ebfb]",
+    yellow: "bg-[#facc15]/12 text-[#6a5600] dark:bg-[#facc15]/14 dark:text-[#ffe27c]",
+    emerald: "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/14 dark:text-emerald-300",
+    slate: "bg-slate-500/10 text-slate-700 dark:bg-slate-500/14 dark:text-slate-300",
   }[tone];
 
   return (
-    <Card className={cn("relative overflow-hidden border bg-card/95 shadow-sm", toneClass)}>
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.02),transparent_45%)] dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.03),transparent_50%)]" />
-      <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-3">
-        <div className="space-y-1">
-          <CardDescription className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/80">
-            {title}
-          </CardDescription>
-          <CardTitle className="text-3xl font-semibold tracking-tight">{value}</CardTitle>
-        </div>
-        <div className="rounded-xl border border-border/60 bg-background/80 p-2.5 shadow-sm">
-          <Icon className="h-5 w-5 text-foreground/80" />
-        </div>
-      </CardHeader>
-      <CardContent className="relative pt-0">
-        <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
-      </CardContent>
+    <Card className={cn("h-full min-h-[220px] border bg-card/95 shadow-sm", toneClass)}>
+      <div className="flex h-full flex-col">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <div className="space-y-1">
+            <CardDescription className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/80">
+              {title}
+            </CardDescription>
+            <CardTitle className="text-4xl font-semibold tracking-tight">{value}</CardTitle>
+          </div>
+          <div className={cn("rounded-full p-3", iconClass)}>
+            <Icon className="h-5 w-5" />
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-1 flex-col justify-between pt-0">
+          <p className="max-w-[18ch] text-sm leading-relaxed text-muted-foreground">{description}</p>
+          <div className="mt-6 border-t border-border/60 pt-3 dark:border-zinc-800/80">
+            <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{footerLabel}</p>
+            <p className="mt-1 text-sm font-medium text-foreground">{footerValue}</p>
+          </div>
+        </CardContent>
+      </div>
     </Card>
+  );
+}
+
+type ChartDatum = {
+  label: string;
+  value: number;
+  fill: string;
+  helper?: string;
+};
+
+type PieDatum = {
+  label: string;
+  value: number;
+  fill: string;
+};
+
+function AdminChartTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ value?: number; payload?: ChartDatum }>;
+}) {
+  if (!active || !payload?.length) return null;
+
+  const point = payload[0]?.payload;
+  if (!point) return null;
+
+  return (
+    <div className="min-w-36 rounded-xl border border-border/60 bg-background/95 px-3 py-2 shadow-xl backdrop-blur">
+      <p className="text-xs font-medium text-foreground">{point.label}</p>
+      <p className="mt-1 text-lg font-semibold text-foreground">{point.value}</p>
+      {point.helper ? <p className="mt-1 text-xs text-muted-foreground">{point.helper}</p> : null}
+    </div>
+  );
+}
+
+function AnalyticsBarChart({
+  data,
+  height = 240,
+}: {
+  data: ChartDatum[];
+  height?: number;
+}) {
+  if (!data.length) {
+    return (
+      <div className="flex h-[240px] items-center justify-center rounded-2xl border border-dashed border-border/60 bg-background/50 text-sm text-muted-foreground dark:border-slate-700/70 dark:bg-slate-800/35">
+        Sem dados suficientes para montar este gráfico.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <XAxis
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            fontSize={11}
+            interval={0}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            fontSize={11}
+            allowDecimals={false}
+          />
+          <RechartsTooltip cursor={{ fill: "rgba(148, 163, 184, 0.08)" }} content={<AdminChartTooltip />} />
+          <Bar dataKey="value" radius={[12, 12, 0, 0]} maxBarSize={56}>
+            {data.map((entry) => (
+              <Cell key={entry.label} fill={entry.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function AnalyticsPieChart({
+  data,
+  centerLabel,
+}: {
+  data: PieDatum[];
+  centerLabel: string;
+}) {
+  if (!data.length) {
+    return (
+      <div className="flex h-[220px] items-center justify-center rounded-2xl border border-dashed border-border/60 bg-background/50 text-sm text-muted-foreground dark:border-slate-700/70 dark:bg-slate-800/35">
+        Sem dados suficientes para montar este gráfico.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-center">
+      <div className="h-[220px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="label"
+              innerRadius={54}
+              outerRadius={82}
+              strokeWidth={0}
+              paddingAngle={2}
+            >
+              {data.map((entry) => (
+                <Cell key={entry.label} fill={entry.fill} />
+              ))}
+            </Pie>
+            <RechartsTooltip
+              cursor={false}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const point = payload[0]?.payload as PieDatum | undefined;
+                if (!point) return null;
+
+                return (
+                  <div className="min-w-32 rounded-xl border border-border/60 bg-background/95 px-3 py-2 shadow-xl backdrop-blur">
+                    <p className="text-xs font-medium text-foreground">{point.label}</p>
+                    <p className="mt-1 text-lg font-semibold text-foreground">{point.value}</p>
+                  </div>
+                );
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{centerLabel}</p>
+          <p className="mt-1 text-2xl font-semibold text-foreground">
+            {data.reduce((total, item) => total + item.value, 0)}
+          </p>
+        </div>
+        <div className="space-y-2">
+          {data.map((item) => (
+            <div key={item.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-background/70 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-800/45">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
+                <span className="text-sm text-foreground">{item.label}</span>
+              </div>
+              <span className="text-sm font-medium text-foreground">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsHorizontalBarChart({
+  data,
+}: {
+  data: ChartDatum[];
+}) {
+  if (!data.length) {
+    return (
+      <div className="flex h-[132px] items-center justify-center rounded-2xl border border-dashed border-border/60 bg-background/50 text-sm text-muted-foreground dark:border-slate-700/70 dark:bg-slate-800/35">
+        Sem dados suficientes para montar este gráfico.
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[132px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ top: 2, right: 12, left: 2, bottom: 2 }} barCategoryGap={10}>
+          <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+          <XAxis type="number" hide domain={[0, 100]} />
+          <YAxis
+            dataKey="label"
+            type="category"
+            tickLine={false}
+            axisLine={false}
+            width={88}
+            fontSize={9}
+          />
+          <RechartsTooltip cursor={{ fill: "rgba(148, 163, 184, 0.08)" }} content={<AdminChartTooltip />} />
+          <Bar dataKey="value" radius={[0, 999, 999, 0]} maxBarSize={14}>
+            {data.map((entry) => (
+              <Cell key={entry.label} fill={entry.fill} />
+            ))}
+            <LabelList
+              dataKey="value"
+              position="right"
+              formatter={(value: number) => `${value}%`}
+              className="fill-foreground text-[10px] font-medium"
+            />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function InsightCard({
+  eyebrow,
+  title,
+  description,
+  accent = "blue",
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  accent?: "blue" | "yellow" | "emerald" | "slate";
+  children: ReactNode;
+}) {
+  const accentClass = {
+    blue: "bg-[#48cfea]",
+    yellow: "bg-[#facc15]",
+    emerald: "bg-emerald-500",
+    slate: "bg-slate-400",
+  }[accent];
+
+  return (
+    <Card className="relative h-full overflow-hidden border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-card/95">
+      <div className={cn("absolute inset-x-0 top-0 h-[3px]", accentClass)} />
+      <CardHeader className="relative">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{eyebrow}</p>
+        <CardTitle className="text-xl">{title}</CardTitle>
+        <CardDescription className="max-w-2xl">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="relative">{children}</CardContent>
+    </Card>
+  );
+}
+
+function RankedList({
+  items,
+  colorClass,
+  emptyMessage,
+}: {
+  items: Array<{ label: string; value: number; helper?: string }>;
+  colorClass: string;
+  emptyMessage: string;
+}) {
+  const maxValue = Math.max(...items.map((item) => item.value), 0);
+
+  if (!items.length) {
+    return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item) => {
+        const percent = maxValue > 0 ? Math.max((item.value / maxValue) * 100, 6) : 0;
+
+        return (
+          <div key={item.label} className="rounded-2xl border border-border/60 bg-background/70 p-3 dark:border-slate-700/70 dark:bg-slate-800/45">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{item.label}</p>
+                {item.helper ? <p className="mt-1 text-xs text-muted-foreground">{item.helper}</p> : null}
+              </div>
+              <Badge variant="outline" className="shrink-0 border-border/60 bg-background/80 dark:border-slate-700/70 dark:bg-slate-800/55">
+                {item.value}
+              </Badge>
+            </div>
+            <div className="mt-3">
+              <div className="h-2 rounded-full bg-muted/70">
+                <div className={cn("h-2 rounded-full", colorClass)} style={{ width: `${percent}%` }} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -415,6 +722,7 @@ export default function AdminPage() {
   const [userAdminDraft, setUserAdminDraft] = useState<AdminUserUpdateRequest>({});
   const [noteDraft, setNoteDraft] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isHeaderExpanded, setIsHeaderExpanded] = useState(true);
 
   const apiFilters = useMemo(() => buildFilters(filters), [filters]);
   const userSourceOptions = useMemo(
@@ -501,6 +809,141 @@ export default function AdminPage() {
       { label: "Ordenação", value: `${SORT_LABELS[sortKey]} • ${sortDirection === "asc" ? "Crescente" : "Decrescente"}` },
     ],
     [filters, search, sortDirection, sortKey]
+  );
+  const adoptionChartData = useMemo<ChartDatum[]>(
+    () => [
+      {
+        label: "Deck",
+        value: overview.users_with_decks,
+        fill: "#48cfea",
+        helper: "Usuários que criaram ao menos um deck",
+      },
+      {
+        label: "Estudo",
+        value: overview.users_who_studied,
+        fill: "#facc15",
+        helper: "Usuários com sessão de estudo registrada",
+      },
+      {
+        label: "Quiz",
+        value: overview.users_who_completed_quiz,
+        fill: "#34d399",
+        helper: "Usuários que concluíram quiz",
+      },
+      {
+        label: "Ativação",
+        value: overview.activated_users_7d,
+        fill: "#94a3b8",
+        helper: "Usuários que atingiram o marco de ativação",
+      },
+    ],
+    [overview]
+  );
+  const retentionChartData = useMemo<ChartDatum[]>(
+    () => [
+      {
+        label: "1d",
+        value: retention.active_users_1d,
+        fill: "#48cfea",
+        helper: "Ativos nas últimas 24 horas",
+      },
+      {
+        label: "7d",
+        value: retention.active_users_7d,
+        fill: "#7dd3fc",
+        helper: "Ativos na última semana",
+      },
+      {
+        label: "30d",
+        value: retention.active_users_30d,
+        fill: "#cbd5e1",
+        helper: "Ativos no último mês",
+      },
+    ],
+    [retention]
+  );
+  const lifecycleChartData = useMemo<ChartDatum[]>(() => {
+    const distribution = sortedUsers.reduce<Record<string, number>>((acc, entry) => {
+      const label = getLifecycleLabel(entry.lifecycle_stage);
+      acc[label] = (acc[label] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(distribution)
+      .map(([label, value], index) => ({
+        label,
+        value,
+        fill: ["#48cfea", "#7dd3fc", "#facc15", "#34d399", "#94a3b8"][index % 5],
+        helper: "Usuários filtrados neste estágio",
+      }))
+      .sort((left, right) => right.value - left.value)
+      .slice(0, 5);
+  }, [sortedUsers]);
+  const providerChartData = useMemo<ChartDatum[]>(() => {
+    const distribution = sortedUsers.reduce<Record<string, number>>((acc, entry) => {
+      acc[entry.provider] = (acc[entry.provider] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(distribution).map(([label, value], index) => ({
+      label,
+      value,
+      fill: ["#48cfea", "#facc15", "#94a3b8"][index % 3],
+      helper: "Usuários filtrados por provider",
+    }));
+  }, [sortedUsers]);
+  const topProviderPieData = useMemo<PieDatum[]>(() => {
+    const total = sortedUsers.length;
+    const googleCount = sortedUsers.filter((entry) => entry.provider === "google").length;
+    const localCount = sortedUsers.filter((entry) => entry.provider === "local").length;
+    const otherCount = Math.max(total - googleCount - localCount, 0);
+
+    return [
+      { label: "Google", value: googleCount, fill: "#48cfea" },
+      { label: "Email e senha", value: localCount, fill: "#facc15" },
+      ...(otherCount > 0 ? [{ label: "Outros", value: otherCount, fill: "#94a3b8" }] : []),
+    ].filter((item) => item.value > 0);
+  }, [sortedUsers]);
+  const topSourcesList = useMemo(
+    () =>
+      acquisition.top_sources.map((item) => ({
+        label: item.source,
+        value: item.users,
+        helper: `${item.users} usuários atribuídos`,
+      })),
+    [acquisition.top_sources]
+  );
+  const topCampaignsList = useMemo(
+    () =>
+      acquisition.top_campaigns.map((item) => ({
+        label: item.source,
+        value: item.users,
+        helper: `${item.users} usuários atribuídos`,
+      })),
+    [acquisition.top_campaigns]
+  );
+  const healthHighlights = useMemo(
+    () => [
+      {
+        label: "Cobertura de estudo",
+        value: overview.total_users ? Math.round((overview.users_who_studied / overview.total_users) * 100) : 0,
+        helper: `${overview.users_who_studied} de ${overview.total_users} usuários estudaram`,
+        tone: "bg-[#48cfea]",
+      },
+      {
+        label: "Conversão em quiz",
+        value: overview.total_users ? Math.round((overview.users_who_completed_quiz / overview.total_users) * 100) : 0,
+        helper: `${overview.users_who_completed_quiz} chegaram ao quiz`,
+        tone: "bg-[#facc15]",
+      },
+      {
+        label: "Retenção 7d",
+        value: retentionRate7d,
+        helper: `${retention.returning_users_7d} usuários retornaram`,
+        tone: "bg-emerald-500",
+      },
+    ],
+    [overview, retention.returning_users_7d, retentionRate7d]
   );
 
   const loadAdminData = () => {
@@ -1267,218 +1710,230 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.82))] p-6 shadow-sm dark:border-zinc-800/80 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(24,24,27,0.92))]">
-        <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(72,207,234,0.16),transparent_52%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.16),transparent_44%)]" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-3">
-            <Badge variant="outline" className="gap-2 border-[#48cfea]/30 bg-[#48cfea]/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[#0f5f6f] dark:text-[#87ebfb]">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Flashify Admin
-            </Badge>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Operação, aquisição e uso real em uma única superfície.
-              </h1>
-              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Painel interno para a equipe acompanhar ativação, campanhas e comportamento do produto sem depender de consultas manuais no banco.
-              </p>
+      <section className="rounded-[28px] border border-border/70 bg-card/95 p-5 shadow-sm dark:border-zinc-800/80 dark:bg-card/95">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="gap-2 border-[#48cfea]/30 bg-[#48cfea]/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[#0f5f6f] dark:text-[#87ebfb]">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Flashify Admin
+                </Badge>
+                <Badge variant="outline" className="gap-2 border-border/60 bg-background/70 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <Filter className="h-3.5 w-3.5" />
+                  Filtros estratégicos
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                  Visão administrativa da base
+                </h1>
+                <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+                  Acompanhamento de aquisição, ativação e comportamento real da base filtrada.
+                </p>
+              </div>
+              <div className="pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsHeaderExpanded((prev) => !prev)}
+                  className="gap-2"
+                  aria-expanded={isHeaderExpanded}
+                >
+                  {isHeaderExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  {isHeaderExpanded ? "Minimizar filtros" : "Expandir filtros"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 lg:items-end">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Janela</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{filters.days} dias</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Ativação</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{activationRate}%</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Origens</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{acquisition.top_sources.length}</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Usuários</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{formatCompact(overview.total_users)}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportCsv}
+                  disabled={!sortedUsers.length}
+                  className="gap-2 border-black/40 dark:border-white/15"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  Exportar CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPdfDialogOpen(true)}
+                  disabled={!sortedUsers.length}
+                  className="gap-2 border-black/40 dark:border-white/15"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Exportar PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadAdminData()}
+                  disabled={isFetching}
+                  className="gap-2 border-black/40 dark:border-white/15"
+                >
+                  <RefreshCcw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
+                  Atualizar
+                </Button>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Janela</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">{filters.days} dias</p>
+          {isHeaderExpanded ? (
+            <div className="grid gap-3 border-t border-border/60 pt-4 dark:border-zinc-800/80 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Período</label>
+                <Select value={filters.days} onValueChange={(value) => setFilters((prev) => ({ ...prev, days: value }))}>
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Últimos 7 dias</SelectItem>
+                    <SelectItem value="30">Últimos 30 dias</SelectItem>
+                    <SelectItem value="90">Últimos 90 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Provider</label>
+                <Select value={filters.provider} onValueChange={(value) => setFilters((prev) => ({ ...prev, provider: value }))}>
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="google">Google</SelectItem>
+                    <SelectItem value="local">Email e senha</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Estágio</label>
+                <Select value={filters.lifecycle_stage} onValueChange={(value) => setFilters((prev) => ({ ...prev, lifecycle_stage: value }))}>
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="registered">Registrado</SelectItem>
+                    <SelectItem value="created_deck">Criou deck</SelectItem>
+                    <SelectItem value="studied">Estudou</SelectItem>
+                    <SelectItem value="quiz_completed">Quiz concluído</SelectItem>
+                    <SelectItem value="activated">Ativado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Internos</label>
+                <Select value={filters.include_internal} onValueChange={(value) => setFilters((prev) => ({ ...prev, include_internal: value }))}>
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
+                    <SelectValue placeholder="Não" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">Ocultar equipe/teste</SelectItem>
+                    <SelectItem value="yes">Incluir equipe/teste</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Origem</label>
+                <Select value={filters.utm_source} onValueChange={(value) => setFilters((prev) => ({ ...prev, utm_source: value, utm_campaign: "all" }))}>
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
+                    <SelectValue placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {userSourceOptions.map((source) => (
+                      <SelectItem key={source} value={source}>{source}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Campanha</label>
+                <Select value={filters.utm_campaign} onValueChange={(value) => setFilters((prev) => ({ ...prev, utm_campaign: value }))}>
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
+                    <SelectValue placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {userCampaignOptions.map((campaign) => (
+                      <SelectItem key={campaign} value={campaign}>{campaign}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Equipe</label>
+                <Select value={filters.is_team} onValueChange={(value) => setFilters((prev) => ({ ...prev, is_team: value }))}>
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="yes">Somente equipe</SelectItem>
+                    <SelectItem value="no">Sem equipe</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Teste</label>
+                <Select value={filters.is_test_user} onValueChange={(value) => setFilters((prev) => ({ ...prev, is_test_user: value }))}>
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="yes">Somente teste</SelectItem>
+                    <SelectItem value="no">Sem teste</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Bloqueio</label>
+                <Select value={filters.is_blocked} onValueChange={(value) => setFilters((prev) => ({ ...prev, is_blocked: value }))}>
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="yes">Bloqueados</SelectItem>
+                    <SelectItem value="no">Não bloqueados</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Ativação</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">{activationRate}%</p>
-            </div>
-            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Origens</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">{acquisition.top_sources.length}</p>
-            </div>
-            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Usuários</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">{formatCompact(overview.total_users)}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-3 rounded-3xl border border-border/60 bg-card/70 p-4 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/70 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
-        <div className="flex flex-col gap-3 px-2 pb-2 md:col-span-2 lg:col-span-4 xl:col-span-9 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">Filtros estratégicos</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {filters.include_internal === "no" ? (
-              <Badge variant="outline" className="border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:text-[#ffe27c]">
-                Contas internas ocultas
-              </Badge>
-            ) : null}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportCsv}
-              disabled={!sortedUsers.length}
-              className="gap-2"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              Exportar CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsPdfDialogOpen(true)}
-              disabled={!sortedUsers.length}
-              className="gap-2"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Exportar PDF
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadAdminData()}
-              disabled={isFetching}
-              className="gap-2"
-            >
-              <RefreshCcw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
-              Atualizar
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Período</label>
-          <Select value={filters.days} onValueChange={(value) => setFilters((prev) => ({ ...prev, days: value }))}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Últimos 7 dias</SelectItem>
-              <SelectItem value="30">Últimos 30 dias</SelectItem>
-              <SelectItem value="90">Últimos 90 dias</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Provider</label>
-          <Select value={filters.provider} onValueChange={(value) => setFilters((prev) => ({ ...prev, provider: value }))}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="google">Google</SelectItem>
-              <SelectItem value="local">Email e senha</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Estágio</label>
-          <Select value={filters.lifecycle_stage} onValueChange={(value) => setFilters((prev) => ({ ...prev, lifecycle_stage: value }))}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="registered">Registrado</SelectItem>
-              <SelectItem value="created_deck">Criou deck</SelectItem>
-              <SelectItem value="studied">Estudou</SelectItem>
-              <SelectItem value="quiz_completed">Quiz concluído</SelectItem>
-              <SelectItem value="activated">Ativado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Internos</label>
-          <Select value={filters.include_internal} onValueChange={(value) => setFilters((prev) => ({ ...prev, include_internal: value }))}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Não" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="no">Ocultar equipe/teste</SelectItem>
-              <SelectItem value="yes">Incluir equipe/teste</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Origem</label>
-          <Select value={filters.utm_source} onValueChange={(value) => setFilters((prev) => ({ ...prev, utm_source: value, utm_campaign: "all" }))}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {userSourceOptions.map((source) => (
-                <SelectItem key={source} value={source}>{source}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Campanha</label>
-          <Select value={filters.utm_campaign} onValueChange={(value) => setFilters((prev) => ({ ...prev, utm_campaign: value }))}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {userCampaignOptions.map((campaign) => (
-                <SelectItem key={campaign} value={campaign}>{campaign}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Equipe</label>
-          <Select value={filters.is_team} onValueChange={(value) => setFilters((prev) => ({ ...prev, is_team: value }))}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="yes">Somente equipe</SelectItem>
-              <SelectItem value="no">Sem equipe</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Teste</label>
-          <Select value={filters.is_test_user} onValueChange={(value) => setFilters((prev) => ({ ...prev, is_test_user: value }))}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="yes">Somente teste</SelectItem>
-              <SelectItem value="no">Sem teste</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Bloqueio</label>
-          <Select value={filters.is_blocked} onValueChange={(value) => setFilters((prev) => ({ ...prev, is_blocked: value }))}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="yes">Bloqueados</SelectItem>
-              <SelectItem value="no">Não bloqueados</SelectItem>
-            </SelectContent>
-          </Select>
+          ) : null}
         </div>
       </section>
 
@@ -1490,198 +1945,252 @@ export default function AdminPage() {
         </Card>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          title="Base total"
-          value={formatCompact(overview.total_users)}
-          description="Usuários visíveis dentro do recorte atual, já respeitando filtros e exclusão de contas internas."
-          icon={Users}
-          tone="slate"
-        />
-        <MetricCard
-          title="Novos usuários"
-          value={formatCompact(overview.new_users_7d)}
-          description="Cadastros novos no período escolhido, útil para comparar volume de aquisição com ativação real."
-          icon={TrendingUp}
-          tone="blue"
-        />
-        <MetricCard
-          title="Ativados"
-          value={formatCompact(overview.activated_users_7d)}
-          description="Usuários que chegaram ao marco de ativação no período, já com comportamento inicial útil no produto."
-          icon={Target}
-          tone="yellow"
-        />
-        <MetricCard
-          title="Decks concluídos"
-          value={formatCompact(overview.decks_completed_7d)}
-          description="Processamentos efetivamente concluídos na janela. Ajuda a separar intenção de uso de execução real."
-          icon={CheckCircle2}
-          tone="emerald"
-        />
+      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr] xl:items-stretch">
+        <div className="flex h-full flex-col gap-4">
+          <div className="grid auto-rows-min items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              title="Base total"
+              value={formatCompact(overview.total_users)}
+              description="Usuários visíveis no recorte"
+              footerLabel="Ativos 7d"
+              footerValue={formatCompact(overview.active_users_7d)}
+              icon={Users}
+              tone="slate"
+            />
+            <MetricCard
+              title="Novos usuários"
+              value={formatCompact(overview.new_users_7d)}
+              description="Cadastros no período"
+              footerLabel="Janela"
+              footerValue={`${filters.days} dias`}
+              icon={TrendingUp}
+              tone="blue"
+            />
+            <MetricCard
+              title="Ativados"
+              value={formatCompact(overview.activated_users_7d)}
+              description="Chegaram ao marco de ativação"
+              footerLabel="Taxa"
+              footerValue={`${activationRate}% da base`}
+              icon={Target}
+              tone="yellow"
+            />
+            <MetricCard
+              title="Decks concluídos"
+              value={formatCompact(overview.decks_completed_7d)}
+              description="Processamentos concluídos"
+              footerLabel="Decks criados"
+              footerValue={formatCompact(overview.decks_created_7d)}
+              icon={CheckCircle2}
+              tone="emerald"
+            />
+          </div>
+
+          <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-card/95">
+            <CardContent className="p-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Composição da base</p>
+                <h3 className="mt-1 text-lg font-semibold text-foreground">Distribuição por acesso</h3>
+              </div>
+              <div className="mt-4">
+                <AnalyticsPieChart data={topProviderPieData} centerLabel="Usuários filtrados" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <InsightCard
+          eyebrow="Leitura rápida"
+          title="Saúde do recorte atual"
+          description="Indicadores centrais de avanço e retorno."
+          accent="blue"
+        >
+          <div className="flex h-full flex-col gap-3">
+            <div className="grid gap-2">
+              {healthHighlights.map((item) => (
+                <div key={item.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-background/70 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{item.label}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{item.helper}</p>
+                  </div>
+                  <p className="shrink-0 text-xl font-semibold text-foreground">{item.value}%</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-border/60 bg-background/70 p-3 dark:border-slate-700/70 dark:bg-slate-800/45">
+              <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Comparativo</p>
+              <AnalyticsHorizontalBarChart data={healthHighlights.map(({ label, value, helper, tone }) => ({ label, value, helper, fill: tone === "bg-[#48cfea]" ? "#48cfea" : tone === "bg-[#facc15]" ? "#facc15" : "#10b981" }))} />
+            </div>
+          </div>
+        </InsightCard>
       </section>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="h-auto bg-muted/60 p-1">
-          <TabsTrigger value="overview" className="px-4 py-2">Visão geral</TabsTrigger>
-          <TabsTrigger value="campaigns" className="px-4 py-2">Campanhas</TabsTrigger>
-          <TabsTrigger value="users" className="px-4 py-2">Usuários</TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Exploração</p>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Navegação por contexto</h2>
+          </div>
+          <TabsList className="h-auto w-full max-w-full flex-wrap justify-start gap-1 bg-muted/60 p-1 lg:w-auto">
+            <TabsTrigger value="overview" className="px-4 py-2">Visão geral</TabsTrigger>
+            <TabsTrigger value="campaigns" className="px-4 py-2">Campanhas</TabsTrigger>
+            <TabsTrigger value="users" className="px-4 py-2">Usuários</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-4">
-          <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
-              <CardHeader>
-                <CardTitle className="text-xl">Funil de ativação</CardTitle>
-                <CardDescription>
-                  Coorte de usuários cadastrados nos últimos {filters.days} dias, com conversão por etapa até ativação.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-sm text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                  Coorte analisada: <span className="font-medium text-foreground">{funnel.cohort_users}</span> usuários
-                </div>
-                <div className="grid gap-3 lg:grid-cols-5">
-                  {funnel.steps.length ? funnel.steps.map((step, index) => (
-                    <div key={step.key} className="relative rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Etapa {index + 1}
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-foreground">{step.label}</p>
-                      <p className="mt-3 text-3xl font-semibold text-foreground">{step.users}</p>
-                      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-                        <p>
-                          Base inicial:{" "}
-                          <span className="font-medium text-foreground">
-                            {step.conversion_from_start === null ? "—" : `${step.conversion_from_start}%`}
-                          </span>
-                        </p>
-                        <p>
-                          Etapa anterior:{" "}
-                          <span className="font-medium text-foreground">
-                            {step.conversion_from_previous === null ? "—" : `${step.conversion_from_previous}%`}
-                          </span>
-                        </p>
-                      </div>
+          <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+            <InsightCard
+              eyebrow="Panorama"
+              title="Resumo operacional em camadas"
+              description={`Coorte dos últimos ${filters.days} dias com os principais sinais de uso.`}
+              accent="blue"
+            >
+              <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    ["Ativos", overview.active_users_7d, "Logaram no período"],
+                    ["Com deck", overview.users_with_decks, "Criaram pelo menos um deck"],
+                    ["Estudaram", overview.users_who_studied, "Fizeram estudo real"],
+                    ["Quiz concluído", overview.users_who_completed_quiz, "Chegaram ao quiz"],
+                    ["Decks criados", overview.decks_created_7d, "Novos decks no recorte"],
+                    ["Taxa de ativação", `${activationRate}%`, "Ativados sobre a base filtrada"],
+                  ].map(([label, value, helper]) => (
+                    <div key={label} className="rounded-2xl border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+                      <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{helper}</p>
                     </div>
-                  )) : (
-                    <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-8 text-sm text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                      Sem dados suficientes para compor o funil neste recorte.
-                    </div>
-                  )}
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
-              <CardHeader>
-                <CardTitle className="text-xl">Retenção básica</CardTitle>
-                <CardDescription>
-                  Sinais rápidos de retorno e consistência da base filtrada.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2">
-                {[
-                  ["Ativos 1d", retention.active_users_1d, "Voltaram nas últimas 24h"],
-                  ["Ativos 7d", retention.active_users_7d, "Voltaram na última semana"],
-                  ["Ativos 30d", retention.active_users_30d, "Voltaram no último mês"],
-                  ["Retorno 7d", `${retentionRate7d}%`, `${retention.returning_users_7d} usuários da base antiga`],
-                  ["Retorno 30d", `${retentionRate30d}%`, `${retention.returning_users_30d} usuários da base antiga`],
-                  ["Ativados retidos", retention.activation_retention_7d, "Ativados há 7d+ e ainda ativos"],
-                ].map(([label, value, helper]) => (
-                  <div key={label} className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-                    <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">{helper}</p>
+                <div className="rounded-[26px] border border-border/60 bg-background/70 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Movimento no produto</p>
+                      <h3 className="mt-1 text-lg font-semibold text-foreground">Da criação ao uso real</h3>
+                    </div>
+                    {isFetching ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                  <AnalyticsBarChart data={adoptionChartData} />
+                </div>
+              </div>
+            </InsightCard>
+
+            <InsightCard
+              eyebrow="Retenção"
+              title="Pulso de retorno"
+              description="Atividade recente e retorno da base filtrada."
+              accent="emerald"
+            >
+              <div className="space-y-4">
+                <AnalyticsBarChart data={retentionChartData} />
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    ["Retorno 7d", `${retentionRate7d}%`, `${retention.returning_users_7d} usuários retornaram`],
+                    ["Retorno 30d", `${retentionRate30d}%`, `${retention.returning_users_30d} usuários retornaram`],
+                    ["Ativados retidos", retention.activation_retention_7d, "Ativados há 7d+ e ainda ativos"],
+                  ].map(([label, value, helper]) => (
+                    <div key={label} className="rounded-2xl border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+                      <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{helper}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </InsightCard>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
-              <CardHeader className="flex flex-row items-center justify-between pb-4">
-                <div>
-                  <CardTitle className="text-xl">Resumo operacional</CardTitle>
-                  <CardDescription>Indicadores principais de uso e ativação para o período selecionado.</CardDescription>
-                </div>
-                {isFetching ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
-              </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {[
-                  ["Ativos", overview.active_users_7d, "Logaram no período"],
-                  ["Com deck", overview.users_with_decks, "Criaram pelo menos um deck"],
-                  ["Estudaram", overview.users_who_studied, "Fizeram estudo real"],
-                  ["Quiz concluído", overview.users_who_completed_quiz, "Chegaram ao quiz"],
-                  ["Decks criados", overview.decks_created_7d, "Novos decks no recorte"],
-                  ["Taxa de ativação", `${activationRate}%`, "Ativados sobre base filtrada"],
-                ].map(([label, value, helper]) => (
-                  <div key={label} className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-                    <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">{helper}</p>
+          <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <InsightCard
+              eyebrow="Funil"
+              title="Etapas da ativação"
+              description="Conversão por etapa até a ativação."
+              accent="yellow"
+            >
+              <div className="mb-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-sm text-muted-foreground dark:border-slate-700/70 dark:bg-slate-800/45">
+                Coorte analisada: <span className="font-medium text-foreground">{funnel.cohort_users}</span> usuários
+              </div>
+              <div className="space-y-3">
+                {funnel.steps.length ? funnel.steps.map((step, index) => (
+                  <div key={step.key} className="rounded-[24px] border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Etapa {index + 1}</p>
+                        <p className="mt-1 text-base font-semibold text-foreground">{step.label}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="border-border/60 bg-background/80 dark:border-slate-700/70 dark:bg-slate-800/55">
+                          {step.users} usuários
+                        </Badge>
+                        <Badge variant="outline" className="border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:text-[#87ebfb]">
+                          Base inicial: {step.conversion_from_start === null ? "—" : `${step.conversion_from_start}%`}
+                        </Badge>
+                        <Badge variant="outline" className="border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:text-[#ffe27c]">
+                          Etapa anterior: {step.conversion_from_previous === null ? "—" : `${step.conversion_from_previous}%`}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Progress
+                      value={step.conversion_from_start ?? 0}
+                      className="mt-4 h-2.5 bg-muted/70"
+                      indicatorClassName="bg-[#48cfea]"
+                    />
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                )) : (
+                  <div className="rounded-2xl border border-dashed border-border/60 bg-background/60 px-4 py-8 text-sm text-muted-foreground dark:border-slate-700/70 dark:bg-slate-800/35">
+                    Sem dados suficientes para compor o funil neste recorte.
+                  </div>
+                )}
+              </div>
+            </InsightCard>
 
-            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
-              <CardHeader>
-                <CardTitle className="text-xl">Aquisição</CardTitle>
-                <CardDescription>Leitura rápida das origens mais presentes e do volume sem atribuição.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Sem atribuição</p>
+            <InsightCard
+              eyebrow="Aquisição"
+              title="Origens mais presentes"
+              description="Fontes, campanhas e volume sem atribuição."
+              accent="slate"
+            >
+              <div className="space-y-4">
+                <div className="rounded-[24px] border border-border/60 bg-background/70 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Sem atribuição</p>
                   <p className="mt-2 text-3xl font-semibold text-foreground">{acquisition.unattributed_users}</p>
                   <p className="mt-2 text-sm text-muted-foreground">Usuários sem `utm_source` no recorte atual.</p>
                 </div>
-
-                <div className="space-y-3">
+                <div className="grid gap-4">
                   <div>
-                    <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Top fontes</p>
-                    <div className="space-y-2">
-                      {acquisition.top_sources.length ? acquisition.top_sources.map((item) => (
-                        <div key={item.source} className="flex items-center justify-between rounded-xl border border-border/50 bg-background/60 px-3 py-2.5 dark:border-zinc-800/70 dark:bg-zinc-950/35">
-                          <span className="text-sm font-medium text-foreground">{item.source}</span>
-                          <Badge variant="outline" className="border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:border-[#48cfea]/25 dark:bg-[#48cfea]/14 dark:text-[#87ebfb]">
-                            {item.users}
-                          </Badge>
-                        </div>
-                      )) : <p className="text-sm text-muted-foreground">Nenhuma origem atribuída neste filtro.</p>}
-                    </div>
+                    <p className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Top fontes</p>
+                    <RankedList
+                      items={topSourcesList}
+                      colorClass="bg-[#48cfea]"
+                      emptyMessage="Nenhuma origem atribuída neste filtro."
+                    />
                   </div>
-
                   <div>
-                    <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Top campanhas</p>
-                    <div className="space-y-2">
-                      {acquisition.top_campaigns.length ? acquisition.top_campaigns.map((item) => (
-                        <div key={item.source} className="flex items-center justify-between rounded-xl border border-border/50 bg-background/60 px-3 py-2.5 dark:border-zinc-800/70 dark:bg-zinc-950/35">
-                          <span className="text-sm font-medium text-foreground">{item.source}</span>
-                          <Badge variant="outline" className="border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:border-[#facc15]/25 dark:bg-[#facc15]/14 dark:text-[#ffe27c]">
-                            {item.users}
-                          </Badge>
-                        </div>
-                      )) : <p className="text-sm text-muted-foreground">Nenhuma campanha atribuída neste filtro.</p>}
-                    </div>
+                    <p className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Top campanhas</p>
+                    <RankedList
+                      items={topCampaignsList}
+                      colorClass="bg-[#facc15]"
+                      emptyMessage="Nenhuma campanha atribuída neste filtro."
+                    />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </InsightCard>
           </section>
         </TabsContent>
 
         <TabsContent value="campaigns" className="space-y-4">
-          <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
-              <CardHeader>
-                <CardTitle className="text-xl">Qualidade da aquisição</CardTitle>
-                <CardDescription>
-                  Volume atribuído comparado com ativação e consistência de uso no recorte atual.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2">
+          <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+            <InsightCard
+              eyebrow="Aquisição qualificada"
+              title="Volume com leitura de qualidade"
+              description="Volume atribuído e qualidade do tráfego no recorte."
+              accent="blue"
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
                 {[
                   ["Atribuídos", acquisitionPerformance.attributed_users, "Usuários com origem conhecida"],
                   ["Sem atribuição", acquisition.unattributed_users, "Entraram sem `utm_source`"],
@@ -1700,94 +2209,92 @@ export default function AdminPage() {
                       : "Sem dados suficientes",
                   ],
                 ].map(([label, value, helper]) => (
-                  <div key={label} className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-                    <p className="mt-3 text-2xl font-semibold text-foreground break-words">{value}</p>
+                  <div key={label} className="rounded-2xl border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+                    <p className="mt-3 break-words text-2xl font-semibold text-foreground">{value}</p>
                     <p className="mt-2 text-sm text-muted-foreground">{helper}</p>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </InsightCard>
 
-            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
-              <CardHeader>
-                <CardTitle className="text-xl">Como ler este módulo</CardTitle>
-                <CardDescription>
-                  O foco aqui não é só volume de cadastro, e sim qualidade da aquisição.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-muted-foreground">
-                <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+            <InsightCard
+              eyebrow="Critérios"
+              title="Como interpretar as taxas"
+              description="Definições rápidas das três taxas principais."
+              accent="yellow"
+            >
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-800/45">
                   <p className="font-medium text-foreground">Ativação</p>
-                  <p className="mt-1">Percentual da origem ou campanha que realmente alcançou o marco de ativação.</p>
+                  <p className="mt-1">Percentual da origem ou campanha que alcançou o marco de ativação.</p>
                 </div>
-                <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-800/45">
                   <p className="font-medium text-foreground">Estudo</p>
                   <p className="mt-1">Mostra quantos usuários chegaram ao comportamento mínimo de uso real.</p>
                 </div>
-                <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-800/45">
                   <p className="font-medium text-foreground">Consistência</p>
                   <p className="mt-1">Conta usuários já ativados que continuam ativos nos últimos 7 dias.</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </InsightCard>
           </section>
 
           <section className="grid gap-4 xl:grid-cols-2">
-            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
-              <CardHeader>
-                <CardTitle className="text-xl">Performance por origem</CardTitle>
-                <CardDescription>
-                  Comparativo entre volume e qualidade por `utm_source`.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <InsightCard
+              eyebrow="Origens"
+              title="Performance por fonte"
+              description="Volume, ativação, estudo e consistência por `utm_source`."
+              accent="blue"
+            >
+              <div className="space-y-3">
                 {acquisitionPerformance.top_sources.length ? acquisitionPerformance.top_sources.map((row) => (
-                  <div key={row.dimension} className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                  <div key={row.dimension} className="rounded-[24px] border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-foreground">{row.dimension}</p>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-foreground">{row.dimension}</p>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {row.users} usuários • {row.activated_users} ativados • {row.consistent_users} consistentes
                         </p>
                       </div>
-                      <Badge variant="outline" className="border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:border-[#48cfea]/25 dark:bg-[#48cfea]/14 dark:text-[#87ebfb]">
+                      <Badge variant="outline" className="border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:text-[#87ebfb]">
                         {row.activation_rate}%
                       </Badge>
                     </div>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Ativação</p>
-                        <p className="mt-1 text-sm font-medium text-foreground">{row.activation_rate}%</p>
-                      </div>
-                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Estudo</p>
-                        <p className="mt-1 text-sm font-medium text-foreground">{row.study_rate}%</p>
-                      </div>
-                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Consistência</p>
-                        <p className="mt-1 text-sm font-medium text-foreground">{row.consistency_rate}%</p>
-                      </div>
+                    <div className="mt-4 space-y-3">
+                      {[
+                        ["Ativação", row.activation_rate, "bg-[#48cfea]"],
+                        ["Estudo", row.study_rate, "bg-[#facc15]"],
+                        ["Consistência", row.consistency_rate, "bg-emerald-500"],
+                      ].map(([label, value, tone]) => (
+                        <div key={String(label)}>
+                          <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{label}</span>
+                            <span className="font-medium text-foreground">{value}%</span>
+                          </div>
+                          <Progress value={Number(value)} className="h-2 bg-muted/70" indicatorClassName={String(tone)} />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )) : (
-                  <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-8 text-sm text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                  <div className="rounded-2xl border border-dashed border-border/60 bg-background/60 px-4 py-8 text-sm text-muted-foreground dark:border-slate-700/70 dark:bg-slate-800/35">
                     Nenhuma origem atribuída neste recorte.
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </InsightCard>
 
-            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
-              <CardHeader>
-                <CardTitle className="text-xl">Performance por campanha</CardTitle>
-                <CardDescription>
-                  Campanhas ordenadas por ativação e consistência, não só por volume.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <InsightCard
+              eyebrow="Campanhas"
+              title="Performance por campanha"
+              description="Campanhas ordenadas por qualidade de uso."
+              accent="yellow"
+            >
+              <div className="space-y-3">
                 {acquisitionPerformance.top_campaigns.length ? acquisitionPerformance.top_campaigns.map((row) => (
-                  <div key={row.dimension} className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                  <div key={row.dimension} className="rounded-[24px] border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="break-words font-medium text-foreground">{row.dimension}</p>
@@ -1795,46 +2302,94 @@ export default function AdminPage() {
                           {row.users} usuários • {row.studied_users} estudaram • {row.quiz_users} chegaram ao quiz
                         </p>
                       </div>
-                      <Badge variant="outline" className="border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:border-[#facc15]/25 dark:bg-[#facc15]/14 dark:text-[#ffe27c]">
+                      <Badge variant="outline" className="border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:text-[#ffe27c]">
                         {row.consistency_rate}%
                       </Badge>
                     </div>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Ativação</p>
-                        <p className="mt-1 text-sm font-medium text-foreground">{row.activation_rate}%</p>
-                      </div>
-                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Estudo</p>
-                        <p className="mt-1 text-sm font-medium text-foreground">{row.study_rate}%</p>
-                      </div>
-                      <div className="rounded-xl border border-border/50 bg-background/75 px-3 py-2 dark:border-zinc-800/70 dark:bg-zinc-950/35">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Consistência</p>
-                        <p className="mt-1 text-sm font-medium text-foreground">{row.consistency_rate}%</p>
-                      </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      {[
+                        ["Ativação", row.activation_rate],
+                        ["Estudo", row.study_rate],
+                        ["Consistência", row.consistency_rate],
+                      ].map(([label, value]) => (
+                        <div key={String(label)} className="rounded-xl border border-border/50 bg-background/80 p-3 dark:border-slate-700/70 dark:bg-slate-800/50">
+                          <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+                          <p className="mt-2 text-lg font-semibold text-foreground">{value}%</p>
+                          <Progress
+                            value={Number(value)}
+                            className="mt-3 h-2 bg-muted/70"
+                            indicatorClassName={label === "Ativação" ? "bg-[#48cfea]" : label === "Estudo" ? "bg-[#facc15]" : "bg-emerald-500"}
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )) : (
-                  <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-8 text-sm text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                  <div className="rounded-2xl border border-dashed border-border/60 bg-background/60 px-4 py-8 text-sm text-muted-foreground dark:border-slate-700/70 dark:bg-slate-800/35">
                     Nenhuma campanha atribuída neste recorte.
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </InsightCard>
           </section>
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-          <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+          <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <InsightCard
+              eyebrow="Composição"
+              title="Quem está dentro do recorte"
+              description="Composição da base filtrada por provider e estágio."
+              accent="slate"
+            >
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-[24px] border border-border/60 bg-background/70 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Provider</p>
+                  <AnalyticsBarChart data={providerChartData} height={220} />
+                </div>
+                <div className="rounded-[24px] border border-border/60 bg-background/70 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Estágios dominantes</p>
+                  <AnalyticsBarChart data={lifecycleChartData} height={220} />
+                </div>
+              </div>
+            </InsightCard>
+
+            <InsightCard
+              eyebrow="Operação"
+              title="Como navegar esta base"
+              description="Resumo operacional da amostra carregada."
+              accent="blue"
+            >
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Carregados</p>
+                  <p className="mt-3 text-2xl font-semibold text-foreground">{users.length}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Amostra disponível no front para busca local.</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Filtrados</p>
+                  <p className="mt-3 text-2xl font-semibold text-foreground">{sortedUsers.length}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Registros após filtros e busca local.</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Ordenação</p>
+                  <p className="mt-3 text-lg font-semibold text-foreground">{SORT_LABELS[sortKey]}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{sortDirection === "asc" ? "Crescente" : "Decrescente"} • {pageSize} por página</p>
+                </div>
+              </div>
+            </InsightCard>
+          </section>
+
+          <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-card/95">
             <CardHeader className="flex flex-col gap-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <CardTitle className="text-xl">Usuários e estágio de funil</CardTitle>
                   <CardDescription>
-                    Base operacional com aquisição, milestones e sinais de uso. Agora com ordenação, paginação e exportação.
+                    Base operacional com aquisição, milestones e sinais de uso. A leitura analítica fica acima; aqui entra o detalhe acionável.
                   </CardDescription>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground dark:border-slate-700/70 dark:bg-slate-800/45">
                   {sortedUsers.length} registros filtrados de {users.length} carregados
                 </div>
               </div>
@@ -1851,7 +2406,7 @@ export default function AdminPage() {
                 </div>
 
                 <Select value={sortKey} onValueChange={(value) => setSortKey(value as SortKey)}>
-                  <SelectTrigger className="w-full bg-background">
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
                     <SelectValue placeholder="Ordenar por" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1862,7 +2417,7 @@ export default function AdminPage() {
                 </Select>
 
                 <Select value={sortDirection} onValueChange={(value) => setSortDirection(value as SortDirection)}>
-                  <SelectTrigger className="w-full bg-background">
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
                     <SelectValue placeholder="Direção" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1872,7 +2427,7 @@ export default function AdminPage() {
                 </Select>
 
                 <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
-                  <SelectTrigger className="w-full bg-background">
+                  <SelectTrigger className="w-full border border-black/40 bg-background dark:border-white/15">
                     <SelectValue placeholder="Itens por página" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1896,9 +2451,10 @@ export default function AdminPage() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <Table>
+              <div className="overflow-hidden rounded-[24px] border border-border/60 dark:border-slate-700/70">
+                <Table>
                 <TableHeader>
-                  <TableRow className="border-border/60 dark:border-zinc-800/80">
+                  <TableRow className="border-border/60 dark:border-slate-700/70">
                     <TableHead className="pl-3">
                       <button type="button" onClick={() => toggleSort("username")} className="inline-flex items-center gap-1.5">
                         Usuário
@@ -1940,7 +2496,7 @@ export default function AdminPage() {
                 </TableHeader>
                 <TableBody>
                   {paginatedUsers.map((entry) => (
-                    <TableRow key={entry.id} className="border-border/50 dark:border-zinc-800/70">
+                    <TableRow key={entry.id} className="border-border/50 bg-background/60 dark:border-slate-700/70 dark:bg-slate-800/35">
                       <TableCell className="pl-3">
                         <div className="space-y-1">
                           <div className="font-medium text-foreground">{entry.username}</div>
@@ -1950,7 +2506,7 @@ export default function AdminPage() {
                       <TableCell>
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="border-border/60 bg-background/80 dark:border-zinc-800/80 dark:bg-zinc-950/45">
+                            <Badge variant="outline" className="border-border/60 bg-background/80 dark:border-slate-700/70 dark:bg-slate-800/55">
                               {entry.provider}
                             </Badge>
                             {entry.utm_source ? (
@@ -1971,7 +2527,7 @@ export default function AdminPage() {
                             "border px-2.5 py-1",
                             entry.lifecycle_stage === "activated" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
                             entry.lifecycle_stage === "created_deck" && "border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:text-[#ffe27c]",
-                            entry.lifecycle_stage === "registered" && "border-border/60 bg-background/80 dark:border-zinc-800/80 dark:bg-zinc-950/45",
+                            entry.lifecycle_stage === "registered" && "border-border/60 bg-background/80 dark:border-slate-700/70 dark:bg-slate-800/55",
                           )}
                         >
                           {getLifecycleLabel(entry.lifecycle_stage)}
@@ -2004,7 +2560,7 @@ export default function AdminPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => openUserSheet(entry.id)}
-                          className="gap-2"
+                          className="gap-2 border-black/40 dark:border-white/15"
                         >
                           Ver detalhe
                         </Button>
@@ -2015,7 +2571,7 @@ export default function AdminPage() {
                     </TableRow>
                   ))}
                   {!paginatedUsers.length ? (
-                    <TableRow className="border-border/50 dark:border-zinc-800/70">
+                    <TableRow className="border-border/50 dark:border-slate-700/70">
                       <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                         Nenhum usuário encontrado para os filtros e busca atuais.
                       </TableCell>
@@ -2023,8 +2579,9 @@ export default function AdminPage() {
                   ) : null}
                 </TableBody>
               </Table>
+              </div>
 
-              <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-800/45 lg:flex-row lg:items-center lg:justify-between">
                 <div className="text-sm text-muted-foreground">
                   Mostrando{" "}
                   <span className="font-medium text-foreground">
@@ -2044,7 +2601,7 @@ export default function AdminPage() {
                     <ChevronLeft className="h-3.5 w-3.5" />
                     Anterior
                   </Button>
-                  <div className="rounded-lg border border-border/60 px-3 py-1.5 text-sm text-foreground dark:border-zinc-800/80">
+                  <div className="rounded-lg border border-border/60 px-3 py-1.5 text-sm text-foreground dark:border-slate-700/70 dark:bg-slate-800/45">
                     Página {currentPage} de {totalPages}
                   </div>
                   <Button
