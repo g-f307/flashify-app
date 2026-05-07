@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
-from .. import models, security
+from .. import analytics as analytics_service, models, security
 from ..database import get_session
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
@@ -54,6 +54,42 @@ class AnalyticsUserRow(BaseModel):
     quizzes_completed: int
 
 
+class AnalyticsUserDocumentRow(BaseModel):
+    id: int
+    title: str
+    status: str
+    created_at: datetime
+    total_flashcards: int
+    has_quiz: bool
+
+
+class AnalyticsUserEventRow(BaseModel):
+    event_name: str
+    occurred_at: datetime
+    document_id: Optional[int] = None
+    quiz_id: Optional[int] = None
+
+
+class AnalyticsUserDetail(AnalyticsUserRow):
+    is_team: bool
+    is_test_user: bool
+    is_blocked: bool
+    utm_medium: Optional[str] = None
+    utm_content: Optional[str] = None
+    utm_term: Optional[str] = None
+    referrer: Optional[str] = None
+    landing_page: Optional[str] = None
+    first_touch_at: Optional[datetime] = None
+    recent_documents: list[AnalyticsUserDocumentRow]
+    recent_events: list[AnalyticsUserEventRow]
+
+
+class AdminUserUpdateRequest(BaseModel):
+    is_team: Optional[bool] = None
+    is_test_user: Optional[bool] = None
+    is_blocked: Optional[bool] = None
+
+
 def _range_start(days: int) -> datetime:
     return datetime.now(timezone.utc) - timedelta(days=days)
 
@@ -78,6 +114,38 @@ def _apply_user_filters(
     if lifecycle_stage:
         statement = statement.where(models.User.lifecycle_stage == lifecycle_stage)
     return statement
+
+
+def _build_user_row(session: Session, user: models.User) -> AnalyticsUserRow:
+    total_decks = session.exec(
+        select(func.count(models.Document.id)).where(models.Document.user_id == user.id)
+    ).one() or 0
+    flashcards_studied = session.exec(
+        select(func.count(models.StudyLog.id)).where(models.StudyLog.user_id == user.id)
+    ).one() or 0
+    quizzes_completed = session.exec(
+        select(func.count(models.QuizAttempt.id)).where(models.QuizAttempt.user_id == user.id)
+    ).one() or 0
+
+    return AnalyticsUserRow(
+        id=user.id or 0,
+        username=user.username,
+        email=user.email,
+        provider=user.provider.value,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
+        first_login_at=user.first_login_at,
+        first_deck_created_at=user.first_deck_created_at,
+        first_study_at=user.first_study_at,
+        first_quiz_at=user.first_quiz_at,
+        activated_at=user.activated_at,
+        lifecycle_stage=user.lifecycle_stage,
+        utm_source=user.utm_source,
+        utm_campaign=user.utm_campaign,
+        total_decks=total_decks,
+        flashcards_studied=flashcards_studied,
+        quizzes_completed=quizzes_completed,
+    )
 
 
 @router.get("/overview", response_model=AnalyticsOverview)
@@ -303,38 +371,109 @@ def get_analytics_users(
         )
     ).all()
 
-    rows: list[AnalyticsUserRow] = []
-    for user in users:
-        total_decks = session.exec(
-            select(func.count(models.Document.id)).where(models.Document.user_id == user.id)
-        ).one() or 0
-        flashcards_studied = session.exec(
-            select(func.count(models.StudyLog.id)).where(models.StudyLog.user_id == user.id)
-        ).one() or 0
-        quizzes_completed = session.exec(
-            select(func.count(models.QuizAttempt.id)).where(models.QuizAttempt.user_id == user.id)
-        ).one() or 0
+    return [_build_user_row(session, user) for user in users]
 
-        rows.append(
-            AnalyticsUserRow(
-                id=user.id or 0,
-                username=user.username,
-                email=user.email,
-                provider=user.provider.value,
-                created_at=user.created_at,
-                last_login_at=user.last_login_at,
-                first_login_at=user.first_login_at,
-                first_deck_created_at=user.first_deck_created_at,
-                first_study_at=user.first_study_at,
-                first_quiz_at=user.first_quiz_at,
-                activated_at=user.activated_at,
-                lifecycle_stage=user.lifecycle_stage,
-                utm_source=user.utm_source,
-                utm_campaign=user.utm_campaign,
-                total_decks=total_decks,
-                flashcards_studied=flashcards_studied,
-                quizzes_completed=quizzes_completed,
+
+@router.get("/users/{user_id}", response_model=AnalyticsUserDetail)
+def get_analytics_user_detail(
+    user_id: int,
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+):
+    del current_user
+    user = session.get(models.User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    base_row = _build_user_row(session, user)
+
+    recent_documents = session.exec(
+        select(models.Document)
+        .where(models.Document.user_id == user_id)
+        .order_by(models.Document.created_at.desc())
+        .limit(5)
+    ).all()
+
+    recent_events = session.exec(
+        select(models.ProductEvent)
+        .where(models.ProductEvent.user_id == user_id)
+        .order_by(models.ProductEvent.occurred_at.desc())
+        .limit(8)
+    ).all()
+
+    return AnalyticsUserDetail(
+        **base_row.model_dump(),
+        is_team=user.is_team,
+        is_test_user=user.is_test_user,
+        is_blocked=user.is_blocked,
+        utm_medium=user.utm_medium,
+        utm_content=user.utm_content,
+        utm_term=user.utm_term,
+        referrer=user.referrer,
+        landing_page=user.landing_page,
+        first_touch_at=user.first_touch_at,
+        recent_documents=[
+            AnalyticsUserDocumentRow(
+                id=document.id or 0,
+                title=document.title or document.file_path,
+                status=document.status.value,
+                created_at=document.created_at,
+                total_flashcards=len(document.flashcards),
+                has_quiz=document.quiz is not None,
             )
+            for document in recent_documents
+        ],
+        recent_events=[
+            AnalyticsUserEventRow(
+                event_name=event.event_name,
+                occurred_at=event.occurred_at,
+                document_id=event.document_id,
+                quiz_id=event.quiz_id,
+            )
+            for event in recent_events
+        ],
+    )
+
+
+@router.patch("/users/{user_id}", response_model=AnalyticsUserDetail)
+def update_analytics_user_admin_state(
+    user_id: int,
+    payload: AdminUserUpdateRequest,
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+):
+    user = session.get(models.User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    requested_changes = payload.model_dump(exclude_unset=True)
+    if not requested_changes:
+        return get_analytics_user_detail(user_id=user_id, current_user=current_user, session=session)
+
+    if current_user.id == user_id:
+        if requested_changes.get("is_blocked") is True:
+            raise HTTPException(status_code=400, detail="Você não pode bloquear a própria conta.")
+        if requested_changes.get("is_team") is False:
+            raise HTTPException(status_code=400, detail="Você não pode remover seu próprio acesso de equipe.")
+
+    changed_fields: dict[str, bool] = {}
+    for field_name, value in requested_changes.items():
+        if getattr(user, field_name) != value:
+            setattr(user, field_name, value)
+            changed_fields[field_name] = value
+
+    if changed_fields:
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        analytics_service.track_product_event(
+            session,
+            "admin_user_flags_updated",
+            user_id=current_user.id,
+            properties={
+                "target_user_id": user.id,
+                "changed_fields": changed_fields,
+            },
         )
 
-    return rows
+    return get_analytics_user_detail(user_id=user_id, current_user=current_user, session=session)
