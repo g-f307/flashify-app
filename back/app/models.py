@@ -101,6 +101,12 @@ class User(SQLModel, table=True):
     documents: List["Document"] = Relationship(back_populates="user")
     quiz_attempts: List["QuizAttempt"] = Relationship(back_populates="user")
     product_events: List["ProductEvent"] = Relationship(back_populates="user")
+    admin_notes: List["UserAdminNote"] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "[UserAdminNote.user_id]"}
+    )
+    authored_admin_notes: List["UserAdminNote"] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "[UserAdminNote.author_user_id]"}
+    )
 
 # NOVO MODELO FOLDER
 class Folder(SQLModel, table=True):
@@ -301,3 +307,15 @@ class ProductEvent(SQLModel, table=True):
     quiz_id: Optional[int] = Field(default=None, foreign_key="quiz.id", index=True)
 
     user: Optional[User] = Relationship(back_populates="product_events")
+
+
+class UserAdminNote(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    note: str = Field(sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    user_id: int = Field(foreign_key="user.id", index=True)
+    author_user_id: int = Field(foreign_key="user.id", index=True)
