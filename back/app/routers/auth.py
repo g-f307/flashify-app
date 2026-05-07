@@ -10,7 +10,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 from .. import crud, models, schemas, security
-from ..analytics import track_product_event
+from ..analytics import mark_user_first_login, track_product_event, update_user_lifecycle_stage
 from ..database import get_session
 from ..email_service import email_service  # 🆕 IMPORTAR
 
@@ -33,6 +33,10 @@ async def create_new_user(user: schemas.UserCreate, session: Session = Depends(g
         )
     
     created_user = crud.create_user(session=session, user_create=user)
+    update_user_lifecycle_stage(created_user)
+    session.add(created_user)
+    session.commit()
+    session.refresh(created_user)
     track_product_event(
         session,
         "user_registered",
@@ -71,6 +75,7 @@ def login_for_access_token(
     user.inactivity_email_sent = False
     session.add(user)
     session.commit()
+    mark_user_first_login(session, user)
     
     access_token = security.create_access_token(subject=user.email)
     track_product_event(
@@ -85,6 +90,7 @@ def login_for_access_token(
 # 🆕 ATUALIZAR TAMBÉM O LOGIN DO GOOGLE
 class GoogleAuthCode(SQLModel):
     code: str
+    acquisition_context: schemas.AcquisitionContext | None = None
 
 @router.post("/google", response_model=schemas.Token)
 async def auth_google(
@@ -137,7 +143,8 @@ async def auth_google(
         session=session, 
         email=email,
         username=username,
-        profile_picture_url=profile_picture_url
+        profile_picture_url=profile_picture_url,
+        acquisition_context=auth_code.acquisition_context,
     )
     is_new_user = (datetime.now(timezone.utc) - db_user.created_at).total_seconds() < 60
     if is_new_user:
@@ -153,6 +160,7 @@ async def auth_google(
     db_user.inactivity_email_sent = False
     session.add(db_user)
     session.commit()
+    mark_user_first_login(session, db_user)
     
     # 🆕 SE FOR NOVO USUÁRIO (acabou de ser criado), ENVIAR E-MAIL DE BOAS-VINDAS
     if is_new_user:
@@ -249,6 +257,7 @@ async def auth_google_mobile(
         db_user.inactivity_email_sent = False
         session.add(db_user)
         session.commit()
+        mark_user_first_login(session, db_user)
         
         # 6. Gerar JWT token da nossa aplicação
         jwt_token = security.create_access_token(subject=db_user.email)

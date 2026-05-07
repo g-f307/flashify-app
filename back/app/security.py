@@ -66,3 +66,19 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+def get_current_team_user(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
+    if not current_user.is_team:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito à equipe interna.",
+        )
+    if current_user.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuário bloqueado.",
+        )
+    return current_user
