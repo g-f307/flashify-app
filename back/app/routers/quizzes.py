@@ -5,7 +5,7 @@ from sqlmodel import Session
 from typing_extensions import Annotated
 
 from .. import crud, models, security, schemas
-from ..analytics import track_product_event
+from ..analytics import mark_user_first_quiz, track_product_event
 from ..database import get_session
 from ..study_ordering import order_due_for_review
 
@@ -113,6 +113,7 @@ def submit_quiz_attempt(
     session.add(quiz_attempt)
     session.commit()
     session.refresh(quiz_attempt)
+    mark_user_first_quiz(session, current_user, occurred_at=quiz_attempt.completed_at)
     track_product_event(
         session,
         "quiz_completed",

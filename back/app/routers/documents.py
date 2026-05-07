@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 from typing_extensions import Annotated
 
 from .. import crud, models, security, schemas
-from ..analytics import track_product_event
+from ..analytics import mark_user_first_deck_created, track_product_event
 from ..database import get_session
 from ..security import get_current_user
 from ..tasks import process_document 
@@ -495,6 +495,7 @@ def upload_document(
         generates_flashcards=generates_flashcards,
         generates_quizzes=generates_quizzes
     )
+    mark_user_first_deck_created(session, current_user, occurred_at=db_document.created_at)
     track_product_event(
         session,
         "deck_created",
@@ -558,6 +559,7 @@ def create_document_from_text(
         generates_flashcards=text_input.generate_flashcards,
         generates_quizzes=text_input.generate_quizzes
     )
+    mark_user_first_deck_created(session, current_user, occurred_at=db_document.created_at)
     track_product_event(
         session,
         "deck_created",

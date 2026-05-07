@@ -5,7 +5,7 @@ from typing_extensions import Annotated
 from pydantic import BaseModel, Field
 
 from .. import crud, models, security, schemas 
-from ..analytics import track_product_event
+from ..analytics import mark_user_first_study, track_product_event
 from ..database import get_session
 from ..ai_generator import chat_about_flashcard
 
@@ -120,6 +120,7 @@ def log_study_session(
         flashcard_id=flashcard_id,
         accuracy=study_input.accuracy
     )
+    mark_user_first_study(session, current_user, occurred_at=study_log.studied_at)
     track_product_event(
         session,
         "flashcard_studied",
