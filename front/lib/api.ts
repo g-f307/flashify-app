@@ -42,6 +42,29 @@ export interface AnalyticsOverview {
   decks_completed_7d: number;
 }
 
+export interface FunnelStep {
+  key: string;
+  label: string;
+  users: number;
+  conversion_from_previous: number | null;
+  conversion_from_start: number | null;
+}
+
+export interface AnalyticsFunnel {
+  cohort_users: number;
+  steps: FunnelStep[];
+}
+
+export interface AnalyticsRetention {
+  active_users_1d: number;
+  active_users_7d: number;
+  active_users_30d: number;
+  returning_users_7d: number;
+  returning_users_30d: number;
+  activation_retention_7d: number;
+  activation_retention_30d: number;
+}
+
 export interface AcquisitionBreakdownItem {
   source: string;
   users: number;
@@ -556,6 +579,14 @@ class ApiClient {
 
   async getAcquisitionSummary(filters: AnalyticsFilters = {}): Promise<AcquisitionSummary> {
     return this.request<AcquisitionSummary>(`/analytics/acquisition${this.buildQuery(filters)}`);
+  }
+
+  async getAnalyticsFunnel(filters: AnalyticsFilters = {}): Promise<AnalyticsFunnel> {
+    return this.request<AnalyticsFunnel>(`/analytics/funnel${this.buildQuery(filters)}`);
+  }
+
+  async getAnalyticsRetention(filters: AnalyticsFilters = {}): Promise<AnalyticsRetention> {
+    return this.request<AnalyticsRetention>(`/analytics/retention${this.buildQuery(filters)}`);
   }
 
   async getAnalyticsUsers(filters: AnalyticsFilters = {}): Promise<AnalyticsUserRow[]> {
