@@ -7,10 +7,22 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 # --- Schemas de Usuário e Autenticação ---
+class AcquisitionContext(SQLModel):
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+    utm_content: Optional[str] = None
+    utm_term: Optional[str] = None
+    referrer: Optional[str] = None
+    landing_page: Optional[str] = None
+    first_touch_at: Optional[datetime] = None
+
+
 class UserCreate(SQLModel):
     username: str
     email: str
     password: str
+    acquisition_context: Optional[AcquisitionContext] = None
 
 class UserRead(SQLModel):
     id: int
@@ -19,6 +31,7 @@ class UserRead(SQLModel):
     is_active: bool
     profile_picture_url: Optional[str] = None
     provider: AuthProvider
+    is_team: bool = False
 
 class UserPasswordUpdate(SQLModel):
     current_password: str

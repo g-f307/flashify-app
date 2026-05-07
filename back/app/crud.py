@@ -36,11 +36,45 @@ def normalize_flashcard_type(raw_type: object) -> models.FlashcardType:
     print(f"⚠️ Tipo de flashcard inválido recebido: {raw_type!r}. Usando 'concept' como fallback.")
     return models.FlashcardType.CONCEPT
 
+
+def apply_acquisition_context(
+    user: models.User,
+    acquisition_context: schemas.AcquisitionContext | None,
+) -> bool:
+    if not acquisition_context:
+        return False
+
+    updated = False
+    tracked_fields = (
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_content",
+        "utm_term",
+        "referrer",
+        "landing_page",
+    )
+
+    for field_name in tracked_fields:
+        current_value = getattr(user, field_name, None)
+        new_value = getattr(acquisition_context, field_name, None)
+        if current_value or not new_value:
+            continue
+        setattr(user, field_name, new_value)
+        updated = True
+
+    if user.first_touch_at is None and acquisition_context.first_touch_at is not None:
+        user.first_touch_at = acquisition_context.first_touch_at
+        updated = True
+
+    return updated
+
 def get_or_create_google_user(
     session: Session,
     email: str,
     username: str,
-    profile_picture_url: Optional[str] = None
+    profile_picture_url: Optional[str] = None,
+    acquisition_context: Optional[schemas.AcquisitionContext] = None,
 ) -> models.User:
     """
     Busca um usuário pelo e-mail. Se existir, atualiza a foto (se necessário).
@@ -48,8 +82,13 @@ def get_or_create_google_user(
     """
     user = get_user_by_email(session, email=email)
     if user:
+        should_commit = False
         if not user.profile_picture_url and profile_picture_url:
             user.profile_picture_url = profile_picture_url
+            should_commit = True
+        if apply_acquisition_context(user, acquisition_context):
+            should_commit = True
+        if should_commit:
             session.add(user)
             session.commit()
             session.refresh(user)
@@ -62,6 +101,7 @@ def get_or_create_google_user(
         is_active=True,
         profile_picture_url=profile_picture_url
     )
+    apply_acquisition_context(new_user, acquisition_context)
     session.add(new_user)
     session.commit()
     session.refresh(new_user)
@@ -89,6 +129,7 @@ def create_user(session: Session, user_create: schemas.UserCreate) -> models.Use
         email=user_create.email,
         hashed_password=hashed_password
     )
+    apply_acquisition_context(db_user, user_create.acquisition_context)
     session.add(db_user)
     session.commit()
     session.refresh(db_user)

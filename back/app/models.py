@@ -46,6 +46,26 @@ class User(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=True),
         default=None
     )
+    first_login_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
+    first_deck_created_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
+    first_study_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
+    first_quiz_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
+    activated_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
     is_team: bool = Field(default=False)
     is_test_user: bool = Field(default=False)
     is_blocked: bool = Field(default=False)
