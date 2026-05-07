@@ -258,7 +258,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.82))] p-6 shadow-sm dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(24,24,27,0.92))]">
+      <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.82))] p-6 shadow-sm dark:border-zinc-800/80 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(24,24,27,0.92))]">
         <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(72,207,234,0.16),transparent_52%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.16),transparent_44%)]" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl space-y-3">
@@ -277,19 +277,19 @@ export default function AdminPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm">
+            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Janela</p>
               <p className="mt-2 text-lg font-semibold text-foreground">{filters.days} dias</p>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm">
+            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Ativação</p>
               <p className="mt-2 text-lg font-semibold text-foreground">{activationRate}%</p>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm">
+            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Origens</p>
               <p className="mt-2 text-lg font-semibold text-foreground">{acquisition.top_sources.length}</p>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm">
+            <div className="rounded-2xl border border-border/60 bg-background/75 px-4 py-3 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Usuários</p>
               <p className="mt-2 text-lg font-semibold text-foreground">{formatCompact(overview.total_users)}</p>
             </div>
@@ -297,7 +297,7 @@ export default function AdminPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 rounded-3xl border border-border/60 bg-card/70 p-4 shadow-sm lg:grid-cols-6">
+      <section className="grid gap-3 rounded-3xl border border-border/60 bg-card/70 p-4 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/70 lg:grid-cols-6">
         <div className="flex items-center justify-between gap-2 px-2 pb-2 lg:col-span-6">
           <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
@@ -458,7 +458,7 @@ export default function AdminPage() {
 
         <TabsContent value="overview" className="space-y-4">
       <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card className="border-border/70 bg-card/95 shadow-sm">
+        <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <div>
             <CardTitle className="text-xl">Resumo operacional</CardTitle>
@@ -475,7 +475,7 @@ export default function AdminPage() {
               ["Decks criados", overview.decks_created_7d, "Novos decks no recorte"],
               ["Taxa de ativação", `${activationRate}%`, "Ativados sobre base filtrada"],
             ].map(([label, value, helper]) => (
-              <div key={label} className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+              <div key={label} className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/40">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
                 <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
                 <p className="mt-2 text-sm text-muted-foreground">{helper}</p>
@@ -484,13 +484,13 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/70 bg-card/95 shadow-sm">
+        <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
           <CardHeader>
             <CardTitle className="text-xl">Aquisição</CardTitle>
             <CardDescription>Leitura rápida das origens mais presentes e do volume sem atribuição.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+            <div className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Sem atribuição</p>
               <p className="mt-2 text-3xl font-semibold text-foreground">{acquisition.unattributed_users}</p>
               <p className="mt-2 text-sm text-muted-foreground">Usuários sem `utm_source` no recorte atual.</p>
@@ -501,9 +501,9 @@ export default function AdminPage() {
                 <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Top fontes</p>
                 <div className="space-y-2">
                   {acquisition.top_sources.length ? acquisition.top_sources.map((item) => (
-                    <div key={item.source} className="flex items-center justify-between rounded-xl border border-border/50 bg-background/60 px-3 py-2.5">
+                    <div key={item.source} className="flex items-center justify-between rounded-xl border border-border/50 bg-background/60 px-3 py-2.5 dark:border-zinc-800/70 dark:bg-zinc-950/35">
                       <span className="text-sm font-medium text-foreground">{item.source}</span>
-                      <Badge variant="outline" className="border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:text-[#87ebfb]">
+                      <Badge variant="outline" className="border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:border-[#48cfea]/25 dark:bg-[#48cfea]/14 dark:text-[#87ebfb]">
                         {item.users}
                       </Badge>
                     </div>
@@ -515,9 +515,9 @@ export default function AdminPage() {
                 <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Top campanhas</p>
                 <div className="space-y-2">
                   {acquisition.top_campaigns.length ? acquisition.top_campaigns.map((item) => (
-                    <div key={item.source} className="flex items-center justify-between rounded-xl border border-border/50 bg-background/60 px-3 py-2.5">
+                    <div key={item.source} className="flex items-center justify-between rounded-xl border border-border/50 bg-background/60 px-3 py-2.5 dark:border-zinc-800/70 dark:bg-zinc-950/35">
                       <span className="text-sm font-medium text-foreground">{item.source}</span>
-                      <Badge variant="outline" className="border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:text-[#ffe27c]">
+                      <Badge variant="outline" className="border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:border-[#facc15]/25 dark:bg-[#facc15]/14 dark:text-[#ffe27c]">
                         {item.users}
                       </Badge>
                     </div>
@@ -531,7 +531,7 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-      <Card className="border-border/70 bg-card/95 shadow-sm">
+      <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <CardTitle className="text-xl">Usuários e estágio de funil</CardTitle>
@@ -539,7 +539,7 @@ export default function AdminPage() {
               Amostra operacional dos usuários mais recentes com aquisição, milestones e sinais de uso.
             </CardDescription>
           </div>
-          <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
             {filteredUsers.length} registros no recorte atual
           </div>
         </CardHeader>
@@ -561,7 +561,7 @@ export default function AdminPage() {
           </div>
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="border-border/60 dark:border-zinc-800/80">
                 <TableHead className="pl-3">Usuário</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>Estágio</TableHead>
@@ -572,7 +572,7 @@ export default function AdminPage() {
             </TableHeader>
             <TableBody>
               {filteredUsers.map((entry) => (
-                <TableRow key={entry.id}>
+                <TableRow key={entry.id} className="border-border/50 dark:border-zinc-800/70">
                   <TableCell className="pl-3">
                     <div className="space-y-1">
                       <div className="font-medium text-foreground">{entry.username}</div>
@@ -582,7 +582,7 @@ export default function AdminPage() {
                   <TableCell>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="border-border/60 bg-background/80">
+                        <Badge variant="outline" className="border-border/60 bg-background/80 dark:border-zinc-800/80 dark:bg-zinc-950/45">
                           {entry.provider}
                         </Badge>
                         {entry.utm_source ? (
@@ -603,7 +603,7 @@ export default function AdminPage() {
                         "border px-2.5 py-1",
                         entry.lifecycle_stage === "activated" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
                         entry.lifecycle_stage === "created_deck" && "border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:text-[#ffe27c]",
-                        entry.lifecycle_stage === "registered" && "border-border/60 bg-background/80",
+                        entry.lifecycle_stage === "registered" && "border-border/60 bg-background/80 dark:border-zinc-800/80 dark:bg-zinc-950/45",
                       )}
                     >
                       {LIFECYCLE_LABELS[entry.lifecycle_stage || "registered"] || entry.lifecycle_stage || "Registrado"}
@@ -637,7 +637,7 @@ export default function AdminPage() {
                 </TableRow>
               ))}
               {!filteredUsers.length ? (
-                <TableRow>
+                <TableRow className="border-border/50 dark:border-zinc-800/70">
                   <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                     Nenhum usuário encontrado para os filtros e busca atuais.
                   </TableCell>
