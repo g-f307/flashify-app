@@ -78,6 +78,7 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 
 type FilterState = {
   days: string;
@@ -86,6 +87,9 @@ type FilterState = {
   include_internal: string;
   utm_source: string;
   utm_campaign: string;
+  is_team: string;
+  is_test_user: string;
+  is_blocked: string;
 };
 
 type SortKey =
@@ -216,6 +220,9 @@ const buildFilters = (filters: FilterState): AnalyticsFilters => ({
   include_internal: filters.include_internal === "yes",
   utm_source: filters.utm_source === "all" ? undefined : filters.utm_source,
   utm_campaign: filters.utm_campaign === "all" ? undefined : filters.utm_campaign,
+  is_team: filters.is_team === "all" ? undefined : filters.is_team === "yes",
+  is_test_user: filters.is_test_user === "all" ? undefined : filters.is_test_user === "yes",
+  is_blocked: filters.is_blocked === "all" ? undefined : filters.is_blocked === "yes",
 });
 
 const escapeHtml = (value: string) =>
@@ -308,6 +315,9 @@ export default function AdminPage() {
     include_internal: "no",
     utm_source: "all",
     utm_campaign: "all",
+    is_team: "all",
+    is_test_user: "all",
+    is_blocked: "all",
   });
   const [overview, setOverview] = useState<AnalyticsOverview>(DEFAULT_OVERVIEW);
   const [acquisition, setAcquisition] = useState<AcquisitionSummary>(DEFAULT_ACQUISITION);
@@ -331,6 +341,8 @@ export default function AdminPage() {
   const [isUserDetailLoading, setIsUserDetailLoading] = useState(false);
   const [isSavingUserAdmin, setIsSavingUserAdmin] = useState(false);
   const [userAdminDraft, setUserAdminDraft] = useState<AdminUserUpdateRequest>({});
+  const [noteDraft, setNoteDraft] = useState("");
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
   const apiFilters = useMemo(() => buildFilters(filters), [filters]);
   const userSourceOptions = useMemo(
@@ -403,6 +415,9 @@ export default function AdminPage() {
         label: "Internos",
         value: filters.include_internal === "yes" ? "Incluídos" : "Ocultos",
       },
+      { label: "Equipe", value: filters.is_team === "all" ? "Todos" : filters.is_team === "yes" ? "Sim" : "Não" },
+      { label: "Teste", value: filters.is_test_user === "all" ? "Todos" : filters.is_test_user === "yes" ? "Sim" : "Não" },
+      { label: "Bloqueado", value: filters.is_blocked === "all" ? "Todos" : filters.is_blocked === "yes" ? "Sim" : "Não" },
       { label: "Origem", value: filters.utm_source === "all" ? "Todas" : filters.utm_source },
       {
         label: "Campanha",
@@ -504,6 +519,7 @@ export default function AdminPage() {
         is_test_user: detail.is_test_user,
         is_blocked: detail.is_blocked,
       });
+      setNoteDraft("");
     } catch (detailError) {
       console.error("Erro ao carregar detalhe do usuário:", detailError);
       setError("Não foi possível carregar os detalhes do usuário.");
@@ -531,6 +547,23 @@ export default function AdminPage() {
       setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar as alterações administrativas.");
     } finally {
       setIsSavingUserAdmin(false);
+    }
+  };
+
+  const saveAdminNote = async () => {
+    if (!selectedUserDetail?.id || !noteDraft.trim()) return;
+
+    setIsSavingNote(true);
+    setError(null);
+    try {
+      await apiClient.createAnalyticsUserNote(selectedUserDetail.id, { note: noteDraft.trim() });
+      await loadUserDetail(selectedUserDetail.id);
+      setNoteDraft("");
+    } catch (noteError) {
+      console.error("Erro ao salvar nota administrativa:", noteError);
+      setError(noteError instanceof Error ? noteError.message : "Não foi possível salvar a nota.");
+    } finally {
+      setIsSavingNote(false);
     }
   };
 
@@ -1133,8 +1166,8 @@ export default function AdminPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 rounded-3xl border border-border/60 bg-card/70 p-4 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/70 lg:grid-cols-6">
-        <div className="flex flex-col gap-3 px-2 pb-2 lg:col-span-6 lg:flex-row lg:items-center lg:justify-between">
+      <section className="grid gap-3 rounded-3xl border border-border/60 bg-card/70 p-4 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/70 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
+        <div className="flex flex-col gap-3 px-2 pb-2 md:col-span-2 lg:col-span-4 xl:col-span-9 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">Filtros estratégicos</p>
@@ -1262,6 +1295,48 @@ export default function AdminPage() {
               {userCampaignOptions.map((campaign) => (
                 <SelectItem key={campaign} value={campaign}>{campaign}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Equipe</label>
+          <Select value={filters.is_team} onValueChange={(value) => setFilters((prev) => ({ ...prev, is_team: value }))}>
+            <SelectTrigger className="w-full bg-background">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="yes">Somente equipe</SelectItem>
+              <SelectItem value="no">Sem equipe</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Teste</label>
+          <Select value={filters.is_test_user} onValueChange={(value) => setFilters((prev) => ({ ...prev, is_test_user: value }))}>
+            <SelectTrigger className="w-full bg-background">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="yes">Somente teste</SelectItem>
+              <SelectItem value="no">Sem teste</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Bloqueio</label>
+          <Select value={filters.is_blocked} onValueChange={(value) => setFilters((prev) => ({ ...prev, is_blocked: value }))}>
+            <SelectTrigger className="w-full bg-background">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="yes">Bloqueados</SelectItem>
+              <SelectItem value="no">Não bloqueados</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -2107,6 +2182,81 @@ export default function AdminPage() {
                   ) : null}
                 </CardContent>
               </Card>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Notas internas</CardTitle>
+                    <CardDescription>Contexto manual para marketing, suporte e operação.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <Textarea
+                        value={noteDraft}
+                        onChange={(event) => setNoteDraft(event.target.value)}
+                        placeholder="Adicionar observação interna sobre este usuário..."
+                        className="min-h-24 border-border/60 bg-background dark:border-zinc-800/80"
+                      />
+                      <div className="flex justify-end">
+                        <Button onClick={saveAdminNote} disabled={isSavingNote || !noteDraft.trim()}>
+                          {isSavingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          Salvar nota
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {selectedUserDetail.admin_notes.length ? selectedUserDetail.admin_notes.map((note) => (
+                        <div key={note.id} className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground">
+                                {note.author_username || note.author_email || `Usuário #${note.author_user_id}`}
+                              </p>
+                              <p className="mt-1 break-words text-sm text-foreground/90">{note.note}</p>
+                            </div>
+                            <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(note.created_at)}</span>
+                          </div>
+                        </div>
+                      )) : (
+                        <p className="text-sm text-muted-foreground">Nenhuma nota interna registrada ainda.</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+                  <CardHeader>
+                    <CardTitle className="text-base">Histórico administrativo</CardTitle>
+                    <CardDescription>Mudanças feitas pela equipe nessa conta.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {selectedUserDetail.admin_history.length ? selectedUserDetail.admin_history.map((event, index) => (
+                      <div key={`${event.event_name}-${event.occurred_at}-${index}`} className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <Badge
+                              variant="outline"
+                              className="block w-fit max-w-full whitespace-normal break-words border-border/60 bg-background/80 px-2.5 py-1 text-left leading-relaxed text-foreground dark:border-zinc-800/80 dark:bg-zinc-950/45"
+                            >
+                              {event.event_name}
+                            </Badge>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              {event.actor_email || (event.actor_user_id ? `Usuário #${event.actor_user_id}` : "Equipe interna")}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-right text-xs text-muted-foreground">{formatDateTime(event.occurred_at)}</span>
+                        </div>
+                        {event.summary ? (
+                          <p className="mt-2 break-words text-xs text-muted-foreground">{event.summary}</p>
+                        ) : null}
+                      </div>
+                    )) : (
+                      <p className="text-sm text-muted-foreground">Nenhuma ação administrativa registrada ainda.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
 
               <div className="grid gap-4 xl:grid-cols-2">
                 <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
