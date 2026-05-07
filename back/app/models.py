@@ -1,5 +1,5 @@
 # app/models.py
-from typing import Optional, List
+from typing import Optional, List, Any
 from sqlmodel import Field, SQLModel, Relationship
 from enum import Enum # Importe Enum
 from sqlalchemy import Column, Text, JSON,func, DateTime, Integer
@@ -35,6 +35,21 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     provider: AuthProvider = Field(default=AuthProvider.LOCAL)
     profile_picture_url: Optional[str] = Field(default=None)
+    utm_source: Optional[str] = Field(default=None)
+    utm_medium: Optional[str] = Field(default=None)
+    utm_campaign: Optional[str] = Field(default=None)
+    utm_content: Optional[str] = Field(default=None)
+    utm_term: Optional[str] = Field(default=None)
+    referrer: Optional[str] = Field(default=None)
+    landing_page: Optional[str] = Field(default=None)
+    first_touch_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
+    is_team: bool = Field(default=False)
+    is_test_user: bool = Field(default=False)
+    is_blocked: bool = Field(default=False)
+    lifecycle_stage: Optional[str] = Field(default=None)
     
     # 🆕 CAMPOS PARA TRACKING DE E-MAILS (já existentes)
     last_login_at: Optional[datetime] = Field(
@@ -65,6 +80,7 @@ class User(SQLModel, table=True):
     folders: List["Folder"] = Relationship(back_populates="user")
     documents: List["Document"] = Relationship(back_populates="user")
     quiz_attempts: List["QuizAttempt"] = Relationship(back_populates="user")
+    product_events: List["ProductEvent"] = Relationship(back_populates="user")
 
 # NOVO MODELO FOLDER
 class Folder(SQLModel, table=True):
@@ -246,3 +262,22 @@ class GuidedStudySession(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=True),
         default=None
     )
+
+
+class ProductEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    event_name: str = Field(index=True)
+    occurred_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    properties: Optional[dict[str, Any]] = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True)
+    )
+
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    document_id: Optional[int] = Field(default=None, foreign_key="document.id", index=True)
+    quiz_id: Optional[int] = Field(default=None, foreign_key="quiz.id", index=True)
+
+    user: Optional[User] = Relationship(back_populates="product_events")
