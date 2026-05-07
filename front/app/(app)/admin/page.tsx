@@ -115,6 +115,8 @@ type PdfExportOptions = {
   includeMetrics: boolean;
 };
 
+type ReportPresetId = "executive" | "campaign" | "operational" | "custom";
+
 const DEFAULT_OVERVIEW: AnalyticsOverview = {
   total_users: 0,
   new_users_7d: 0,
@@ -161,6 +163,67 @@ const DEFAULT_PDF_OPTIONS: PdfExportOptions = {
   includeUsers: true,
   includeMilestones: true,
   includeMetrics: true,
+};
+
+const REPORT_STORAGE_KEY = "flashify-admin-report-preset";
+const REPORT_OPTIONS_STORAGE_KEY = "flashify-admin-report-options";
+
+const REPORT_PRESETS: Record<
+  Exclude<ReportPresetId, "custom">,
+  {
+    label: string;
+    description: string;
+    reportTitle: string;
+    reportSubtitle: string;
+    filenameSuffix: string;
+    options: PdfExportOptions;
+  }
+> = {
+  executive: {
+    label: "Executivo",
+    description: "Resumo direto para liderança com foco em visão geral e aquisição.",
+    reportTitle: "Relatório Executivo Flashify",
+    reportSubtitle: "Resumo de ativação, aquisição e leitura de negócio para acompanhamento gerencial.",
+    filenameSuffix: "executivo",
+    options: {
+      includeFilters: true,
+      includeOverview: true,
+      includeAcquisition: true,
+      includeUsers: false,
+      includeMilestones: false,
+      includeMetrics: false,
+    },
+  },
+  campaign: {
+    label: "Campanha",
+    description: "Leitura de qualidade de aquisição para marketing e tráfego pago.",
+    reportTitle: "Relatório de Campanhas Flashify",
+    reportSubtitle: "Desempenho de aquisição com foco em origem, ativação e consistência de uso.",
+    filenameSuffix: "campanhas",
+    options: {
+      includeFilters: true,
+      includeOverview: false,
+      includeAcquisition: true,
+      includeUsers: true,
+      includeMilestones: false,
+      includeMetrics: true,
+    },
+  },
+  operational: {
+    label: "Operacional",
+    description: "Base detalhada para suporte, operação e acompanhamento diário da equipe.",
+    reportTitle: "Relatório Operacional Flashify",
+    reportSubtitle: "Visão operacional da base filtrada com usuários, marcos do funil e sinais de uso.",
+    filenameSuffix: "operacional",
+    options: {
+      includeFilters: true,
+      includeOverview: true,
+      includeAcquisition: false,
+      includeUsers: true,
+      includeMilestones: true,
+      includeMetrics: true,
+    },
+  },
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -235,6 +298,14 @@ const escapeHtml = (value: string) =>
 
 const getLifecycleLabel = (value: string | null) =>
   LIFECYCLE_LABELS[value || "registered"] || value || "Registrado";
+
+const arePdfOptionsEqual = (left: PdfExportOptions, right: PdfExportOptions) =>
+  left.includeFilters === right.includeFilters &&
+  left.includeOverview === right.includeOverview &&
+  left.includeAcquisition === right.includeAcquisition &&
+  left.includeUsers === right.includeUsers &&
+  left.includeMilestones === right.includeMilestones &&
+  left.includeMetrics === right.includeMetrics;
 
 const getSortValue = (entry: AnalyticsUserRow, key: SortKey): string | number => {
   switch (key) {
@@ -335,6 +406,7 @@ export default function AdminPage() {
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [pdfOptions, setPdfOptions] = useState<PdfExportOptions>(DEFAULT_PDF_OPTIONS);
+  const [reportPreset, setReportPreset] = useState<ReportPresetId>("executive");
   const [isUserSheetOpen, setIsUserSheetOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedUserDetail, setSelectedUserDetail] = useState<AnalyticsUserDetail | null>(null);
@@ -399,6 +471,8 @@ export default function AdminPage() {
     isEditingSelf &&
       (userAdminDraft.is_team === false || userAdminDraft.is_blocked === true)
   );
+  const activeReportDefinition =
+    reportPreset === "custom" ? null : REPORT_PRESETS[reportPreset];
 
   const filtersSummary = useMemo(
     () => [
@@ -494,6 +568,50 @@ export default function AdminPage() {
     }
   }, [currentPage, totalPages]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const savedPreset = window.localStorage.getItem(REPORT_STORAGE_KEY);
+    const savedOptions = window.localStorage.getItem(REPORT_OPTIONS_STORAGE_KEY);
+
+    if (
+      savedPreset === "executive" ||
+      savedPreset === "campaign" ||
+      savedPreset === "operational" ||
+      savedPreset === "custom"
+    ) {
+      setReportPreset(savedPreset);
+    }
+
+    if (savedOptions) {
+      try {
+        const parsed = JSON.parse(savedOptions) as PdfExportOptions;
+        if (parsed && typeof parsed === "object") {
+          setPdfOptions({
+            includeFilters: Boolean(parsed.includeFilters),
+            includeOverview: Boolean(parsed.includeOverview),
+            includeAcquisition: Boolean(parsed.includeAcquisition),
+            includeUsers: Boolean(parsed.includeUsers),
+            includeMilestones: Boolean(parsed.includeMilestones),
+            includeMetrics: Boolean(parsed.includeMetrics),
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao carregar preferências de relatório:", error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(REPORT_STORAGE_KEY, reportPreset);
+    window.localStorage.setItem(REPORT_OPTIONS_STORAGE_KEY, JSON.stringify(pdfOptions));
+  }, [pdfOptions, reportPreset]);
+
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -502,6 +620,22 @@ export default function AdminPage() {
 
     setSortKey(key);
     setSortDirection(key === "username" || key === "utm_source" || key === "provider" ? "asc" : "desc");
+  };
+
+  const applyReportPreset = (preset: Exclude<ReportPresetId, "custom">) => {
+    setReportPreset(preset);
+    setPdfOptions(REPORT_PRESETS[preset].options);
+  };
+
+  const updatePdfOption = (key: keyof PdfExportOptions, value: boolean) => {
+    const nextOptions = { ...pdfOptions, [key]: value };
+    setPdfOptions(nextOptions);
+
+    const matchingPreset = (Object.entries(REPORT_PRESETS) as Array<
+      [Exclude<ReportPresetId, "custom">, (typeof REPORT_PRESETS)[Exclude<ReportPresetId, "custom">]]
+    >).find(([, preset]) => arePdfOptionsEqual(preset.options, nextOptions));
+
+    setReportPreset(matchingPreset ? matchingPreset[0] : "custom");
   };
 
   const openUserSheet = (userId: number) => {
@@ -629,7 +763,8 @@ export default function AdminPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `flashify-admin-${new Date().toISOString().slice(0, 10)}.csv`;
+    const csvSuffix = activeReportDefinition?.filenameSuffix || "custom";
+    link.download = `flashify-admin-${csvSuffix}-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -642,7 +777,11 @@ export default function AdminPage() {
     try {
       const logoUrl = `${window.location.origin}/flashify_logo.svg`;
       const printedAt = formatDateTimeLong(new Date().toISOString());
-      const reportTitle = "Relatório Administrativo Flashify";
+      const reportTitle = activeReportDefinition?.reportTitle || "Relatório Personalizado Flashify";
+      const reportSubtitle =
+        activeReportDefinition?.reportSubtitle ||
+        "Relatório personalizado com os blocos selecionados pela equipe para este recorte.";
+      const reportFilenameSuffix = activeReportDefinition?.filenameSuffix || "custom";
       const usersRowsHtml = sortedUsers
         .map((entry) => {
           const metricParts = pdfOptions.includeMetrics
@@ -915,7 +1054,7 @@ export default function AdminPage() {
                 <div>
                   <div class="eyebrow">Relatório Administrativo</div>
                   <h1>${reportTitle}</h1>
-                  <div class="sub">Aquisição, ativação e comportamento operacional da base filtrada.</div>
+                  <div class="sub">${reportSubtitle}</div>
                 </div>
               </div>
               <div class="meta">
@@ -1096,6 +1235,7 @@ export default function AdminPage() {
         };
 
         iframe.contentWindow?.focus();
+        iframeDocument.title = `${reportFilenameSuffix}-${new Date().toISOString().slice(0, 10)}`;
         iframe.contentWindow?.print();
         iframe.contentWindow?.addEventListener("afterprint", cleanup, { once: true });
         window.setTimeout(cleanup, 1500);
@@ -1929,15 +2069,49 @@ export default function AdminPage() {
           <DialogHeader>
             <DialogTitle>Exportar relatório em PDF</DialogTitle>
             <DialogDescription>
-              Monte um relatório mais executivo para a equipe com os blocos que fazem sentido para este recorte. O PDF será aberto em modo de impressão com cabeçalho, rodapé e paginação.
+              Escolha um preset pronto ou personalize os blocos do relatório. Suas preferências ficam salvas neste navegador para a próxima exportação.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Presets de relatório</p>
+                  <p className="text-sm text-muted-foreground">Aplicam combinações prontas para diferentes usos da equipe.</p>
+                </div>
+                <Badge variant="outline" className="border-border/60 bg-background/80 dark:border-zinc-800/80 dark:bg-zinc-950/45">
+                  {reportPreset === "custom" ? "Personalizado" : REPORT_PRESETS[reportPreset].label}
+                </Badge>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(Object.entries(REPORT_PRESETS) as Array<
+                  [Exclude<ReportPresetId, "custom">, (typeof REPORT_PRESETS)[Exclude<ReportPresetId, "custom">]]
+                >).map(([presetId, preset]) => (
+                  <button
+                    key={presetId}
+                    type="button"
+                    onClick={() => applyReportPreset(presetId)}
+                    className={cn(
+                      "rounded-2xl border px-4 py-4 text-left transition-colors",
+                      reportPreset === presetId
+                        ? "border-[#48cfea]/40 bg-[#48cfea]/10"
+                        : "border-border/60 bg-background/70 hover:bg-background dark:border-zinc-800/80 dark:bg-zinc-950/40"
+                    )}
+                  >
+                    <p className="font-medium text-foreground">{preset.label}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{preset.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <Checkbox
                 checked={pdfOptions.includeFilters}
-                onCheckedChange={(checked) => setPdfOptions((prev) => ({ ...prev, includeFilters: Boolean(checked) }))}
+                onCheckedChange={(checked) => updatePdfOption("includeFilters", Boolean(checked))}
               />
               <div className="space-y-1">
                 <Label className="font-medium text-foreground">Filtros aplicados</Label>
@@ -1948,7 +2122,7 @@ export default function AdminPage() {
             <label className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <Checkbox
                 checked={pdfOptions.includeOverview}
-                onCheckedChange={(checked) => setPdfOptions((prev) => ({ ...prev, includeOverview: Boolean(checked) }))}
+                onCheckedChange={(checked) => updatePdfOption("includeOverview", Boolean(checked))}
               />
               <div className="space-y-1">
                 <Label className="font-medium text-foreground">Resumo operacional</Label>
@@ -1959,7 +2133,7 @@ export default function AdminPage() {
             <label className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <Checkbox
                 checked={pdfOptions.includeAcquisition}
-                onCheckedChange={(checked) => setPdfOptions((prev) => ({ ...prev, includeAcquisition: Boolean(checked) }))}
+                onCheckedChange={(checked) => updatePdfOption("includeAcquisition", Boolean(checked))}
               />
               <div className="space-y-1">
                 <Label className="font-medium text-foreground">Aquisição</Label>
@@ -1970,7 +2144,7 @@ export default function AdminPage() {
             <label className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <Checkbox
                 checked={pdfOptions.includeUsers}
-                onCheckedChange={(checked) => setPdfOptions((prev) => ({ ...prev, includeUsers: Boolean(checked) }))}
+                onCheckedChange={(checked) => updatePdfOption("includeUsers", Boolean(checked))}
               />
               <div className="space-y-1">
                 <Label className="font-medium text-foreground">Tabela de usuários</Label>
@@ -1981,7 +2155,7 @@ export default function AdminPage() {
             <label className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <Checkbox
                 checked={pdfOptions.includeMilestones}
-                onCheckedChange={(checked) => setPdfOptions((prev) => ({ ...prev, includeMilestones: Boolean(checked) }))}
+                onCheckedChange={(checked) => updatePdfOption("includeMilestones", Boolean(checked))}
                 disabled={!pdfOptions.includeUsers}
               />
               <div className="space-y-1">
@@ -1993,7 +2167,7 @@ export default function AdminPage() {
             <label className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
               <Checkbox
                 checked={pdfOptions.includeMetrics}
-                onCheckedChange={(checked) => setPdfOptions((prev) => ({ ...prev, includeMetrics: Boolean(checked) }))}
+                onCheckedChange={(checked) => updatePdfOption("includeMetrics", Boolean(checked))}
                 disabled={!pdfOptions.includeUsers}
               />
               <div className="space-y-1">
@@ -2001,6 +2175,14 @@ export default function AdminPage() {
                 <p className="text-sm text-muted-foreground">Inclui decks, estudos e quizzes da base exportada.</p>
               </div>
             </label>
+            </div>
+
+            <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-sm text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
+              <span className="font-medium text-foreground">Preset atual:</span>{" "}
+              {reportPreset === "custom"
+                ? "Personalizado pela equipe neste navegador."
+                : `${REPORT_PRESETS[reportPreset].label} salvo como padrão local.`}
+            </div>
           </div>
 
           <DialogFooter>
