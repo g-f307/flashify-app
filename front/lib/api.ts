@@ -130,6 +130,23 @@ export interface AnalyticsUserEventRow {
   quiz_id: number | null;
 }
 
+export interface AnalyticsAdminHistoryRow {
+  event_name: string;
+  occurred_at: string;
+  actor_user_id: number | null;
+  actor_email: string | null;
+  summary: string | null;
+}
+
+export interface AnalyticsAdminNoteRow {
+  id: number;
+  note: string;
+  created_at: string;
+  author_user_id: number;
+  author_email: string | null;
+  author_username: string | null;
+}
+
 export interface AnalyticsUserDetail extends AnalyticsUserRow {
   is_team: boolean;
   is_test_user: boolean;
@@ -142,6 +159,8 @@ export interface AnalyticsUserDetail extends AnalyticsUserRow {
   first_touch_at: string | null;
   recent_documents: AnalyticsUserDocumentRow[];
   recent_events: AnalyticsUserEventRow[];
+  admin_history: AnalyticsAdminHistoryRow[];
+  admin_notes: AnalyticsAdminNoteRow[];
 }
 
 export interface AdminUserUpdateRequest {
@@ -150,12 +169,19 @@ export interface AdminUserUpdateRequest {
   is_blocked?: boolean;
 }
 
+export interface AdminUserNoteCreateRequest {
+  note: string;
+}
+
 export interface AnalyticsFilters {
   days?: number;
   provider?: "local" | "google";
   utm_source?: string;
   utm_campaign?: string;
   lifecycle_stage?: string;
+  is_team?: boolean;
+  is_test_user?: boolean;
+  is_blocked?: boolean;
   include_internal?: boolean;
   limit?: number;
 }
@@ -622,6 +648,13 @@ class ApiClient {
   async updateAnalyticsUser(userId: number, data: AdminUserUpdateRequest): Promise<AnalyticsUserDetail> {
     return this.request<AnalyticsUserDetail>(`/analytics/users/${userId}`, {
       method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createAnalyticsUserNote(userId: number, data: AdminUserNoteCreateRequest): Promise<AnalyticsAdminNoteRow> {
+    return this.request<AnalyticsAdminNoteRow>(`/analytics/users/${userId}/notes`, {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
