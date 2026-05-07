@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 from typing_extensions import Annotated
 
 from .. import crud, models, security, schemas
+from ..analytics import track_product_event
 from ..database import get_session
 from ..security import get_current_user
 from ..tasks import process_document 
@@ -494,6 +495,19 @@ def upload_document(
         generates_flashcards=generates_flashcards,
         generates_quizzes=generates_quizzes
     )
+    track_product_event(
+        session,
+        "deck_created",
+        user_id=current_user.id,
+        document_id=db_document.id,
+        properties={
+            "source": "upload",
+            "content_type": content_type,
+            "folder_id": folder_id,
+            "generates_flashcards": generates_flashcards,
+            "generates_quizzes": generates_quizzes,
+        },
+    )
     
     process_document.delay(
         document_id=db_document.id,
@@ -543,6 +557,19 @@ def create_document_from_text(
         folder_id=text_input.folder_id,
         generates_flashcards=text_input.generate_flashcards,
         generates_quizzes=text_input.generate_quizzes
+    )
+    track_product_event(
+        session,
+        "deck_created",
+        user_id=current_user.id,
+        document_id=db_document.id,
+        properties={
+            "source": "text",
+            "content_type": text_input.content_type,
+            "folder_id": text_input.folder_id,
+            "generates_flashcards": text_input.generate_flashcards,
+            "generates_quizzes": text_input.generate_quizzes,
+        },
     )
 
     db_document.extracted_text = text_input.text
