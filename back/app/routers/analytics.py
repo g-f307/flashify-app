@@ -23,6 +23,29 @@ class AnalyticsOverview(BaseModel):
     decks_completed_7d: int
 
 
+class FunnelStep(BaseModel):
+    key: str
+    label: str
+    users: int
+    conversion_from_previous: float | None = None
+    conversion_from_start: float | None = None
+
+
+class AnalyticsFunnel(BaseModel):
+    cohort_users: int
+    steps: list[FunnelStep]
+
+
+class AnalyticsRetention(BaseModel):
+    active_users_1d: int
+    active_users_7d: int
+    active_users_30d: int
+    returning_users_7d: int
+    returning_users_30d: int
+    activation_retention_7d: int
+    activation_retention_30d: int
+
+
 class AcquisitionBreakdownItem(BaseModel):
     source: str
     users: int
@@ -146,6 +169,31 @@ def _build_user_row(session: Session, user: models.User) -> AnalyticsUserRow:
         flashcards_studied=flashcards_studied,
         quizzes_completed=quizzes_completed,
     )
+
+
+def _count_filtered_users(
+    session: Session,
+    *,
+    provider: Optional[models.AuthProvider] = None,
+    utm_source: Optional[str] = None,
+    utm_campaign: Optional[str] = None,
+    lifecycle_stage: Optional[str] = None,
+    include_internal: bool = False,
+    extra_where: tuple = (),
+) -> int:
+    statement = select(func.count(models.User.id))
+    if extra_where:
+        statement = statement.where(*extra_where)
+    return session.exec(
+        _apply_user_filters(
+            statement,
+            provider=provider,
+            utm_source=utm_source,
+            utm_campaign=utm_campaign,
+            lifecycle_stage=lifecycle_stage,
+            include_internal=include_internal,
+        )
+    ).one() or 0
 
 
 @router.get("/overview", response_model=AnalyticsOverview)
@@ -343,6 +391,201 @@ def get_acquisition_summary(
             for campaign, count in top_campaign_rows
             if campaign
         ],
+    )
+
+
+@router.get("/funnel", response_model=AnalyticsFunnel)
+def get_analytics_funnel(
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+    days: int = Query(30, ge=1, le=365),
+    provider: Optional[models.AuthProvider] = Query(None),
+    utm_source: Optional[str] = Query(None),
+    utm_campaign: Optional[str] = Query(None),
+    include_internal: bool = Query(False),
+):
+    del current_user
+    range_start = _range_start(days)
+
+    cohort_filter = (models.User.created_at >= range_start,)
+    registered_users = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        include_internal=include_internal,
+        extra_where=cohort_filter,
+    )
+    created_deck_users = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        include_internal=include_internal,
+        extra_where=cohort_filter + (models.User.first_deck_created_at.is_not(None),),
+    )
+    studied_users = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        include_internal=include_internal,
+        extra_where=cohort_filter + (models.User.first_study_at.is_not(None),),
+    )
+    quiz_users = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        include_internal=include_internal,
+        extra_where=cohort_filter + (models.User.first_quiz_at.is_not(None),),
+    )
+    activated_users = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        include_internal=include_internal,
+        extra_where=cohort_filter + (models.User.activated_at.is_not(None),),
+    )
+
+    raw_steps = [
+        ("registered", "Cadastro", registered_users),
+        ("created_deck", "Criou deck", created_deck_users),
+        ("studied", "Estudou", studied_users),
+        ("quiz_completed", "Concluiu quiz", quiz_users),
+        ("activated", "Ativou", activated_users),
+    ]
+
+    steps: list[FunnelStep] = []
+    previous_count: int | None = None
+    for key, label, users in raw_steps:
+        conversion_from_previous = None
+        if previous_count and previous_count > 0:
+            conversion_from_previous = round((users / previous_count) * 100, 1)
+
+        conversion_from_start = None
+        if registered_users > 0:
+            conversion_from_start = round((users / registered_users) * 100, 1)
+
+        steps.append(
+            FunnelStep(
+                key=key,
+                label=label,
+                users=users,
+                conversion_from_previous=conversion_from_previous,
+                conversion_from_start=conversion_from_start,
+            )
+        )
+        previous_count = users
+
+    return AnalyticsFunnel(cohort_users=registered_users, steps=steps)
+
+
+@router.get("/retention", response_model=AnalyticsRetention)
+def get_analytics_retention(
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+    provider: Optional[models.AuthProvider] = Query(None),
+    utm_source: Optional[str] = Query(None),
+    utm_campaign: Optional[str] = Query(None),
+    lifecycle_stage: Optional[str] = Query(None),
+    include_internal: bool = Query(False),
+):
+    del current_user
+
+    one_day = _range_start(1)
+    seven_days = _range_start(7)
+    thirty_days = _range_start(30)
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+
+    active_users_1d = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        include_internal=include_internal,
+        extra_where=(models.User.last_login_at >= one_day,),
+    )
+    active_users_7d = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        include_internal=include_internal,
+        extra_where=(models.User.last_login_at >= seven_days,),
+    )
+    active_users_30d = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        include_internal=include_internal,
+        extra_where=(models.User.last_login_at >= thirty_days,),
+    )
+    returning_users_7d = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        include_internal=include_internal,
+        extra_where=(
+            models.User.last_login_at >= seven_days,
+            models.User.created_at < seven_days,
+        ),
+    )
+    returning_users_30d = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        include_internal=include_internal,
+        extra_where=(
+            models.User.last_login_at >= thirty_days,
+            models.User.created_at < thirty_days,
+        ),
+    )
+    activation_retention_7d = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        include_internal=include_internal,
+        extra_where=(
+            models.User.activated_at.is_not(None),
+            models.User.activated_at <= seven_days_ago,
+            models.User.last_login_at >= seven_days,
+        ),
+    )
+    activation_retention_30d = _count_filtered_users(
+        session,
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        include_internal=include_internal,
+        extra_where=(
+            models.User.activated_at.is_not(None),
+            models.User.activated_at <= thirty_days_ago,
+            models.User.last_login_at >= thirty_days,
+        ),
+    )
+
+    return AnalyticsRetention(
+        active_users_1d=active_users_1d,
+        active_users_7d=active_users_7d,
+        active_users_30d=active_users_30d,
+        returning_users_7d=returning_users_7d,
+        returning_users_30d=returning_users_30d,
+        activation_retention_7d=activation_retention_7d,
+        activation_retention_30d=activation_retention_30d,
     )
 
 
