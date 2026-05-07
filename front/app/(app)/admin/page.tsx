@@ -30,6 +30,8 @@ import {
   AdminUserUpdateRequest,
   AcquisitionSummary,
   AnalyticsFilters,
+  AnalyticsFunnel,
+  AnalyticsRetention,
   AnalyticsUserDetail,
   AnalyticsOverview,
   AnalyticsUserRow,
@@ -124,6 +126,21 @@ const DEFAULT_ACQUISITION: AcquisitionSummary = {
   unattributed_users: 0,
   top_sources: [],
   top_campaigns: [],
+};
+
+const DEFAULT_FUNNEL: AnalyticsFunnel = {
+  cohort_users: 0,
+  steps: [],
+};
+
+const DEFAULT_RETENTION: AnalyticsRetention = {
+  active_users_1d: 0,
+  active_users_7d: 0,
+  active_users_30d: 0,
+  returning_users_7d: 0,
+  returning_users_30d: 0,
+  activation_retention_7d: 0,
+  activation_retention_30d: 0,
 };
 
 const DEFAULT_PDF_OPTIONS: PdfExportOptions = {
@@ -287,6 +304,8 @@ export default function AdminPage() {
   });
   const [overview, setOverview] = useState<AnalyticsOverview>(DEFAULT_OVERVIEW);
   const [acquisition, setAcquisition] = useState<AcquisitionSummary>(DEFAULT_ACQUISITION);
+  const [funnel, setFunnel] = useState<AnalyticsFunnel>(DEFAULT_FUNNEL);
+  const [retention, setRetention] = useState<AnalyticsRetention>(DEFAULT_RETENTION);
   const [users, setUsers] = useState<AnalyticsUserRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -349,6 +368,12 @@ export default function AdminPage() {
   const activationRate = overview.total_users > 0
     ? Math.round((overview.activated_users_7d / overview.total_users) * 100)
     : 0;
+  const retentionRate7d = overview.total_users > 0
+    ? Math.round((retention.returning_users_7d / overview.total_users) * 100)
+    : 0;
+  const retentionRate30d = overview.total_users > 0
+    ? Math.round((retention.returning_users_30d / overview.total_users) * 100)
+    : 0;
   const isEditingSelf = selectedUserDetail?.id === user.id;
   const invalidSelfAdminChange = Boolean(
     isEditingSelf &&
@@ -393,12 +418,16 @@ export default function AdminPage() {
     Promise.all([
       apiClient.getAnalyticsOverview(apiFilters),
       apiClient.getAcquisitionSummary({ ...apiFilters, limit: 8 }),
+      apiClient.getAnalyticsFunnel(apiFilters),
+      apiClient.getAnalyticsRetention(apiFilters),
       apiClient.getAnalyticsUsers({ ...apiFilters, limit: 200 }),
     ])
-      .then(([overviewResponse, acquisitionResponse, usersResponse]) => {
+      .then(([overviewResponse, acquisitionResponse, funnelResponse, retentionResponse, usersResponse]) => {
         if (cancelled) return;
         setOverview(overviewResponse);
         setAcquisition(acquisitionResponse);
+        setFunnel(funnelResponse);
+        setRetention(retentionResponse);
         setUsers(usersResponse);
       })
       .catch((fetchError) => {
@@ -1274,6 +1303,76 @@ export default function AdminPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+              <CardHeader>
+                <CardTitle className="text-xl">Funil de ativação</CardTitle>
+                <CardDescription>
+                  Coorte de usuários cadastrados nos últimos {filters.days} dias, com conversão por etapa até ativação.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-sm text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                  Coorte analisada: <span className="font-medium text-foreground">{funnel.cohort_users}</span> usuários
+                </div>
+                <div className="grid gap-3 lg:grid-cols-5">
+                  {funnel.steps.length ? funnel.steps.map((step, index) => (
+                    <div key={step.key} className="relative rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Etapa {index + 1}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-foreground">{step.label}</p>
+                      <p className="mt-3 text-3xl font-semibold text-foreground">{step.users}</p>
+                      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                        <p>
+                          Base inicial:{" "}
+                          <span className="font-medium text-foreground">
+                            {step.conversion_from_start === null ? "—" : `${step.conversion_from_start}%`}
+                          </span>
+                        </p>
+                        <p>
+                          Etapa anterior:{" "}
+                          <span className="font-medium text-foreground">
+                            {step.conversion_from_previous === null ? "—" : `${step.conversion_from_previous}%`}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-8 text-sm text-muted-foreground dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      Sem dados suficientes para compor o funil neste recorte.
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+              <CardHeader>
+                <CardTitle className="text-xl">Retenção básica</CardTitle>
+                <CardDescription>
+                  Sinais rápidos de retorno e consistência da base filtrada.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2">
+                {[
+                  ["Ativos 1d", retention.active_users_1d, "Voltaram nas últimas 24h"],
+                  ["Ativos 7d", retention.active_users_7d, "Voltaram na última semana"],
+                  ["Ativos 30d", retention.active_users_30d, "Voltaram no último mês"],
+                  ["Retorno 7d", `${retentionRate7d}%`, `${retention.returning_users_7d} usuários da base antiga`],
+                  ["Retorno 30d", `${retentionRate30d}%`, `${retention.returning_users_30d} usuários da base antiga`],
+                  ["Ativados retidos", retention.activation_retention_7d, "Ativados há 7d+ e ainda ativos"],
+                ].map(([label, value, helper]) => (
+                  <div key={label} className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+                    <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{helper}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </section>
+
           <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
               <CardHeader className="flex flex-row items-center justify-between pb-4">
