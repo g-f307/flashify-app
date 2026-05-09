@@ -204,6 +204,10 @@ class FlashcardConversation(SQLModel, table=True):
 # NOVO MODELO PARA REGISTRO DE ESTUDO
 class StudyLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    started_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
     studied_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
         default_factory=lambda: datetime.now(timezone.utc)
@@ -257,6 +261,10 @@ class QuizAttempt(SQLModel, table=True):
     score: float
     correct_answers: int
     total_questions: int
+    started_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
     completed_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
         default_factory=lambda: datetime.now(timezone.utc)
@@ -339,4 +347,7 @@ class UserActivityDay(SQLModel, table=True):
     quiz_count: int = Field(default=0)
     event_count: int = Field(default=0)
     guided_study_count: int = Field(default=0)
+    flashcard_study_minutes: int = Field(default=0)
+    quiz_study_minutes: int = Field(default=0)
+    guided_study_minutes: int = Field(default=0)
     estimated_study_minutes: int = Field(default=0)

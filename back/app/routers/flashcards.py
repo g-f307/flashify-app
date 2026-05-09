@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 from typing_extensions import Annotated
 from pydantic import BaseModel, Field
+from datetime import datetime, timezone
 
 from .. import crud, models, security, schemas 
 from ..analytics import mark_user_first_study, track_product_event
@@ -25,6 +26,7 @@ class ChatResponse(BaseModel):
 class StudyLogInput(BaseModel):
     # O valor que virá do frontend (0.0 para Errei, 0.5 para Quase, 1.0 para Acertei)
     accuracy: float = Field(ge=0.0, le=1.0)
+    started_at: datetime | None = None
 
 # --- Rotas existentes (mantidas) ---
 
@@ -118,7 +120,9 @@ def log_study_session(
         session=session,
         user_id=current_user.id,
         flashcard_id=flashcard_id,
-        accuracy=study_input.accuracy
+        accuracy=study_input.accuracy,
+        started_at=study_input.started_at,
+        studied_at=datetime.now(timezone.utc),
     )
     mark_user_first_study(session, current_user, occurred_at=study_log.studied_at)
     track_product_event(

@@ -277,11 +277,25 @@ def get_flashcard(session: Session, flashcard_id: int, user_id: int) -> models.F
     )
     return session.exec(statement).first()
 
-def create_study_log(session: Session, user_id: int, flashcard_id: int, accuracy: float) -> models.StudyLog:
+def create_study_log(
+    session: Session,
+    user_id: int,
+    flashcard_id: int,
+    accuracy: float,
+    *,
+    started_at: datetime | None = None,
+    studied_at: datetime | None = None,
+) -> models.StudyLog:
+    studied_at = studied_at or datetime.now(timezone.utc)
+    if started_at is None or started_at > studied_at:
+        started_at = studied_at
+
     db_study_log = models.StudyLog(
         user_id=user_id,
         flashcard_id=flashcard_id,
-        accuracy=accuracy
+        accuracy=accuracy,
+        started_at=started_at,
+        studied_at=studied_at,
     )
     session.add(db_study_log)
     session.commit()

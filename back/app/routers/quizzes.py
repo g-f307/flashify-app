@@ -1,5 +1,5 @@
 # back/app/routers/quizzes.py
-
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 from typing_extensions import Annotated
@@ -77,6 +77,7 @@ class SubmitQuizRequest(models.SQLModel):
     score: float
     correct_answers: int
     total_questions: int
+    started_at: datetime | None = None
     # 🆕 Para o SRS: mapeamento de question_id -> acertou (True) / errou (False)
     question_results: dict[int, bool] = {}
 
@@ -94,10 +95,15 @@ def submit_quiz_attempt(
     if not quiz or quiz.document.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz não encontrado.")
     
+    completed_at = datetime.now(timezone.utc)
+    started_at = request.started_at if request.started_at and request.started_at <= completed_at else completed_at
+
     quiz_attempt = models.QuizAttempt(
         score=request.score,
         correct_answers=request.correct_answers,
         total_questions=request.total_questions,
+        started_at=started_at,
+        completed_at=completed_at,
         quiz_id=quiz_id,
         user_id=current_user.id
     )
