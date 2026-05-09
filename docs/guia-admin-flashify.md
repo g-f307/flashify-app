@@ -682,8 +682,8 @@ O cálculo do tempo de estudo usa a duração registrada das atividades:
 
 Diferente do mapa de calor geral da aba `Rotina`, o heatmap individual usa cores para indicar o tipo de atividade feita naquele dia:
 
-- `Ciano`: flashcards
-- `Amarelo`: quiz
+- `Amarelo`: flashcards
+- `Ciano`: quiz
 - `Verde`: estudo guiado
 - `Roxo`: misto (mais de um tipo no mesmo dia)
 - `Cinza claro`: apenas login, sem estudo
@@ -700,7 +700,7 @@ Cada item mostra:
 - um ícone indicando o tipo de atividade (📚 flashcards, ✅ quiz, 📖 estudo guiado, 🔀 misto, 🔑 apenas login)
 - a data por extenso com o dia da semana
 - um resumo do que foi feito (ex: `3 flashcards · 1 quiz`)
-- o tempo estimado de estudo, quando houver
+- o tempo registrado de estudo, quando houver
 
 Essa lista é rolável e ajuda a entender rapidamente o que o usuário fez nos dias em que acessou a plataforma.
 
