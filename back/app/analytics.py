@@ -186,6 +186,12 @@ def refresh_user_activity_days(
         models.StudyLog.user_id,
         sa_func.date(models.StudyLog.studied_at).label("d"),
         sa_func.count().label("cnt"),
+        sa_func.sum(
+            sa_func.extract(
+                "epoch",
+                models.StudyLog.studied_at - models.StudyLog.started_at,
+            )
+        ).label("dur_seconds"),
     ).where(models.StudyLog.studied_at >= cutoff).group_by(
         models.StudyLog.user_id, text("d")
     )
@@ -197,6 +203,12 @@ def refresh_user_activity_days(
         models.QuizAttempt.user_id,
         sa_func.date(models.QuizAttempt.completed_at).label("d"),
         sa_func.count().label("cnt"),
+        sa_func.sum(
+            sa_func.extract(
+                "epoch",
+                models.QuizAttempt.completed_at - models.QuizAttempt.started_at,
+            )
+        ).label("dur_seconds"),
     ).where(models.QuizAttempt.completed_at >= cutoff).group_by(
         models.QuizAttempt.user_id, text("d")
     )
@@ -262,22 +274,38 @@ def refresh_user_activity_days(
     # --- merge into a dict[user_id, date] -> counts -------------------------
     DayKey = tuple  # (user_id, date)
     merged: dict[DayKey, dict[str, int | float]] = defaultdict(
-        lambda: {"login": 0, "study": 0, "quiz": 0, "event": 0, "guided": 0, "minutes": 0.0}
+        lambda: {
+            "login": 0,
+            "study": 0,
+            "quiz": 0,
+            "event": 0,
+            "guided": 0,
+            "flashcard_minutes": 0.0,
+            "quiz_minutes": 0.0,
+            "guided_minutes": 0.0,
+            "minutes": 0.0,
+        }
     )
 
-    for uid, d, cnt in session.exec(study_stmt).all():
+    for uid, d, cnt, dur in session.exec(study_stmt).all():
         merged[(uid, d)]["study"] += cnt
-        # Estimate ~0.5 min per flashcard reviewed
-        merged[(uid, d)]["minutes"] += cnt * 0.5
-    for uid, d, cnt in session.exec(quiz_stmt).all():
+        if dur and dur > 0:
+            study_minutes = float(dur) / 60.0
+            merged[(uid, d)]["flashcard_minutes"] += study_minutes
+            merged[(uid, d)]["minutes"] += study_minutes
+    for uid, d, cnt, dur in session.exec(quiz_stmt).all():
         merged[(uid, d)]["quiz"] += cnt
-        # Estimate ~2 min per quiz completed
-        merged[(uid, d)]["minutes"] += cnt * 2.0
+        if dur and dur > 0:
+            quiz_minutes = float(dur) / 60.0
+            merged[(uid, d)]["quiz_minutes"] += quiz_minutes
+            merged[(uid, d)]["minutes"] += quiz_minutes
     for uid, d, cnt, dur in session.exec(guided_stmt).all():
         merged[(uid, d)]["guided"] += cnt
         if dur and dur > 0:
             # Cap at 120 min per day to avoid outliers from open tabs
-            merged[(uid, d)]["minutes"] += min(float(dur) / 60.0, 120.0)
+            guided_minutes = min(float(dur) / 60.0, 120.0)
+            merged[(uid, d)]["guided_minutes"] += guided_minutes
+            merged[(uid, d)]["minutes"] += guided_minutes
     for uid, d, cnt in session.exec(login_stmt).all():
         merged[(uid, d)]["login"] += cnt
     for uid, d, cnt in session.exec(event_stmt).all():
@@ -305,6 +333,9 @@ def refresh_user_activity_days(
             quiz_count=int(counts["quiz"]),
             event_count=int(counts["event"]),
             guided_study_count=int(counts["guided"]),
+            flashcard_study_minutes=int(round(counts["flashcard_minutes"])),
+            quiz_study_minutes=int(round(counts["quiz_minutes"])),
+            guided_study_minutes=int(round(counts["guided_minutes"])),
             estimated_study_minutes=int(round(counts["minutes"])),
         )
         for (uid, d), counts in merged.items()

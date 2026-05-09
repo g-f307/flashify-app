@@ -1135,6 +1135,9 @@ class UserRoutineDayRow(BaseModel):
     quiz_count: int
     login_count: int
     guided_study_count: int
+    flashcard_study_minutes: int
+    quiz_study_minutes: int
+    guided_study_minutes: int
     estimated_study_minutes: int
     total_sessions: int
     intensity: int
@@ -1157,6 +1160,9 @@ class UserRoutineDetail(BaseModel):
     last_activity_date: Optional[str] = None
     engagement_label: str
     engagement_score: float
+    total_flashcard_study_minutes: int
+    total_quiz_study_minutes: int
+    total_guided_study_minutes: int
     total_study_minutes: int
 
 
@@ -1534,6 +1540,9 @@ def get_user_routine(
     ]
 
     # Build day-by-day list
+    total_flashcard_study_mins = 0
+    total_quiz_study_mins = 0
+    total_guided_study_mins = 0
     total_study_mins = 0
     day_rows: list[UserRoutineDayRow] = []
     cursor = start
@@ -1543,6 +1552,12 @@ def get_user_routine(
             s = row.study_count + row.quiz_count
             mins = row.estimated_study_minutes if hasattr(row, 'estimated_study_minutes') else 0
             guided = row.guided_study_count if hasattr(row, 'guided_study_count') else 0
+            flashcard_mins = row.flashcard_study_minutes if hasattr(row, 'flashcard_study_minutes') else 0
+            quiz_mins = row.quiz_study_minutes if hasattr(row, 'quiz_study_minutes') else 0
+            guided_mins = row.guided_study_minutes if hasattr(row, 'guided_study_minutes') else 0
+            total_flashcard_study_mins += flashcard_mins
+            total_quiz_study_mins += quiz_mins
+            total_guided_study_mins += guided_mins
             total_study_mins += mins
 
             # Determine activity type
@@ -1569,6 +1584,9 @@ def get_user_routine(
                 quiz_count=row.quiz_count,
                 login_count=row.login_count,
                 guided_study_count=guided,
+                flashcard_study_minutes=flashcard_mins,
+                quiz_study_minutes=quiz_mins,
+                guided_study_minutes=guided_mins,
                 estimated_study_minutes=mins,
                 total_sessions=s,
                 intensity=_intensity(s, max_sessions),
@@ -1578,7 +1596,11 @@ def get_user_routine(
             day_rows.append(UserRoutineDayRow(
                 date=cursor.isoformat(),
                 study_count=0, quiz_count=0, login_count=0,
-                guided_study_count=0, estimated_study_minutes=0,
+                guided_study_count=0,
+                flashcard_study_minutes=0,
+                quiz_study_minutes=0,
+                guided_study_minutes=0,
+                estimated_study_minutes=0,
                 total_sessions=0, intensity=0, activity_type="none",
             ))
         cursor += timedelta(days=1)
@@ -1610,5 +1632,8 @@ def get_user_routine(
         last_activity_date=last_date.isoformat() if last_date else None,
         engagement_label=eng_label,
         engagement_score=eng_score,
+        total_flashcard_study_minutes=total_flashcard_study_mins,
+        total_quiz_study_minutes=total_quiz_study_mins,
+        total_guided_study_minutes=total_guided_study_mins,
         total_study_minutes=total_study_mins,
     )
