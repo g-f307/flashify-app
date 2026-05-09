@@ -186,6 +186,97 @@ export interface AnalyticsFilters {
   limit?: number;
 }
 
+// ---------------------------------------------------------------------------
+// Routine analytics interfaces
+// ---------------------------------------------------------------------------
+
+export interface RoutineDayOfWeekBreakdown {
+  weekday: number;
+  weekday_label: string;
+  active_users: number;
+  total_sessions: number;
+}
+
+export interface RoutineHourBreakdown {
+  hour: number;
+  active_users: number;
+  total_sessions: number;
+}
+
+export interface RoutineUserBucket {
+  label: string;
+  users: number;
+}
+
+export interface RoutineConsistentUser {
+  user_id: number;
+  username: string;
+  email: string;
+  active_days: number;
+  current_streak: number;
+  last_active_date: string | null;
+}
+
+export interface RoutineOverview {
+  period_days: number;
+  total_users_in_filter: number;
+  users_with_any_activity: number;
+  average_active_days: number;
+  median_active_days: number;
+  max_active_days: number;
+  users_active_last_7d: number;
+  users_active_last_3d: number;
+  frequency_buckets: RoutineUserBucket[];
+  weekday_breakdown: RoutineDayOfWeekBreakdown[];
+  hour_breakdown: RoutineHourBreakdown[];
+  top_consistent_users: RoutineConsistentUser[];
+}
+
+export interface HeatmapDay {
+  date: string;
+  active_users: number;
+  total_sessions: number;
+  intensity: number;
+}
+
+export interface RoutineHeatmap {
+  start_date: string;
+  end_date: string;
+  total_days: number;
+  days: HeatmapDay[];
+}
+
+export interface UserRoutineDayRow {
+  date: string;
+  study_count: number;
+  quiz_count: number;
+  login_count: number;
+  guided_study_count: number;
+  estimated_study_minutes: number;
+  total_sessions: number;
+  intensity: number;
+  activity_type: string;
+}
+
+export interface UserRoutineDetail {
+  user_id: number;
+  period_days: number;
+  total_active_days: number;
+  total_inactive_days: number;
+  current_streak: number;
+  longest_streak: number;
+  average_gap_days: number;
+  preferred_weekday: string;
+  preferred_weekday_count: number;
+  weekday_breakdown: RoutineDayOfWeekBreakdown[];
+  days: UserRoutineDayRow[];
+  days_since_last_activity: number | null;
+  last_activity_date: string | null;
+  engagement_label: string;
+  engagement_score: number;
+  total_study_minutes: number;
+}
+
 export interface Token {
   access_token: string;
   token_type: string;
@@ -657,6 +748,18 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  async getRoutineOverview(filters: AnalyticsFilters = {}): Promise<RoutineOverview> {
+    return this.request<RoutineOverview>(`/analytics/routine-overview${this.buildQuery(filters)}`);
+  }
+
+  async getRoutineHeatmap(filters: AnalyticsFilters = {}): Promise<RoutineHeatmap> {
+    return this.request<RoutineHeatmap>(`/analytics/routine-heatmap${this.buildQuery(filters)}`);
+  }
+
+  async getUserRoutine(userId: number, days = 90): Promise<UserRoutineDetail> {
+    return this.request<UserRoutineDetail>(`/analytics/users/${userId}/routine?days=${days}`);
   }
 
   async getFolders(): Promise<Folder[]> {

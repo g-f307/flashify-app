@@ -7,17 +7,20 @@ import {
   Activity,
   ArrowDownWideNarrow,
   BarChart3,
+  CalendarDays,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   CircleDot,
+  Clock,
   CopyPlus,
   Download,
   FileSpreadsheet,
   FileText,
   Filter,
+  Flame,
   Loader2,
   RefreshCcw,
   Search,
@@ -38,6 +41,9 @@ import {
   AnalyticsUserDetail,
   AnalyticsOverview,
   AnalyticsUserRow,
+  RoutineOverview,
+  RoutineHeatmap,
+  UserRoutineDetail,
   apiClient,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -724,6 +730,12 @@ export default function AdminPage() {
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(true);
 
+  // Routine analytics state
+  const [routineOverview, setRoutineOverview] = useState<RoutineOverview | null>(null);
+  const [routineHeatmap, setRoutineHeatmap] = useState<RoutineHeatmap | null>(null);
+  const [isRoutineLoading, setIsRoutineLoading] = useState(false);
+  const [selectedUserRoutine, setSelectedUserRoutine] = useState<UserRoutineDetail | null>(null);
+
   const apiFilters = useMemo(() => buildFilters(filters), [filters]);
   const userSourceOptions = useMemo(
     () => Array.from(new Set(users.map((entry) => entry.utm_source).filter(Boolean) as string[])).sort(),
@@ -1001,6 +1013,26 @@ export default function AdminPage() {
     return loadAdminData();
   }, [apiFilters, user?.is_team]);
 
+  // Lazy load routine data when the tab is selected
+  useEffect(() => {
+    if (activeTab !== "routine" || !user?.is_team || isRoutineLoading) return;
+    setIsRoutineLoading(true);
+    setRoutineOverview(null);
+    setRoutineHeatmap(null);
+    Promise.all([
+      apiClient.getRoutineOverview(apiFilters),
+      apiClient.getRoutineHeatmap(apiFilters),
+    ])
+      .then(([overviewData, heatmapData]) => {
+        setRoutineOverview(overviewData);
+        setRoutineHeatmap(heatmapData);
+      })
+      .catch((routineError) => {
+        console.error("Erro ao carregar dados de rotina:", routineError);
+      })
+      .finally(() => setIsRoutineLoading(false));
+  }, [activeTab, apiFilters, user?.is_team]);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [filters, search, sortKey, sortDirection, pageSize]);
@@ -1088,9 +1120,14 @@ export default function AdminPage() {
 
   const loadUserDetail = async (userId: number) => {
     setIsUserDetailLoading(true);
+    setSelectedUserRoutine(null);
     try {
-      const detail = await apiClient.getAnalyticsUserDetail(userId);
+      const [detail, routine] = await Promise.all([
+        apiClient.getAnalyticsUserDetail(userId),
+        apiClient.getUserRoutine(userId, Number(filters.days) || 90),
+      ]);
       setSelectedUserDetail(detail);
+      setSelectedUserRoutine(routine);
       setUserAdminDraft({
         is_team: detail.is_team,
         is_test_user: detail.is_test_user,
@@ -2035,6 +2072,7 @@ export default function AdminPage() {
           <TabsList className="h-auto w-full max-w-full flex-wrap justify-start gap-1 bg-muted/60 p-1 lg:w-auto">
             <TabsTrigger value="overview" className="px-4 py-2">Visão geral</TabsTrigger>
             <TabsTrigger value="campaigns" className="px-4 py-2">Campanhas</TabsTrigger>
+            <TabsTrigger value="routine" className="px-4 py-2">Rotina</TabsTrigger>
             <TabsTrigger value="users" className="px-4 py-2">Usuários</TabsTrigger>
           </TabsList>
         </div>
@@ -2332,6 +2370,307 @@ export default function AdminPage() {
               </div>
             </InsightCard>
           </section>
+        </TabsContent>
+
+        <TabsContent value="routine" className="space-y-4">
+          {isRoutineLoading || !routineOverview || !routineHeatmap ? (
+            <div className="flex min-h-[30vh] items-center justify-center">
+              <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/90 px-5 py-4 shadow-sm">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">Carregando dados de rotina...</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* KPIs */}
+              <div className="grid auto-rows-min items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  title="Usuários ativos"
+                  value={String(routineOverview.users_with_any_activity)}
+                  description="Com atividade no período"
+                  footerLabel="Da base"
+                  footerValue={`${routineOverview.total_users_in_filter ? Math.round((routineOverview.users_with_any_activity / routineOverview.total_users_in_filter) * 100) : 0}%`}
+                  icon={Users}
+                  tone="blue"
+                />
+                <MetricCard
+                  title="Dias ativos (média)"
+                  value={String(routineOverview.average_active_days)}
+                  description="Média por usuário"
+                  footerLabel="Mediana"
+                  footerValue={String(routineOverview.median_active_days)}
+                  icon={CalendarDays}
+                  tone="yellow"
+                />
+                <MetricCard
+                  title="Recorde de dias"
+                  value={String(routineOverview.max_active_days)}
+                  description="Maior sequência ativa"
+                  footerLabel="Usuário destaque"
+                  footerValue={routineOverview.top_consistent_users[0]?.username || "—"}
+                  icon={Flame}
+                  tone="emerald"
+                />
+                <MetricCard
+                  title="Ativos últimos 3d"
+                  value={String(routineOverview.users_active_last_3d)}
+                  description="Atividade muito recente"
+                  footerLabel="Últimos 7d"
+                  footerValue={String(routineOverview.users_active_last_7d)}
+                  icon={Activity}
+                  tone="slate"
+                />
+              </div>
+
+              {/* Heatmap — full width */}
+              <InsightCard
+                eyebrow="Atividade diária"
+                title="Mapa de calor de uso"
+                description={`Atividade da base nos últimos ${routineHeatmap.total_days} dias.`}
+                accent="blue"
+              >
+                <div className="space-y-4">
+                  {/* Month labels */}
+                  <div className="flex gap-[3px] pl-8 text-[10px] text-muted-foreground">
+                    {(() => {
+                      const labels: { month: string; offset: number }[] = [];
+                      const seen = new Set<string>();
+                      routineHeatmap.days.forEach((day, i) => {
+                        const m = new Date(day.date + "T00:00:00").toLocaleDateString("pt-BR", { month: "short" });
+                        if (!seen.has(m)) {
+                          seen.add(m);
+                          labels.push({ month: m, offset: Math.floor(i / 7) });
+                        }
+                      });
+                      return labels.map((l) => (
+                        <span key={l.month} className="capitalize" style={{ marginLeft: l.offset > 0 ? `${(l.offset - (labels.indexOf(l) > 0 ? labels[labels.indexOf(l) - 1].offset + 1 : 0)) * 21}px` : 0 }}>
+                          {l.month}
+                        </span>
+                      ));
+                    })()}
+                  </div>
+
+                  {/* Heatmap grid — bigger cells */}
+                  <div className="flex gap-[3px] overflow-x-auto pb-1">
+                    <div className="flex shrink-0 flex-col gap-[3px] pr-1 text-[10px] text-muted-foreground">
+                      <span className="h-[18px] leading-[18px]">Seg</span>
+                      <span className="h-[18px]">&nbsp;</span>
+                      <span className="h-[18px] leading-[18px]">Qua</span>
+                      <span className="h-[18px]">&nbsp;</span>
+                      <span className="h-[18px] leading-[18px]">Sex</span>
+                      <span className="h-[18px]">&nbsp;</span>
+                      <span className="h-[18px] leading-[18px]">Dom</span>
+                    </div>
+                    <div
+                      className="grid gap-[3px]"
+                      style={{
+                        gridTemplateRows: "repeat(7, 18px)",
+                        gridAutoFlow: "column",
+                        gridAutoColumns: "18px",
+                      }}
+                    >
+                      {routineHeatmap.days.map((day) => {
+                        const intensityColors = [
+                          "bg-muted/30 dark:bg-slate-800/40",
+                          "bg-[#48cfea]/25 dark:bg-[#48cfea]/20",
+                          "bg-[#48cfea]/50 dark:bg-[#48cfea]/35",
+                          "bg-[#48cfea]/75 dark:bg-[#48cfea]/55",
+                          "bg-[#48cfea] dark:bg-[#48cfea]/80",
+                        ];
+                        return (
+                          <div
+                            key={day.date}
+                            className={cn(
+                              "rounded-[3px] transition-colors hover:ring-1 hover:ring-primary/40",
+                              intensityColors[day.intensity] || intensityColors[0]
+                            )}
+                            title={`${day.date}: ${day.active_users} usuários, ${day.total_sessions} sessões`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Legend + summary in same row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 pl-8 text-[10px] text-muted-foreground">
+                      <span>Menos</span>
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "h-[12px] w-[12px] rounded-[2px]",
+                            i === 0 && "bg-muted/30 dark:bg-slate-800/40",
+                            i === 1 && "bg-[#48cfea]/25 dark:bg-[#48cfea]/20",
+                            i === 2 && "bg-[#48cfea]/50 dark:bg-[#48cfea]/35",
+                            i === 3 && "bg-[#48cfea]/75 dark:bg-[#48cfea]/55",
+                            i === 4 && "bg-[#48cfea] dark:bg-[#48cfea]/80"
+                          )}
+                        />
+                      ))}
+                      <span>Mais</span>
+                    </div>
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      <span>
+                        <span className="font-medium text-foreground">
+                          {routineHeatmap.days.filter((d) => d.intensity > 0).length}
+                        </span>{" "}
+                        dias ativos
+                      </span>
+                      <span>
+                        <span className="font-medium text-foreground">
+                          {routineHeatmap.days.reduce((acc, d) => acc + d.total_sessions, 0)}
+                        </span>{" "}
+                        sessões totais
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </InsightCard>
+
+              {/* Weekly pattern + Hours + Distribution — 3 columns */}
+              <section className="grid gap-4 xl:grid-cols-3">
+                <InsightCard
+                  eyebrow="Padrão semanal"
+                  title="Por dia da semana"
+                  description="Quando os usuários mais utilizam a plataforma."
+                  accent="yellow"
+                >
+                  <div className="space-y-4">
+                    <AnalyticsBarChart
+                      data={routineOverview.weekday_breakdown.map((wd) => ({
+                        label: wd.weekday_label.slice(0, 3),
+                        value: wd.active_users,
+                        fill: wd.weekday >= 5 ? "#facc15" : "#48cfea",
+                        helper: `${wd.total_sessions} sessões`,
+                      }))}
+                      height={180}
+                    />
+                    <div className="grid gap-3 grid-cols-2">
+                      {(() => {
+                        const sorted = [...routineOverview.weekday_breakdown].sort((a, b) => b.active_users - a.active_users);
+                        const best = sorted[0];
+                        const worst = sorted[sorted.length - 1];
+                        return [
+                          ["Dia mais ativo", best?.weekday_label || "—", `${best?.active_users || 0} usuários`],
+                          ["Dia menos ativo", worst?.weekday_label || "—", `${worst?.active_users || 0} usuários`],
+                        ].map(([label, value, helper]) => (
+                          <div key={String(label)} className="rounded-2xl border border-border/60 bg-background/75 p-3 dark:border-slate-700/70 dark:bg-slate-800/45">
+                            <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+                            <p className="mt-2 text-lg font-semibold text-foreground">{value}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                </InsightCard>
+
+                <InsightCard
+                  eyebrow="Horários de pico"
+                  title="Atividade por hora (UTC)"
+                  description="Distribuição ao longo do dia."
+                  accent="emerald"
+                >
+                  {(() => {
+                    const maxHour = Math.max(...routineOverview.hour_breakdown.map((h) => h.total_sessions), 1);
+                    return (
+                      <div className="space-y-1">
+                        <div className="flex items-end gap-[2px]" style={{ height: 180 }}>
+                          {routineOverview.hour_breakdown.map((h) => {
+                            const pct = Math.max(2, Math.round((h.total_sessions / maxHour) * 100));
+                            return (
+                              <div
+                                key={h.hour}
+                                className="flex-1 rounded-t-sm bg-emerald-400/80 transition-all hover:bg-emerald-400 dark:bg-emerald-500/60 dark:hover:bg-emerald-500/90"
+                                style={{ height: `${pct}%` }}
+                                title={`${h.hour}h: ${h.total_sessions} sessões, ${h.active_users} usuários`}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="flex text-[10px] text-muted-foreground">
+                          {routineOverview.hour_breakdown.map((h) => (
+                            <span key={h.hour} className="flex-1 text-center">
+                              {h.hour % 6 === 0 ? `${h.hour}h` : ""}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </InsightCard>
+
+                <InsightCard
+                  eyebrow="Distribuição"
+                  title="Frequência de uso"
+                  description="Quantos dias cada grupo esteve ativo."
+                  accent="blue"
+                >
+                  {routineOverview.frequency_buckets.length ? (
+                    <div className="space-y-3">
+                      {routineOverview.frequency_buckets.map((bucket) => {
+                        const maxBucket = Math.max(...routineOverview.frequency_buckets.map((b) => b.users));
+                        const pct = maxBucket > 0 ? Math.round((bucket.users / maxBucket) * 100) : 0;
+                        return (
+                          <div key={bucket.label} className="space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">{bucket.label}</span>
+                              <span className="font-medium text-foreground">{bucket.users}</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-muted/70">
+                              <div className="h-2 rounded-full bg-[#48cfea]" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border/60 bg-background/60 px-4 py-8 text-sm text-muted-foreground">
+                      Sem dados de frequência neste recorte.
+                    </div>
+                  )}
+                </InsightCard>
+              </section>
+
+              {/* Ranking */}
+              <InsightCard
+                eyebrow="Ranking"
+                title="Usuários mais consistentes"
+                description="Top usuários por dias ativos no período."
+                accent="yellow"
+              >
+                {routineOverview.top_consistent_users.length ? (
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    {routineOverview.top_consistent_users.map((u, i) => (
+                      <button
+                        key={u.user_id}
+                        type="button"
+                        onClick={() => openUserSheet(u.user_id)}
+                        className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/75 px-4 py-3 text-left transition-colors hover:bg-background dark:border-slate-700/70 dark:bg-slate-800/45 dark:hover:bg-slate-800/70"
+                      >
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#48cfea]/15 text-xs font-semibold text-[#0f5f6f] dark:text-[#87ebfb]">
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">{u.username}</p>
+                          <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-foreground">{u.active_days}d</p>
+                          <p className="text-[10px] text-muted-foreground">{u.current_streak}d streak</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border/60 bg-background/60 px-4 py-8 text-sm text-muted-foreground">
+                    Sem dados de consistência neste recorte.
+                  </div>
+                )}
+              </InsightCard>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
@@ -2877,6 +3216,215 @@ export default function AdminPage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Routine section */}
+              {selectedUserRoutine ? (
+                <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-base">Rotina de uso</CardTitle>
+                        <CardDescription>Padrão de atividade e recorrência deste usuário.</CardDescription>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "px-3 py-1 text-xs font-semibold",
+                          selectedUserRoutine.engagement_label === "Diário" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                          selectedUserRoutine.engagement_label === "Regular" && "border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:text-[#87ebfb]",
+                          selectedUserRoutine.engagement_label === "Ocasional" && "border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:text-[#ffe27c]",
+                          selectedUserRoutine.engagement_label === "Inativo" && "border-destructive/30 bg-destructive/10 text-destructive",
+                          selectedUserRoutine.engagement_label === "Novo" && "border-border/60 bg-background/80 dark:border-zinc-800/80 dark:bg-zinc-950/45",
+                        )}
+                      >
+                        {selectedUserRoutine.engagement_label}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* KPI row */}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                      {[
+                        ["Dias ativos", String(selectedUserRoutine.total_active_days)],
+                        ["Streak atual", `${selectedUserRoutine.current_streak}d`],
+                        ["Maior streak", `${selectedUserRoutine.longest_streak}d`],
+                        ["Gap médio", `${selectedUserRoutine.average_gap_days}d`],
+                        ["Tempo de estudo", `${selectedUserRoutine.total_study_minutes >= 60 ? `${Math.floor(selectedUserRoutine.total_study_minutes / 60)}h${selectedUserRoutine.total_study_minutes % 60 > 0 ? `${selectedUserRoutine.total_study_minutes % 60}m` : ""}` : `${selectedUserRoutine.total_study_minutes}min`}`],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                          <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+                          <p className="mt-2 text-xl font-semibold text-foreground">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Color-coded mini heatmap by activity type */}
+                    <div className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Atividade — últimos {selectedUserRoutine.period_days} dias
+                        </p>
+                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] rounded-[2px] bg-[#48cfea]" /> Flashcards</span>
+                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] rounded-[2px] bg-[#facc15]" /> Quiz</span>
+                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] rounded-[2px] bg-[#34d399]" /> Guiado</span>
+                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] rounded-[2px] bg-[#a78bfa]" /> Misto</span>
+                        </div>
+                      </div>
+                      <div
+                        className="grid gap-[2px]"
+                        style={{
+                          gridTemplateRows: "repeat(7, 14px)",
+                          gridAutoFlow: "column",
+                          gridAutoColumns: "14px",
+                        }}
+                      >
+                        {selectedUserRoutine.days.map((day) => {
+                          const typeColorMap: Record<string, string> = {
+                            flashcards: "bg-[#48cfea] dark:bg-[#48cfea]/80",
+                            quiz: "bg-[#facc15] dark:bg-[#facc15]/80",
+                            guided: "bg-[#34d399] dark:bg-[#34d399]/80",
+                            mixed: "bg-[#a78bfa] dark:bg-[#a78bfa]/80",
+                            login_only: "bg-slate-400/50 dark:bg-slate-600/50",
+                            none: "bg-muted/30 dark:bg-slate-800/40",
+                          };
+                          const typeLabels: Record<string, string> = {
+                            flashcards: "Flashcards",
+                            quiz: "Quiz",
+                            guided: "Estudo guiado",
+                            mixed: "Misto",
+                            login_only: "Apenas login",
+                            none: "Sem atividade",
+                          };
+                          return (
+                            <div
+                              key={day.date}
+                              className={cn("rounded-[2px]", typeColorMap[day.activity_type] || typeColorMap.none)}
+                              title={`${day.date}: ${typeLabels[day.activity_type] || "—"} • ${day.total_sessions} sessões${day.estimated_study_minutes > 0 ? ` • ~${day.estimated_study_minutes}min` : ""}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Activity log — last 14 active days */}
+                    <div className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <p className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                        Histórico de atividade recente
+                      </p>
+                      <div className="max-h-[260px] space-y-1.5 overflow-y-auto pr-1">
+                        {selectedUserRoutine.days
+                          .filter((d) => d.activity_type !== "none")
+                          .slice(-14)
+                          .reverse()
+                          .map((day) => {
+                            const typeIcons: Record<string, { emoji: string; label: string; color: string }> = {
+                              flashcards: { emoji: "📚", label: "Flashcards", color: "text-[#48cfea]" },
+                              quiz: { emoji: "✅", label: "Quiz", color: "text-[#facc15]" },
+                              guided: { emoji: "📖", label: "Estudo guiado", color: "text-[#34d399]" },
+                              mixed: { emoji: "🔀", label: "Misto", color: "text-[#a78bfa]" },
+                              login_only: { emoji: "🔑", label: "Apenas login", color: "text-muted-foreground" },
+                            };
+                            const info = typeIcons[day.activity_type] || typeIcons.login_only;
+                            const dateStr = new Date(day.date + "T00:00:00").toLocaleDateString("pt-BR", {
+                              weekday: "short",
+                              day: "2-digit",
+                              month: "short",
+                            });
+                            const details: string[] = [];
+                            if (day.study_count > 0) details.push(`${day.study_count} flashcard${day.study_count !== 1 ? "s" : ""}`);
+                            if (day.quiz_count > 0) details.push(`${day.quiz_count} quiz${day.quiz_count !== 1 ? "zes" : ""}`);
+                            if (day.guided_study_count > 0) details.push(`${day.guided_study_count} sessão guiada`);
+                            if (day.login_count > 0 && day.activity_type === "login_only") details.push(`${day.login_count} login${day.login_count !== 1 ? "s" : ""}`);
+
+                            return (
+                              <div
+                                key={day.date}
+                                className="flex items-center gap-3 rounded-xl border border-border/40 bg-card/60 px-3 py-2 dark:border-zinc-800/50 dark:bg-zinc-900/50"
+                              >
+                                <span className="text-base">{info.emoji}</span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-foreground capitalize">{dateStr}</p>
+                                  <p className="truncate text-[11px] text-muted-foreground">
+                                    {details.length > 0 ? details.join(" · ") : info.label}
+                                  </p>
+                                </div>
+                                {day.estimated_study_minutes > 0 && (
+                                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    <span>~{day.estimated_study_minutes}min</span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        {selectedUserRoutine.days.filter((d) => d.activity_type !== "none").length === 0 && (
+                          <div className="py-4 text-center text-sm text-muted-foreground">
+                            Nenhuma atividade registrada no período.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Weekday breakdown */}
+                    <div className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <p className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                        Dia preferido: <span className="font-semibold text-foreground">{selectedUserRoutine.preferred_weekday}</span> ({selectedUserRoutine.preferred_weekday_count}x)
+                      </p>
+                      <div className="flex items-end gap-1">
+                        {selectedUserRoutine.weekday_breakdown.map((wd) => {
+                          const maxWd = Math.max(...selectedUserRoutine.weekday_breakdown.map((w) => w.active_users), 1);
+                          const h = Math.max(4, Math.round((wd.active_users / maxWd) * 48));
+                          const isPref = wd.weekday_label === selectedUserRoutine.preferred_weekday;
+                          return (
+                            <div key={wd.weekday} className="flex flex-1 flex-col items-center gap-1">
+                              <div
+                                className={cn(
+                                  "w-full rounded-t-md transition-all",
+                                  isPref ? "bg-[#48cfea]" : "bg-muted/70 dark:bg-slate-700/60"
+                                )}
+                                style={{ height: `${h}px` }}
+                                title={`${wd.weekday_label}: ${wd.active_users} dias, ${wd.total_sessions} sessões`}
+                              />
+                              <span className="text-[9px] text-muted-foreground">{wd.weekday_label.slice(0, 3)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Recency */}
+                    <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Último acesso</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {selectedUserRoutine.days_since_last_activity === 0
+                            ? "Ativo hoje"
+                            : selectedUserRoutine.days_since_last_activity !== null
+                              ? `${selectedUserRoutine.days_since_last_activity} dia${selectedUserRoutine.days_since_last_activity !== 1 ? "s" : ""} atrás`
+                              : "Sem registro"}
+                        </p>
+                      </div>
+                      <div className="w-24">
+                        <Progress
+                          value={Math.round(selectedUserRoutine.engagement_score * 100)}
+                          className="h-2 bg-muted/70"
+                          indicatorClassName={
+                            selectedUserRoutine.engagement_score >= 0.7
+                              ? "bg-emerald-500"
+                              : selectedUserRoutine.engagement_score >= 0.3
+                                ? "bg-[#48cfea]"
+                                : "bg-[#facc15]"
+                          }
+                        />
+                        <p className="mt-1 text-center text-[10px] text-muted-foreground">
+                          {Math.round(selectedUserRoutine.engagement_score * 100)}% engajamento
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
 
               <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
                 <CardHeader>
