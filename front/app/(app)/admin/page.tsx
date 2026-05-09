@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -297,6 +298,11 @@ const formatDateTimeLong = (value: string | null) => {
 
 const formatCompact = (value: number) =>
   new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+
+const formatMinutes = (value: number) =>
+  value >= 60
+    ? `${Math.floor(value / 60)}h${value % 60 > 0 ? `${value % 60}m` : ""}`
+    : `${value}min`;
 
 const buildFilters = (filters: FilterState): AnalyticsFilters => ({
   days: Number(filters.days),
@@ -1731,14 +1737,7 @@ export default function AdminPage() {
   };
 
   if (loading || (user?.is_team && isFetching && users.length === 0)) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/90 px-5 py-4 shadow-sm">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <span className="text-sm text-muted-foreground">Preparando visão administrativa...</span>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Preparando visão administrativa..." fullScreen={false} />;
   }
 
   if (!user?.is_team) {
@@ -2374,12 +2373,7 @@ export default function AdminPage() {
 
         <TabsContent value="routine" className="space-y-4">
           {isRoutineLoading || !routineOverview || !routineHeatmap ? (
-            <div className="flex min-h-[30vh] items-center justify-center">
-              <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/90 px-5 py-4 shadow-sm">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">Carregando dados de rotina...</span>
-              </div>
-            </div>
+            <LoadingScreen message="Carregando dados de rotina..." fullScreen={false} />
           ) : (
             <>
               {/* KPIs */}
@@ -3112,20 +3106,18 @@ export default function AdminPage() {
           </SheetHeader>
 
           {isUserDetailLoading || !selectedUserDetail ? (
-            <div className="flex min-h-[40vh] items-center justify-center">
-              <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/90 px-5 py-4 shadow-sm">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">Carregando detalhe do usuário...</span>
-              </div>
+            <div className="relative min-h-[40vh]">
+              <LoadingScreen message="Carregando detalhe do usuário..." fullScreen={false} />
             </div>
           ) : (
             <div className="space-y-5 p-4">
               <div className="rounded-3xl border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0.82))] p-5 shadow-sm dark:border-zinc-800/80 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(24,24,27,0.92))]">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex flex-col gap-4">
+                  {/* Nome, email e badges de status */}
                   <div className="space-y-2">
                     <div>
                       <h3 className="text-xl font-semibold text-foreground">{selectedUserDetail.username}</h3>
-                      <p className="text-sm text-muted-foreground">{selectedUserDetail.email}</p>
+                      <p className="break-all text-sm text-muted-foreground">{selectedUserDetail.email}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="outline" className="border-border/60 bg-background/80 dark:border-zinc-800/80 dark:bg-zinc-950/45">
@@ -3152,18 +3144,19 @@ export default function AdminPage() {
                     </div>
                   </div>
 
+                  {/* Mini KPIs — sempre em 3 colunas com mínimo para não espremer */}
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Decks</p>
-                      <p className="mt-2 text-xl font-semibold text-foreground">{selectedUserDetail.total_decks}</p>
+                    <div className="rounded-2xl border border-border/60 bg-background/70 px-2 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Decks</p>
+                      <p className="mt-1.5 text-lg font-semibold text-foreground">{selectedUserDetail.total_decks}</p>
                     </div>
-                    <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Estudos</p>
-                      <p className="mt-2 text-xl font-semibold text-foreground">{selectedUserDetail.flashcards_studied}</p>
+                    <div className="rounded-2xl border border-border/60 bg-background/70 px-2 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Estudos</p>
+                      <p className="mt-1.5 text-lg font-semibold text-foreground">{selectedUserDetail.flashcards_studied}</p>
                     </div>
-                    <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Quizzes</p>
-                      <p className="mt-2 text-xl font-semibold text-foreground">{selectedUserDetail.quizzes_completed}</p>
+                    <div className="rounded-2xl border border-border/60 bg-background/70 px-2 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                      <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Quizzes</p>
+                      <p className="mt-1.5 text-lg font-semibold text-foreground">{selectedUserDetail.quizzes_completed}</p>
                     </div>
                   </div>
                 </div>
@@ -3208,9 +3201,9 @@ export default function AdminPage() {
                       ["Ativação", formatDateTime(selectedUserDetail.activated_at)],
                       ["Último login", formatDateTime(selectedUserDetail.last_login_at)],
                     ].map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                        <span className="text-sm text-muted-foreground">{label}</span>
-                        <span className="text-sm font-medium text-foreground">{value}</span>
+                      <div key={label} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                        <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
+                        <span className="text-right text-sm font-medium text-foreground">{value}</span>
                       </div>
                     ))}
                   </CardContent>
@@ -3221,15 +3214,15 @@ export default function AdminPage() {
               {selectedUserRoutine ? (
                 <Card className="border-border/70 bg-card/95 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900/95">
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
                         <CardTitle className="text-base">Rotina de uso</CardTitle>
                         <CardDescription>Padrão de atividade e recorrência deste usuário.</CardDescription>
                       </div>
                       <Badge
                         variant="outline"
                         className={cn(
-                          "px-3 py-1 text-xs font-semibold",
+                          "shrink-0 px-3 py-1 text-xs font-semibold",
                           selectedUserRoutine.engagement_label === "Diário" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
                           selectedUserRoutine.engagement_label === "Regular" && "border-[#48cfea]/30 bg-[#48cfea]/10 text-[#0f5f6f] dark:text-[#87ebfb]",
                           selectedUserRoutine.engagement_label === "Ocasional" && "border-[#facc15]/30 bg-[#facc15]/12 text-[#6a5600] dark:text-[#ffe27c]",
@@ -3243,13 +3236,13 @@ export default function AdminPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* KPI row */}
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                    {/* KPIs de streak/atividade — 4 cards em 2x2 */}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                       {[
                         ["Dias ativos", String(selectedUserRoutine.total_active_days)],
                         ["Streak atual", `${selectedUserRoutine.current_streak}d`],
                         ["Maior streak", `${selectedUserRoutine.longest_streak}d`],
                         ["Gap médio", `${selectedUserRoutine.average_gap_days}d`],
-                        ["Tempo de estudo", `${selectedUserRoutine.total_study_minutes >= 60 ? `${Math.floor(selectedUserRoutine.total_study_minutes / 60)}h${selectedUserRoutine.total_study_minutes % 60 > 0 ? `${selectedUserRoutine.total_study_minutes % 60}m` : ""}` : `${selectedUserRoutine.total_study_minutes}min`}`],
                       ].map(([label, value]) => (
                         <div key={label} className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3 text-center dark:border-zinc-800/80 dark:bg-zinc-950/40">
                           <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
@@ -3258,17 +3251,46 @@ export default function AdminPage() {
                       ))}
                     </div>
 
+                    {/* Tempo registrado + breakdown por tipo */}
+                    <div className="rounded-[24px] border border-[#48cfea]/25 bg-[linear-gradient(135deg,rgba(72,207,234,0.10),rgba(52,211,153,0.06))] p-4 dark:border-[#48cfea]/20">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Tempo registrado</p>
+                      <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+                        {formatMinutes(selectedUserRoutine.total_study_minutes)}
+                      </p>
+                      <p className="mt-1 mb-4 text-sm text-muted-foreground">
+                        Soma consolidada de flashcards, quizzes e estudo guiado no período.
+                      </p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          ["Flashcards", formatMinutes(selectedUserRoutine.total_flashcard_study_minutes), "bg-[#facc15]"],
+                          ["Quizzes", formatMinutes(selectedUserRoutine.total_quiz_study_minutes), "bg-[#48cfea]"],
+                          ["Guiado", formatMinutes(selectedUserRoutine.total_guided_study_minutes), "bg-[#34d399]"],
+                        ].map(([label, value, tone]) => (
+                          <div
+                            key={label}
+                            className="rounded-xl border border-border/60 bg-background/80 px-2 py-2.5 dark:border-zinc-800/80 dark:bg-zinc-950/45"
+                          >
+                            <div className="mb-1.5 flex items-center gap-1">
+                              <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", tone)} />
+                              <p className="truncate text-[9px] uppercase text-muted-foreground">{label}</p>
+                            </div>
+                            <p className="text-sm font-semibold text-foreground">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Color-coded mini heatmap by activity type */}
                     <div className="rounded-2xl border border-border/60 bg-background/70 p-4 dark:border-zinc-800/80 dark:bg-zinc-950/40">
-                      <div className="mb-3 flex items-center justify-between">
+                      <div className="mb-3 flex flex-col gap-2">
                         <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                           Atividade — últimos {selectedUserRoutine.period_days} dias
                         </p>
-                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] rounded-[2px] bg-[#48cfea]" /> Flashcards</span>
-                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] rounded-[2px] bg-[#facc15]" /> Quiz</span>
-                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] rounded-[2px] bg-[#34d399]" /> Guiado</span>
-                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] rounded-[2px] bg-[#a78bfa]" /> Misto</span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] shrink-0 rounded-[2px] bg-[#facc15]" /> Flashcards</span>
+                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] shrink-0 rounded-[2px] bg-[#48cfea]" /> Quiz</span>
+                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] shrink-0 rounded-[2px] bg-[#34d399]" /> Guiado</span>
+                          <span className="flex items-center gap-1"><span className="inline-block h-[8px] w-[8px] shrink-0 rounded-[2px] bg-[#a78bfa]" /> Misto</span>
                         </div>
                       </div>
                       <div
@@ -3281,8 +3303,8 @@ export default function AdminPage() {
                       >
                         {selectedUserRoutine.days.map((day) => {
                           const typeColorMap: Record<string, string> = {
-                            flashcards: "bg-[#48cfea] dark:bg-[#48cfea]/80",
-                            quiz: "bg-[#facc15] dark:bg-[#facc15]/80",
+                            flashcards: "bg-[#facc15] dark:bg-[#facc15]/80",
+                            quiz: "bg-[#48cfea] dark:bg-[#48cfea]/80",
                             guided: "bg-[#34d399] dark:bg-[#34d399]/80",
                             mixed: "bg-[#a78bfa] dark:bg-[#a78bfa]/80",
                             login_only: "bg-slate-400/50 dark:bg-slate-600/50",
@@ -3300,7 +3322,7 @@ export default function AdminPage() {
                             <div
                               key={day.date}
                               className={cn("rounded-[2px]", typeColorMap[day.activity_type] || typeColorMap.none)}
-                              title={`${day.date}: ${typeLabels[day.activity_type] || "—"} • ${day.total_sessions} sessões${day.estimated_study_minutes > 0 ? ` • ~${day.estimated_study_minutes}min` : ""}`}
+                              title={`${day.date}: ${typeLabels[day.activity_type] || "—"} • ${day.total_sessions} sessões${day.estimated_study_minutes > 0 ? ` • ${day.estimated_study_minutes}min` : ""}`}
                             />
                           );
                         })}
@@ -3319,8 +3341,8 @@ export default function AdminPage() {
                           .reverse()
                           .map((day) => {
                             const typeIcons: Record<string, { emoji: string; label: string; color: string }> = {
-                              flashcards: { emoji: "📚", label: "Flashcards", color: "text-[#48cfea]" },
-                              quiz: { emoji: "✅", label: "Quiz", color: "text-[#facc15]" },
+                              flashcards: { emoji: "📚", label: "Flashcards", color: "text-[#facc15]" },
+                              quiz: { emoji: "✅", label: "Quiz", color: "text-[#48cfea]" },
                               guided: { emoji: "📖", label: "Estudo guiado", color: "text-[#34d399]" },
                               mixed: { emoji: "🔀", label: "Misto", color: "text-[#a78bfa]" },
                               login_only: { emoji: "🔑", label: "Apenas login", color: "text-muted-foreground" },
@@ -3352,7 +3374,7 @@ export default function AdminPage() {
                                 {day.estimated_study_minutes > 0 && (
                                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                                     <Clock className="h-3 w-3" />
-                                    <span>~{day.estimated_study_minutes}min</span>
+                                    <span>{day.estimated_study_minutes}min</span>
                                   </div>
                                 )}
                               </div>
@@ -3394,7 +3416,7 @@ export default function AdminPage() {
                     </div>
 
                     {/* Recency */}
-                    <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-zinc-800/80 dark:bg-zinc-950/40">
                       <div>
                         <p className="text-sm text-muted-foreground">Último acesso</p>
                         <p className="text-sm font-medium text-foreground">
@@ -3405,7 +3427,7 @@ export default function AdminPage() {
                               : "Sem registro"}
                         </p>
                       </div>
-                      <div className="w-24">
+                      <div className="min-w-[96px] flex-1 sm:flex-none sm:w-24">
                         <Progress
                           value={Math.round(selectedUserRoutine.engagement_score * 100)}
                           className="h-2 bg-muted/70"

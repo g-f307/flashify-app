@@ -54,6 +54,7 @@ export default function QuizPage() {
     const [feedback, setFeedback] = useState<AnswerFeedback | null>(null);
     const [isChecking, setIsChecking] = useState(false);
     const [questionResults, setQuestionResults] = useState<Record<number, boolean>>({});
+    const [quizStartedAt, setQuizStartedAt] = useState<string | null>(null);
 
     const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
     const [showResults, setShowResults] = useState(false);
@@ -95,6 +96,7 @@ export default function QuizPage() {
                          quiz: groupQuiz
                      } as Document);
                      setQuestions(groupQuiz.questions);
+                     setQuizStartedAt(new Date().toISOString());
                 } else if (mode === 'review') {
                      const reviewQuiz = await apiClient.getReviewQuiz(documentId);
                      if (!reviewQuiz || reviewQuiz.questions.length === 0) {
@@ -116,6 +118,7 @@ export default function QuizPage() {
                          quiz: reviewQuiz
                      } as Document);
                      setQuestions(reviewQuiz.questions);
+                     setQuizStartedAt(new Date().toISOString());
                 } else {
                      const doc = await apiClient.getDocument(documentId);
                      if (!doc.quiz || doc.quiz.questions.length === 0) {
@@ -123,6 +126,7 @@ export default function QuizPage() {
                      } else {
                         setDocument(doc);
                         setQuestions([...doc.quiz.questions]);
+                        setQuizStartedAt(new Date().toISOString());
 
                         if (canResumeQuiz) {
                             const progress = quizProgressManager.get(documentId);
@@ -153,9 +157,10 @@ export default function QuizPage() {
             totalQuestions: questions.length,
             correctAnswersCount,
             questionResults,
+            startedAt: quizStartedAt || new Date().toISOString(),
             lastUpdatedAt: new Date().toISOString(),
         });
-    }, [canResumeQuiz, correctAnswersCount, currentQuestionIndex, documentId, questionResults, questions.length, showResults]);
+    }, [canResumeQuiz, correctAnswersCount, currentQuestionIndex, documentId, questionResults, questions.length, quizStartedAt, showResults]);
 
     const currentQuestion = useMemo(() => questions[currentQuestionIndex], [questions, currentQuestionIndex]);
     const progressPercentage = useMemo(() => {
@@ -199,6 +204,7 @@ export default function QuizPage() {
         setCurrentQuestionIndex(savedProgress.currentQuestionIndex);
         setCorrectAnswersCount(savedProgress.correctAnswersCount);
         setQuestionResults(savedProgress.questionResults);
+        setQuizStartedAt(savedProgress.startedAt || new Date().toISOString());
         setShowResumePrompt(false);
         toast.success(`Retomando da pergunta ${savedProgress.currentQuestionIndex + 1} de ${savedProgress.totalQuestions}`);
     };
@@ -212,6 +218,7 @@ export default function QuizPage() {
         setFeedback(null);
         setCorrectAnswersCount(0);
         setQuestionResults({});
+        setQuizStartedAt(new Date().toISOString());
         setShowResumePrompt(false);
         toast.info("Iniciando do começo");
     };
@@ -232,7 +239,8 @@ export default function QuizPage() {
                         finalScore,
                         correctAnswersCount,
                         questions.length,
-                        questionResults
+                        questionResults,
+                        quizStartedAt || new Date().toISOString()
                     );
                     toast.success("Seu progresso foi salvo!");
                 } catch (error) {

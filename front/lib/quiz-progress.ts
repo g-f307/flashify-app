@@ -5,6 +5,7 @@ export interface QuizProgress {
   totalQuestions: number;
   correctAnswersCount: number;
   questionResults: Record<number, boolean>;
+  startedAt: string;
   lastUpdatedAt: string;
 }
 

@@ -59,9 +59,9 @@ export function FlashcardStudyFinal({
   const [isLogging, setIsLogging] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [currentCardStartedAt, setCurrentCardStartedAt] = useState(() => new Date().toISOString());
   
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
-  const [sessionStartTime] = useState(new Date());
   
   const [editingFlashcard, setEditingFlashcard] = useState<Flashcard | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -86,6 +86,7 @@ export function FlashcardStudyFinal({
         currentCardIndex,
         totalCards: flashcards.length,
         studiedCards: studySessions.map(s => s.flashcardId),
+        currentCardStartedAt,
         sessionData: studySessions.map(s => ({
           flashcardId: s.flashcardId,
           accuracy: s.accuracy,
@@ -93,7 +94,7 @@ export function FlashcardStudyFinal({
         }))
       });
     }
-  }, [currentCardIndex, studySessions, document.id, flashcards.length]);
+  }, [currentCardIndex, currentCardStartedAt, studySessions, document.id, flashcards.length]);
 
   const handleResumeFromSaved = () => {
     if (savedProgress) {
@@ -103,6 +104,7 @@ export function FlashcardStudyFinal({
       );
 
       setCurrentCardIndex(safeIndex);
+      setCurrentCardStartedAt(savedProgress.currentCardStartedAt || new Date().toISOString());
       if (savedProgress.sessionData) {
         const restoredSessions: StudySession[] = savedProgress.sessionData.map(data => ({
           flashcardId: data.flashcardId,
@@ -120,6 +122,7 @@ export function FlashcardStudyFinal({
     studyProgressManager.clearProgress(document.id);
     setCurrentCardIndex(0);
     setStudySessions([]);
+    setCurrentCardStartedAt(new Date().toISOString());
     setShowResumePrompt(false);
     toast.info("Iniciando do começo");
   };
@@ -143,6 +146,7 @@ export function FlashcardStudyFinal({
         setShowReport(true);
         return;
       }
+      setCurrentCardStartedAt(new Date().toISOString());
       setCurrentCardIndex((prev) => prev + 1);
     }, 150);
   };
@@ -150,6 +154,7 @@ export function FlashcardStudyFinal({
   const handlePrevCard = () => {
     setIsFlipped(false);
     setTimeout(() => {
+      setCurrentCardStartedAt(new Date().toISOString());
       setCurrentCardIndex((prev) => Math.max(0, prev - 1));
     }, 150);
   };
@@ -166,7 +171,7 @@ export function FlashcardStudyFinal({
         timestamp: new Date()
       };
       setStudySessions(prev => [...prev, newSession]);
-      await apiClient.logStudyForFlashcard(currentFlashcard.id, accuracy);
+      await apiClient.logStudyForFlashcard(currentFlashcard.id, accuracy, currentCardStartedAt);
       goToNextCard();
     } catch (error) {
       toast.error("Não foi possível guardar o seu progresso. Tente novamente.");
@@ -217,6 +222,7 @@ export function FlashcardStudyFinal({
     setIsFlipped(false);
     setShowReport(false);
     setStudySessions([]);
+    setCurrentCardStartedAt(new Date().toISOString());
     studyProgressManager.clearProgress(document.id);
   };
 
@@ -235,6 +241,7 @@ export function FlashcardStudyFinal({
       setIsFlipped(false);
       setShowReport(false);
       setStudySessions([]);
+      setCurrentCardStartedAt(new Date().toISOString());
       studyProgressManager.clearProgress(document.id);
       toast.info(`Revisando ${reviewFlashcards.length} cards que precisam de mais atenção.`);
     } else {

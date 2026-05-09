@@ -252,6 +252,9 @@ export interface UserRoutineDayRow {
   quiz_count: number;
   login_count: number;
   guided_study_count: number;
+  flashcard_study_minutes: number;
+  quiz_study_minutes: number;
+  guided_study_minutes: number;
   estimated_study_minutes: number;
   total_sessions: number;
   intensity: number;
@@ -274,6 +277,9 @@ export interface UserRoutineDetail {
   last_activity_date: string | null;
   engagement_label: string;
   engagement_score: number;
+  total_flashcard_study_minutes: number;
+  total_quiz_study_minutes: number;
+  total_guided_study_minutes: number;
   total_study_minutes: number;
 }
 
@@ -972,11 +978,11 @@ class ApiClient {
     });
   }
 
-  async logStudyForFlashcard(flashcardId: number, accuracy: number): Promise<void> {
+  async logStudyForFlashcard(flashcardId: number, accuracy: number, startedAt?: string): Promise<void> {
     try {
       await this.request<void>(`/flashcards/${flashcardId}/log_study`, {
         method: 'POST',
-        body: JSON.stringify({ accuracy }),
+        body: JSON.stringify({ accuracy, started_at: startedAt }),
       });
     } catch (error) {
       console.error("Falha ao registar o estudo do flashcard:", error);
@@ -1101,7 +1107,8 @@ class ApiClient {
     score: number, 
     correctAnswers: number, 
     totalQuestions: number,
-    questionResults?: Record<number, boolean>
+    questionResults?: Record<number, boolean>,
+    startedAt?: string
   ): Promise<any> {
     return this.request(`/quizzes/${quizId}/submit`, {
       method: 'POST',
@@ -1109,6 +1116,7 @@ class ApiClient {
         score,
         correct_answers: correctAnswers,
         total_questions: totalQuestions,
+        started_at: startedAt,
         question_results: questionResults || {},
       })
     });

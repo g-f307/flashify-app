@@ -5,6 +5,7 @@ export interface StudyProgress {
   currentCardIndex: number;
   totalCards: number;
   studiedCards: number[];
+  currentCardStartedAt?: string;
   lastStudiedAt: string;
   sessionData: {
     flashcardId: number;
