@@ -303,3 +303,23 @@ def send_incomplete_deck_emails():
                 continue
         
         print(f"✅ Processo de e-mails de decks incompletos concluído")
+
+
+@celery_app.task(name="refresh_user_activity_days")
+def refresh_activity_days_task():
+    """
+    Tarefa agendada: Materializa a tabela UserActivityDay
+    a partir de StudyLog, QuizAttempt e ProductEvent.
+    Executa a cada 3 horas.
+    """
+    from .analytics import refresh_user_activity_days
+
+    print("📊 Iniciando materialização de UserActivityDay...")
+
+    with Session(engine) as session:
+        try:
+            count = refresh_user_activity_days(session, since_days=95)
+            print(f"✅ UserActivityDay: {count} rows materializadas")
+        except Exception as e:
+            print(f"❌ Erro ao materializar UserActivityDay: {e}")
+            session.rollback()

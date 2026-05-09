@@ -24,6 +24,11 @@ celery_app.conf.update(
             'task': 'send_incomplete_deck_emails',
             'schedule': crontab(minute=0, hour='*/6'),  # 0h, 6h, 12h, 18h
         },
+        # Materializar cache de atividade diária: a cada 3 horas
+        'refresh-user-activity-days': {
+            'task': 'refresh_user_activity_days',
+            'schedule': crontab(minute=30, hour='*/3'),  # 0:30, 3:30, 6:30 ...
+        },
     },
     timezone='UTC',
 )

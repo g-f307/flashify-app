@@ -3,6 +3,7 @@ from typing import Optional, List, Any
 from sqlmodel import Field, SQLModel, Relationship
 from enum import Enum # Importe Enum
 from sqlalchemy import Column, Text, JSON,func, DateTime, Integer
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY
 from typing import Annotated
 from datetime import datetime, timezone
@@ -319,3 +320,23 @@ class UserAdminNote(SQLModel, table=True):
 
     user_id: int = Field(foreign_key="user.id", index=True)
     author_user_id: int = Field(foreign_key="user.id", index=True)
+
+
+class UserActivityDay(SQLModel, table=True):
+    """Materialized cache: one row per user per active day (UTC)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    activity_date: datetime = Field(
+        sa_column=Column(
+            sa.Date(),
+            nullable=False,
+            index=True,
+        )
+    )
+
+    login_count: int = Field(default=0)
+    study_count: int = Field(default=0)
+    quiz_count: int = Field(default=0)
+    event_count: int = Field(default=0)
+    guided_study_count: int = Field(default=0)
+    estimated_study_minutes: int = Field(default=0)
