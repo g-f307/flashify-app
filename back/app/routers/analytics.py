@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from statistics import median
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -1062,4 +1063,552 @@ def create_analytics_user_note(
         author_user_id=note.author_user_id,
         author_email=current_user.email,
         author_username=current_user.username,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Routine analytics — response models
+# ---------------------------------------------------------------------------
+
+WEEKDAY_LABELS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+
+
+class RoutineDayOfWeekBreakdown(BaseModel):
+    weekday: int
+    weekday_label: str
+    active_users: int
+    total_sessions: int
+
+
+class RoutineHourBreakdown(BaseModel):
+    hour: int
+    active_users: int
+    total_sessions: int
+
+
+class RoutineUserBucket(BaseModel):
+    label: str
+    users: int
+
+
+class RoutineConsistentUser(BaseModel):
+    user_id: int
+    username: str
+    email: str
+    active_days: int
+    current_streak: int
+    last_active_date: Optional[str] = None
+
+
+class RoutineOverview(BaseModel):
+    period_days: int
+    total_users_in_filter: int
+    users_with_any_activity: int
+    average_active_days: float
+    median_active_days: float
+    max_active_days: int
+    users_active_last_7d: int
+    users_active_last_3d: int
+    frequency_buckets: list[RoutineUserBucket]
+    weekday_breakdown: list[RoutineDayOfWeekBreakdown]
+    hour_breakdown: list[RoutineHourBreakdown]
+    top_consistent_users: list[RoutineConsistentUser]
+
+
+class HeatmapDay(BaseModel):
+    date: str
+    active_users: int
+    total_sessions: int
+    intensity: int
+
+
+class RoutineHeatmap(BaseModel):
+    start_date: str
+    end_date: str
+    total_days: int
+    days: list[HeatmapDay]
+
+
+class UserRoutineDayRow(BaseModel):
+    date: str
+    study_count: int
+    quiz_count: int
+    login_count: int
+    guided_study_count: int
+    estimated_study_minutes: int
+    total_sessions: int
+    intensity: int
+    activity_type: str  # "flashcards", "quiz", "guided", "mixed", "login_only", "none"
+
+
+class UserRoutineDetail(BaseModel):
+    user_id: int
+    period_days: int
+    total_active_days: int
+    total_inactive_days: int
+    current_streak: int
+    longest_streak: int
+    average_gap_days: float
+    preferred_weekday: str
+    preferred_weekday_count: int
+    weekday_breakdown: list[RoutineDayOfWeekBreakdown]
+    days: list[UserRoutineDayRow]
+    days_since_last_activity: Optional[int] = None
+    last_activity_date: Optional[str] = None
+    engagement_label: str
+    engagement_score: float
+    total_study_minutes: int
+
+
+# ---------------------------------------------------------------------------
+# Routine analytics — helpers
+# ---------------------------------------------------------------------------
+
+def _compute_streak(active_dates: set[date], anchor: date) -> int:
+    """Count consecutive active days ending on *anchor* (or the day before)."""
+    cursor = anchor if anchor in active_dates else anchor - timedelta(days=1)
+    if cursor not in active_dates:
+        return 0
+    streak = 0
+    while cursor in active_dates:
+        streak += 1
+        cursor -= timedelta(days=1)
+    return streak
+
+
+def _longest_streak(active_dates: set[date]) -> int:
+    if not active_dates:
+        return 0
+    sorted_dates = sorted(active_dates)
+    best = current = 1
+    for i in range(1, len(sorted_dates)):
+        if (sorted_dates[i] - sorted_dates[i - 1]).days == 1:
+            current += 1
+            best = max(best, current)
+        else:
+            current = 1
+    return best
+
+
+def _intensity(sessions: int, max_sessions: int) -> int:
+    if sessions == 0 or max_sessions == 0:
+        return 0
+    ratio = sessions / max_sessions
+    if ratio >= 0.75:
+        return 4
+    if ratio >= 0.50:
+        return 3
+    if ratio >= 0.25:
+        return 2
+    return 1
+
+
+def _engagement_label(active_days_14d: int, active_days_30d: int, days_since_creation: int, days_since_last: int | None) -> tuple[str, float]:
+    if days_since_creation < 7:
+        return "Novo", 0.5
+    if days_since_last is not None and days_since_last > 14:
+        return "Inativo", 0.0
+    rate_14d = active_days_14d / min(14, days_since_creation) if days_since_creation > 0 else 0
+    if rate_14d >= 0.80:
+        return "Diário", min(1.0, rate_14d)
+    if rate_14d >= 0.40:
+        return "Regular", round(rate_14d, 2)
+    rate_30d = active_days_30d / min(30, days_since_creation) if days_since_creation > 0 else 0
+    if rate_30d >= 0.10:
+        return "Ocasional", round(rate_30d, 2)
+    return "Inativo", 0.0
+
+
+# ---------------------------------------------------------------------------
+# Routine analytics — endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/routine-overview", response_model=RoutineOverview)
+def get_routine_overview(
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+    days: int = Query(30, ge=1, le=365),
+    provider: Optional[models.AuthProvider] = Query(None),
+    utm_source: Optional[str] = Query(None),
+    utm_campaign: Optional[str] = Query(None),
+    lifecycle_stage: Optional[str] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
+    include_internal: bool = Query(False),
+):
+    del current_user
+
+    # Refresh cache lazily as well (belt-and-suspenders; Celery beat is primary)
+    analytics_service.refresh_user_activity_days(session, since_days=days + 5)
+
+    range_start = _range_start(days)
+    today = date.today()
+
+    # Filtered user ids
+    user_stmt = _apply_user_filters(
+        select(models.User),
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
+        include_internal=include_internal,
+    )
+    filtered_users = session.exec(user_stmt).all()
+    filtered_user_ids = {u.id for u in filtered_users}
+    total_users = len(filtered_user_ids)
+
+    if not filtered_user_ids:
+        empty_weekday = [RoutineDayOfWeekBreakdown(weekday=i, weekday_label=WEEKDAY_LABELS[i], active_users=0, total_sessions=0) for i in range(7)]
+        empty_hours = [RoutineHourBreakdown(hour=h, active_users=0, total_sessions=0) for h in range(24)]
+        return RoutineOverview(
+            period_days=days, total_users_in_filter=0, users_with_any_activity=0,
+            average_active_days=0, median_active_days=0, max_active_days=0,
+            users_active_last_7d=0, users_active_last_3d=0,
+            frequency_buckets=[], weekday_breakdown=empty_weekday,
+            hour_breakdown=empty_hours, top_consistent_users=[],
+        )
+
+    # Query activity days for these users
+    activity_rows = session.exec(
+        select(models.UserActivityDay)
+        .where(
+            models.UserActivityDay.user_id.in_(filtered_user_ids),
+            models.UserActivityDay.activity_date >= range_start.date(),
+        )
+    ).all()
+
+    # Per-user active-day count
+    from collections import defaultdict
+    user_days: dict[int, set[date]] = defaultdict(set)
+    weekday_users: dict[int, set[int]] = defaultdict(set)  # weekday -> user ids
+    weekday_sessions: dict[int, int] = defaultdict(int)
+
+    for row in activity_rows:
+        d = row.activity_date if isinstance(row.activity_date, date) else row.activity_date.date() if hasattr(row.activity_date, 'date') else row.activity_date
+        user_days[row.user_id].add(d)
+        wd = d.weekday()
+        weekday_users[wd].add(row.user_id)
+        sessions = row.study_count + row.quiz_count
+        weekday_sessions[wd] += sessions
+
+    active_day_counts = [len(ds) for ds in user_days.values()]
+    users_with_activity = len(user_days)
+    avg_days = round(sum(active_day_counts) / len(active_day_counts), 1) if active_day_counts else 0.0
+    med_days = round(median(active_day_counts), 1) if active_day_counts else 0.0
+    max_days = max(active_day_counts) if active_day_counts else 0
+
+    # Active last 7d / 3d
+    seven_d = today - timedelta(days=7)
+    three_d = today - timedelta(days=3)
+    users_7d = {uid for uid, ds in user_days.items() if any(d >= seven_d for d in ds)}
+    users_3d = {uid for uid, ds in user_days.items() if any(d >= three_d for d in ds)}
+
+    # Frequency buckets
+    bucket_ranges = [(1, 2, "1-2 dias"), (3, 5, "3-5 dias"), (6, 10, "6-10 dias"), (11, 20, "11-20 dias"), (21, 999, "21+ dias")]
+    buckets = []
+    for lo, hi, label in bucket_ranges:
+        count = sum(1 for c in active_day_counts if lo <= c <= hi)
+        if count > 0:
+            buckets.append(RoutineUserBucket(label=label, users=count))
+
+    # Weekday breakdown
+    wd_breakdown = [
+        RoutineDayOfWeekBreakdown(
+            weekday=i,
+            weekday_label=WEEKDAY_LABELS[i],
+            active_users=len(weekday_users.get(i, set())),
+            total_sessions=weekday_sessions.get(i, 0),
+        )
+        for i in range(7)
+    ]
+
+    # Hour breakdown from raw events (UTC)
+    hour_stmt = (
+        select(
+            func.extract("hour", models.ProductEvent.occurred_at).label("h"),
+            func.count(func.distinct(models.ProductEvent.user_id)).label("users"),
+            func.count().label("cnt"),
+        )
+        .where(
+            models.ProductEvent.occurred_at >= range_start,
+            models.ProductEvent.user_id.in_(filtered_user_ids),
+        )
+        .group_by("h")
+        .order_by("h")
+    )
+    hour_rows = {int(h): (u, c) for h, u, c in session.exec(hour_stmt).all()}
+    hour_breakdown = [
+        RoutineHourBreakdown(
+            hour=h,
+            active_users=hour_rows.get(h, (0, 0))[0],
+            total_sessions=hour_rows.get(h, (0, 0))[1],
+        )
+        for h in range(24)
+    ]
+
+    # Top consistent users
+    user_map = {u.id: u for u in filtered_users}
+    ranked = sorted(user_days.items(), key=lambda item: len(item[1]), reverse=True)[:8]
+    top_users = []
+    for uid, ds in ranked:
+        u = user_map.get(uid)
+        if not u:
+            continue
+        sorted_ds = sorted(ds)
+        top_users.append(RoutineConsistentUser(
+            user_id=uid,
+            username=u.username,
+            email=u.email,
+            active_days=len(ds),
+            current_streak=_compute_streak(ds, today),
+            last_active_date=sorted_ds[-1].isoformat() if sorted_ds else None,
+        ))
+
+    return RoutineOverview(
+        period_days=days,
+        total_users_in_filter=total_users,
+        users_with_any_activity=users_with_activity,
+        average_active_days=avg_days,
+        median_active_days=med_days,
+        max_active_days=max_days,
+        users_active_last_7d=len(users_7d),
+        users_active_last_3d=len(users_3d),
+        frequency_buckets=buckets,
+        weekday_breakdown=wd_breakdown,
+        hour_breakdown=hour_breakdown,
+        top_consistent_users=top_users,
+    )
+
+
+@router.get("/routine-heatmap", response_model=RoutineHeatmap)
+def get_routine_heatmap(
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+    days: int = Query(90, ge=7, le=365),
+    provider: Optional[models.AuthProvider] = Query(None),
+    utm_source: Optional[str] = Query(None),
+    utm_campaign: Optional[str] = Query(None),
+    lifecycle_stage: Optional[str] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
+    include_internal: bool = Query(False),
+):
+    del current_user
+    today = date.today()
+    start = today - timedelta(days=days - 1)
+
+    # Filtered user ids
+    user_stmt = _apply_user_filters(
+        select(models.User.id),
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
+        include_internal=include_internal,
+    )
+    filtered_ids = {row for row in session.exec(user_stmt).all()}
+
+    # Aggregate per-day
+    agg_stmt = (
+        select(
+            models.UserActivityDay.activity_date,
+            func.count(func.distinct(models.UserActivityDay.user_id)).label("users"),
+            func.sum(models.UserActivityDay.study_count + models.UserActivityDay.quiz_count).label("sessions"),
+        )
+        .where(
+            models.UserActivityDay.user_id.in_(filtered_ids),
+            models.UserActivityDay.activity_date >= start,
+            models.UserActivityDay.activity_date <= today,
+        )
+        .group_by(models.UserActivityDay.activity_date)
+    )
+    day_map: dict[date, tuple[int, int]] = {}
+    for d, users, sessions in session.exec(agg_stmt).all():
+        day_map[d] = (users or 0, sessions or 0)
+
+    max_sessions = max((s for _, s in day_map.values()), default=0)
+
+    heatmap_days = []
+    cursor = start
+    while cursor <= today:
+        users, sessions = day_map.get(cursor, (0, 0))
+        heatmap_days.append(HeatmapDay(
+            date=cursor.isoformat(),
+            active_users=users,
+            total_sessions=sessions,
+            intensity=_intensity(sessions, max_sessions),
+        ))
+        cursor += timedelta(days=1)
+
+    return RoutineHeatmap(
+        start_date=start.isoformat(),
+        end_date=today.isoformat(),
+        total_days=len(heatmap_days),
+        days=heatmap_days,
+    )
+
+
+@router.get("/users/{user_id}/routine", response_model=UserRoutineDetail)
+def get_user_routine(
+    user_id: int,
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+    days: int = Query(90, ge=7, le=365),
+):
+    del current_user
+    user = session.get(models.User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    today = date.today()
+    start = today - timedelta(days=days - 1)
+
+    # Refresh cache for just this user
+    analytics_service.refresh_user_activity_days(session, user_id=user_id, since_days=days + 5)
+
+    rows = session.exec(
+        select(models.UserActivityDay)
+        .where(
+            models.UserActivityDay.user_id == user_id,
+            models.UserActivityDay.activity_date >= start,
+            models.UserActivityDay.activity_date <= today,
+        )
+        .order_by(models.UserActivityDay.activity_date.asc())
+    ).all()
+
+    active_dates: set[date] = set()
+    day_data: dict[date, models.UserActivityDay] = {}
+    max_sessions = 0
+    for row in rows:
+        d = row.activity_date if isinstance(row.activity_date, date) else row.activity_date
+        active_dates.add(d)
+        day_data[d] = row
+        s = row.study_count + row.quiz_count
+        if s > max_sessions:
+            max_sessions = s
+
+    total_active = len(active_dates)
+    account_age = (today - user.created_at.date()).days if user.created_at else days
+    period = min(days, max(account_age, 1))
+    total_inactive = max(period - total_active, 0)
+
+    current_str = _compute_streak(active_dates, today)
+    longest_str = _longest_streak(active_dates)
+
+    # Average gap
+    sorted_dates = sorted(active_dates)
+    if len(sorted_dates) >= 2:
+        gaps = [(sorted_dates[i] - sorted_dates[i - 1]).days - 1 for i in range(1, len(sorted_dates))]
+        avg_gap = round(sum(gaps) / len(gaps), 1) if gaps else 0.0
+    else:
+        avg_gap = 0.0
+
+    # Weekday breakdown
+    from collections import defaultdict as _dd
+    wd_count: dict[int, int] = _dd(int)
+    wd_sessions: dict[int, int] = _dd(int)
+    for d in active_dates:
+        wd = d.weekday()
+        wd_count[wd] += 1
+        row = day_data.get(d)
+        if row:
+            wd_sessions[wd] += row.study_count + row.quiz_count
+
+    preferred_wd = max(range(7), key=lambda i: wd_count.get(i, 0)) if active_dates else 0
+    wd_breakdown = [
+        RoutineDayOfWeekBreakdown(
+            weekday=i,
+            weekday_label=WEEKDAY_LABELS[i],
+            active_users=wd_count.get(i, 0),
+            total_sessions=wd_sessions.get(i, 0),
+        )
+        for i in range(7)
+    ]
+
+    # Build day-by-day list
+    total_study_mins = 0
+    day_rows: list[UserRoutineDayRow] = []
+    cursor = start
+    while cursor <= today:
+        row = day_data.get(cursor)
+        if row:
+            s = row.study_count + row.quiz_count
+            mins = row.estimated_study_minutes if hasattr(row, 'estimated_study_minutes') else 0
+            guided = row.guided_study_count if hasattr(row, 'guided_study_count') else 0
+            total_study_mins += mins
+
+            # Determine activity type
+            types_active = []
+            if row.study_count > 0:
+                types_active.append("flashcards")
+            if row.quiz_count > 0:
+                types_active.append("quiz")
+            if guided > 0:
+                types_active.append("guided")
+
+            if len(types_active) > 1:
+                act_type = "mixed"
+            elif len(types_active) == 1:
+                act_type = types_active[0]
+            elif row.login_count > 0 or row.event_count > 0:
+                act_type = "login_only"
+            else:
+                act_type = "none"
+
+            day_rows.append(UserRoutineDayRow(
+                date=cursor.isoformat(),
+                study_count=row.study_count,
+                quiz_count=row.quiz_count,
+                login_count=row.login_count,
+                guided_study_count=guided,
+                estimated_study_minutes=mins,
+                total_sessions=s,
+                intensity=_intensity(s, max_sessions),
+                activity_type=act_type,
+            ))
+        else:
+            day_rows.append(UserRoutineDayRow(
+                date=cursor.isoformat(),
+                study_count=0, quiz_count=0, login_count=0,
+                guided_study_count=0, estimated_study_minutes=0,
+                total_sessions=0, intensity=0, activity_type="none",
+            ))
+        cursor += timedelta(days=1)
+
+    # Recency
+    last_date = sorted_dates[-1] if sorted_dates else None
+    days_since = (today - last_date).days if last_date else None
+
+    # Engagement
+    fourteen_d = today - timedelta(days=14)
+    thirty_d = today - timedelta(days=30)
+    active_14d = sum(1 for d in active_dates if d >= fourteen_d)
+    active_30d = sum(1 for d in active_dates if d >= thirty_d)
+    eng_label, eng_score = _engagement_label(active_14d, active_30d, account_age, days_since)
+
+    return UserRoutineDetail(
+        user_id=user_id,
+        period_days=days,
+        total_active_days=total_active,
+        total_inactive_days=total_inactive,
+        current_streak=current_str,
+        longest_streak=longest_str,
+        average_gap_days=avg_gap,
+        preferred_weekday=WEEKDAY_LABELS[preferred_wd],
+        preferred_weekday_count=wd_count.get(preferred_wd, 0),
+        weekday_breakdown=wd_breakdown,
+        days=day_rows,
+        days_since_last_activity=days_since,
+        last_activity_date=last_date.isoformat() if last_date else None,
+        engagement_label=eng_label,
+        engagement_score=eng_score,
+        total_study_minutes=total_study_mins,
     )
