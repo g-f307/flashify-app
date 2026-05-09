@@ -659,21 +659,24 @@ No canto superior direito da seção aparece um badge colorido com a classifica�
 
 ### Cartões de resumo individual
 
-São cinco cartões com métricas centrais:
+São oito cartões com métricas centrais:
 
 - `Dias ativos`: total de dias em que o usuário teve alguma atividade no período
 - `Streak atual`: quantos dias consecutivos o usuário esteve ativo até hoje
 - `Maior streak`: recorde de dias consecutivos ativos
 - `Gap médio`: média de dias de intervalo entre atividades
-- `Tempo de estudo`: tempo total estimado de estudo no período
+- `Tempo total`: soma do tempo registrado em flashcards, quizzes e estudo guiado
+- `Flashcards`: tempo registrado nas interações de flashcards
+- `Quizzes`: tempo registrado nas tentativas de quiz
+- `Guiado`: tempo registrado nas sessões de estudo guiado
 
-### Sobre o tempo de estudo estimado
+### Sobre o tempo de estudo registrado
 
-O cálculo do tempo de estudo usa estimativas porque nem todas as atividades salvam a duração real:
+O cálculo do tempo de estudo usa a duração registrada das atividades:
 
-- `Flashcards`: estimado em 0,5 minuto por card revisado
-- `Quiz`: estimado em 2 minutos por quiz concluído
-- `Estudo guiado`: usa a duração real calculada entre o início e o último acesso da sessão, com um limite máximo de 120 minutos por dia para evitar distorções de abas abertas
+- `Flashcards`: conta o intervalo entre a exibição do card e o momento em que a pessoa registra o feedback
+- `Quiz`: conta o intervalo entre o início do quiz e o envio do resultado
+- `Estudo guiado`: usa a duração calculada entre o início e o último acesso da sessão, com um limite máximo de 120 minutos por dia para evitar distorções de abas abertas
 
 ### Mapa de calor individual por tipo de atividade
 
@@ -686,7 +689,7 @@ Diferente do mapa de calor geral da aba `Rotina`, o heatmap individual usa cores
 - `Cinza claro`: apenas login, sem estudo
 - `Cinza escuro/vazio`: sem atividade
 
-Ao passar o mouse em cada quadrado, aparece a data, o tipo de atividade, o número de sessões e o tempo estimado.
+Ao passar o mouse em cada quadrado, aparece a data, o tipo de atividade, o número de sessões e o tempo registrado.
 
 ### Histórico de atividade recente
 
