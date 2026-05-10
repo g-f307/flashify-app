@@ -17,16 +17,28 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "useractivityday",
-        sa.Column("guided_study_count", sa.Integer(), server_default="0", nullable=False),
-    )
-    op.add_column(
-        "useractivityday",
-        sa.Column("estimated_study_minutes", sa.Integer(), server_default="0", nullable=False),
-    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_columns = {column["name"] for column in inspector.get_columns("useractivityday")}
+
+    if "guided_study_count" not in existing_columns:
+        op.add_column(
+            "useractivityday",
+            sa.Column("guided_study_count", sa.Integer(), server_default="0", nullable=False),
+        )
+    if "estimated_study_minutes" not in existing_columns:
+        op.add_column(
+            "useractivityday",
+            sa.Column("estimated_study_minutes", sa.Integer(), server_default="0", nullable=False),
+        )
 
 
 def downgrade() -> None:
-    op.drop_column("useractivityday", "estimated_study_minutes")
-    op.drop_column("useractivityday", "guided_study_count")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_columns = {column["name"] for column in inspector.get_columns("useractivityday")}
+
+    if "estimated_study_minutes" in existing_columns:
+        op.drop_column("useractivityday", "estimated_study_minutes")
+    if "guided_study_count" in existing_columns:
+        op.drop_column("useractivityday", "guided_study_count")
