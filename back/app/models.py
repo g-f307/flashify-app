@@ -172,7 +172,7 @@ class Document(SQLModel, table=True):
 # NOVO MODELO FLASHCARD
 class Flashcard(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    front: str
+    front: str = Field(sa_column=Column(Text))
     back: str = Field(sa_column=Column(Text))  # Use Text para suportar conteúdo longo
     type: FlashcardType = Field(default=FlashcardType.CONCEPT)
 

@@ -60,6 +60,11 @@ def _normalize_text_snippet(text: str, max_chars: int) -> str:
     return " ".join((text or "").split())[:max_chars]
 
 
+def _normalize_rich_text(text: Any) -> str:
+    normalized = str(text or "").replace("\r\n", "\n").replace("\r", "\n")
+    return normalized.strip()
+
+
 def _compact_flashcard_payload(flashcards: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
     return [
         {
@@ -215,8 +220,8 @@ def _normalize_flashcards(raw_flashcards: Any, requested_count: int) -> List[Dic
         if not isinstance(item, dict):
             continue
 
-        front = " ".join(str(item.get("front", "")).split()).strip()
-        back = " ".join(str(item.get("back", "")).split()).strip()
+        front = _normalize_rich_text(item.get("front", ""))
+        back = _normalize_rich_text(item.get("back", ""))
         raw_type = str(item.get("type", "concept")).strip().lower() or "concept"
 
         if not front or not back:
@@ -370,7 +375,7 @@ def generate_flashcards_from_text(
     _attempt: int = 0,
 ) -> List[Dict[str, Any]]:
     """
-    Gera flashcards otimizados: perguntas diretas e respostas concisas.
+    Gera flashcards com formatação rica, foco pedagógico e compatibilidade com conteúdo técnico.
     """
     if not text or text.isspace():
         print("Texto de entrada está vazio. Pulando a geração de flashcards.")
@@ -425,27 +430,33 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "✓ Use verbos de ação: 'Explique', 'Calcule', 'Defina', 'Identifique', 'Analise'",
             "✓ Para comparações: use 'Qual a diferença entre...' EM VEZ DE 'Compare'",
             "✓ Para cálculos: forneça valores específicos e peça o resultado",
+            "✓ Pode usar HTML semântico leve para formatação: <strong>, <em>, <ul>, <ol>, <li>, <blockquote>, <code>, <pre>, <p>",
             "",
             "📌 RESPOSTAS (back):",
-            "✓ Respostas CONCISAS e OBJETIVAS (máximo 3-4 linhas)",
+            "✓ Respostas CONCISAS e OBJETIVAS, mas podem usar múltiplos blocos curtos",
             "✓ Vá direto ao ponto - sem introduções desnecessárias",
             "✓ A resposta deve RESPONDER COMPLETAMENTE a pergunta feita",
             "✓ Se a pergunta menciona dois conceitos, a resposta DEVE abordar AMBOS",
             "✓ Para cálculos: mostre o resultado e uma explicação breve (1-2 linhas)",
             "✓ Para comparações: mencione EXPLICITAMENTE as diferenças ou semelhanças",
             "✓ Use bullet points quando listar itens múltiplos",
+            "✓ Prefira HTML semântico leve para formatação: <strong>, <em>, <ul>, <ol>, <li>, <blockquote>, <code>, <pre>, <p>",
+            "✓ Para fórmulas inline use \\(...\\) e para fórmulas em bloco use $$...$$",
+            "✓ Preserve quebras de linha entre passos de resolução, listas e observações",
             "✓ Evite parágrafos longos - quebre em frases curtas",
             "",
             "📌 QUALIDADE DO CONTEÚDO:",
             "✓ Perguntas que façam o usuário PENSAR (não decorar)",
             "✓ Balanceie teoria e aplicação prática",
             "✓ Inclua exemplos numéricos quando relevante",
+            "✓ Para áreas como matemática, física, química e engenharia, escreva a notação técnica correta",
             "✓ Varie os tipos de perguntas (conceito, cálculo, comparação, exemplo)",
             "",
             "📌 FORMATO JSON:",
             "✓ Saída APENAS em JSON puro (sem markdown ```json)",
             "✓ Estrutura: {\"flashcards\": [{\"front\": \"...\", \"back\": \"...\", \"type\": \"...\"}]}",
             "✓ Types válidos: 'concept', 'code', 'diagram', 'example', 'comparison'",
+            "✓ Dentro de front/back preserve HTML semântico leve e delimitadores LaTeX como texto normal escapado em JSON",
             "",
             "EXEMPLO DE BOA PRÁTICA:",
             """
@@ -481,7 +492,7 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             """,
             "",
             "⚠️ EVITE:",
-            "✗ Respostas com mais de 5 linhas",
+            "✗ HTML complexo, estilos inline ou scripts",
             "✗ Múltiplas perguntas no mesmo 'front'",
             "✗ Perguntas genéricas como 'O que você sabe sobre X?'",
             "✗ Perguntas que mencionam conceito A e B, mas resposta só fala de A",
@@ -515,15 +526,19 @@ Foque em {difficulty_instruction}."""
             "✓ Use verbos de ação: 'Explique', 'Calcule', 'Defina', 'Identifique', 'Analise'",
             "✓ Para comparações: use 'Qual a diferença entre...' EM VEZ DE 'Compare'",
             "✓ Para cálculos: forneça valores específicos e peça o resultado",
+            "✓ Pode usar HTML semântico leve com moderação para termos-chave e estrutura",
             "",
             "📌 RESPOSTAS (back):",
-            "✓ Respostas CONCISAS e OBJETIVAS (máximo 3-4 linhas)",
+            "✓ Respostas CONCISAS e OBJETIVAS, podendo usar múltiplos blocos curtos",
             "✓ Vá direto ao ponto - sem introduções desnecessárias",
             "✓ A resposta deve RESPONDER COMPLETAMENTE a pergunta feita",
             "✓ Se a pergunta menciona dois conceitos, a resposta DEVE abordar AMBOS",
             "✓ Para cálculos: mostre o resultado e uma explicação breve (1-2 linhas)",
             "✓ Para comparações: mencione EXPLICITAMENTE as diferenças ou semelhanças",
             "✓ Use bullet points quando listar itens múltiplos",
+            "✓ Prefira HTML semântico leve para formatação: <strong>, <em>, <ul>, <ol>, <li>, <blockquote>, <code>, <pre>, <p>",
+            "✓ Para fórmulas inline use \\(...\\) e para fórmulas em bloco use $$...$$",
+            "✓ Preserve quebras de linha entre passos de derivação, resolução e observações",
             "✓ Evite parágrafos longos - quebre em frases curtas",
             "",
             "📌 QUALIDADE DO CONTEÚDO:",
@@ -531,12 +546,14 @@ Foque em {difficulty_instruction}."""
             "✓ Perguntas que façam o usuário PENSAR (não decorar)",
             "✓ Balanceie teoria e aplicação prática",
             "✓ Inclua cálculos específicos quando o texto tiver dados numéricos",
+            "✓ Para disciplinas técnicas, mantenha símbolos, subscritos/sobrescritos em notação LaTeX",
             "✓ Varie os tipos de perguntas (conceito, cálculo, comparação, exemplo)",
             "",
             "📌 FORMATO JSON:",
             "✓ Saída APENAS em JSON puro (sem markdown ```json)",
             "✓ Estrutura: {\"flashcards\": [{\"front\": \"...\", \"back\": \"...\", \"type\": \"...\"}]}",
             "✓ Types válidos: 'concept', 'code', 'diagram', 'example', 'comparison'",
+            "✓ Dentro de front/back preserve HTML semântico leve e delimitadores LaTeX como texto normal escapado em JSON",
             "",
             "EXEMPLO DE BOA PRÁTICA:",
             """
@@ -572,7 +589,7 @@ Foque em {difficulty_instruction}."""
             """,
             "",
             "⚠️ EVITE:",
-            "✗ Respostas com mais de 5 linhas",
+            "✗ HTML complexo, estilos inline ou scripts",
             "✗ Múltiplas perguntas no mesmo 'front'",
             "✗ Perguntas genéricas como 'O que o texto fala sobre X?'",
             "✗ Perguntas que mencionam conceito A e B, mas resposta só fala de A",

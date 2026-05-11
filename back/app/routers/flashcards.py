@@ -13,6 +13,12 @@ from ..ai_generator import chat_about_flashcard
 router = APIRouter(prefix="/flashcards", tags=["Flashcards"])
 CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
 
+
+def _normalize_rich_text(text: str | None) -> str | None:
+    if text is None:
+        return None
+    return text.replace("\r\n", "\n").replace("\r", "\n").strip()
+
 # --- Modelos Pydantic para a rota ---
 
 class ChatMessage(BaseModel):
@@ -157,6 +163,9 @@ def update_flashcard_content(
     # pois a linha acima já a faz.
 
     updated_flashcard = crud.update_flashcard(
-        db=db, flashcard_id=flashcard_id, front=flashcard_data.front, back=flashcard_data.back
+        db=db,
+        flashcard_id=flashcard_id,
+        front=_normalize_rich_text(flashcard_data.front),
+        back=_normalize_rich_text(flashcard_data.back),
     )
     return updated_flashcard

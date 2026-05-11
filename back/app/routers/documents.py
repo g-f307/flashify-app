@@ -104,6 +104,10 @@ def _truncate_topic_title(text: str, fallback: str) -> str:
     return cleaned if len(cleaned) <= 48 else f"{cleaned[:45].rstrip()}..."
 
 
+def _normalize_rich_text(text: str) -> str:
+    return (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
 def _distribute_evenly(items: Sequence[T], bucket_count: int) -> list[list[T]]:
     if bucket_count <= 0:
         return []
@@ -725,8 +729,8 @@ def bulk_update_document_flashcards(
     touched = False
 
     for item in body.flashcards:
-        front = item.front.strip()
-        back = item.back.strip()
+        front = _normalize_rich_text(item.front)
+        back = _normalize_rich_text(item.back)
 
         if item.id is not None:
             db_flashcard = existing_flashcards.get(item.id)
