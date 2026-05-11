@@ -331,7 +331,7 @@ class UserAdminNote(SQLModel, table=True):
 
 
 class UserActivityDay(SQLModel, table=True):
-    """Materialized cache: one row per user per active day (UTC)."""
+    """Materialized cache: one row per user per active day in app local time."""
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     activity_date: datetime = Field(

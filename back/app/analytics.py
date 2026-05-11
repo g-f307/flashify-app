@@ -1,11 +1,31 @@
+import os
 from datetime import datetime, date, timedelta, timezone
 from collections import defaultdict
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 from sqlmodel import Session, select
 from sqlalchemy import func as sa_func, text
 
 from . import models
+
+
+APP_TIMEZONE_NAME = os.getenv("APP_TIMEZONE", "America/Manaus")
+APP_TIMEZONE = ZoneInfo(APP_TIMEZONE_NAME)
+
+
+def local_today() -> date:
+    return datetime.now(APP_TIMEZONE).date()
+
+
+def to_local_date(value: datetime | None) -> date | None:
+    if value is None:
+        return None
+    return value.astimezone(APP_TIMEZONE).date()
+
+
+def local_date_sql(column):
+    return sa_func.date(sa_func.timezone(APP_TIMEZONE_NAME, column))
 
 
 def track_product_event(
@@ -184,7 +204,7 @@ def refresh_user_activity_days(
     # --- collect study dates ------------------------------------------------
     study_stmt = select(
         models.StudyLog.user_id,
-        sa_func.date(models.StudyLog.studied_at).label("d"),
+        local_date_sql(models.StudyLog.studied_at).label("d"),
         sa_func.count().label("cnt"),
         sa_func.sum(
             sa_func.extract(
@@ -201,7 +221,7 @@ def refresh_user_activity_days(
     # --- collect quiz dates -------------------------------------------------
     quiz_stmt = select(
         models.QuizAttempt.user_id,
-        sa_func.date(models.QuizAttempt.completed_at).label("d"),
+        local_date_sql(models.QuizAttempt.completed_at).label("d"),
         sa_func.count().label("cnt"),
         sa_func.sum(
             sa_func.extract(
@@ -218,7 +238,7 @@ def refresh_user_activity_days(
     # --- collect guided study sessions --------------------------------------
     guided_stmt = select(
         models.GuidedStudySession.user_id,
-        sa_func.date(models.GuidedStudySession.started_at).label("d"),
+        local_date_sql(models.GuidedStudySession.started_at).label("d"),
         sa_func.count().label("cnt"),
         sa_func.sum(
             sa_func.extract(
@@ -242,7 +262,7 @@ def refresh_user_activity_days(
     login_stmt = (
         select(
             models.ProductEvent.user_id,
-            sa_func.date(models.ProductEvent.occurred_at).label("d"),
+            local_date_sql(models.ProductEvent.occurred_at).label("d"),
             sa_func.count().label("cnt"),
         )
         .where(
@@ -259,7 +279,7 @@ def refresh_user_activity_days(
     event_stmt = (
         select(
             models.ProductEvent.user_id,
-            sa_func.date(models.ProductEvent.occurred_at).label("d"),
+            local_date_sql(models.ProductEvent.occurred_at).label("d"),
             sa_func.count().label("cnt"),
         )
         .where(
@@ -317,7 +337,7 @@ def refresh_user_activity_days(
     # --- delete stale rows for the refresh window then bulk insert ----------
     delete_stmt = (
         models.UserActivityDay.__table__.delete().where(
-            models.UserActivityDay.activity_date >= cutoff.date()
+            models.UserActivityDay.activity_date >= (datetime.now(APP_TIMEZONE) - timedelta(days=since_days)).date()
         )
     )
     if user_id is not None:

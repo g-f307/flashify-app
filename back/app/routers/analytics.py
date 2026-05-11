@@ -159,6 +159,10 @@ def _range_start(days: int) -> datetime:
     return datetime.now(timezone.utc) - timedelta(days=days)
 
 
+def _local_today() -> date:
+    return analytics_service.local_today()
+
+
 def _apply_user_filters(
     statement,
     *,
@@ -1249,7 +1253,7 @@ def get_routine_overview(
     analytics_service.refresh_user_activity_days(session, since_days=days + 5)
 
     range_start = _range_start(days)
-    today = date.today()
+    today = _local_today()
 
     # Filtered user ids
     user_stmt = _apply_user_filters(
@@ -1405,7 +1409,7 @@ def get_routine_heatmap(
     include_internal: bool = Query(False),
 ):
     del current_user
-    today = date.today()
+    today = _local_today()
     start = today - timedelta(days=days - 1)
 
     # Filtered user ids
@@ -1474,7 +1478,7 @@ def get_user_routine(
     if user is None:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
 
-    today = date.today()
+    today = _local_today()
     start = today - timedelta(days=days - 1)
 
     # Refresh cache for just this user
@@ -1502,7 +1506,8 @@ def get_user_routine(
             max_sessions = s
 
     total_active = len(active_dates)
-    account_age = (today - user.created_at.date()).days if user.created_at else days
+    user_created_date = analytics_service.to_local_date(user.created_at) if user.created_at else None
+    account_age = (today - user_created_date).days if user_created_date else days
     period = min(days, max(account_age, 1))
     total_inactive = max(period - total_active, 0)
 
