@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import {
   apiClient,
   Flashcard,
@@ -33,6 +33,13 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
+import { EnhancedFlashcardRenderer } from "@/components/study/enhanced-flashcard-renderer";
+import { RichTextEditor } from "@/components/study/rich-text-editor";
+import {
+  isRichTextEmpty,
+  normalizeRichTextValue,
+  richTextPreview,
+} from "@/lib/rich-text";
 
 const sectionScrollAreaClassName =
   "min-h-0 [&_[data-slot=scroll-area-scrollbar]]:opacity-100 [&_[data-slot=scroll-area-scrollbar]]:transition-opacity [&_[data-slot=scroll-area-scrollbar]]:duration-200 [&_[data-slot=scroll-area-scrollbar]]:w-3 [&_[data-slot=scroll-area-thumb]]:bg-black/15 dark:[&_[data-slot=scroll-area-thumb]]:bg-white/20 hover:[&_[data-slot=scroll-area-thumb]]:bg-black/25 dark:hover:[&_[data-slot=scroll-area-thumb]]:bg-white/35";
@@ -117,8 +124,8 @@ const createDraftQuestion = (question?: Quiz["questions"][number]): DraftQuestio
 const normalizeFlashcards = (flashcards: DraftFlashcard[]): FlashcardBulkItemInput[] =>
   flashcards.map((flashcard) => ({
     id: flashcard.id,
-    front: flashcard.front.trim(),
-    back: flashcard.back.trim(),
+    front: normalizeRichTextValue(flashcard.front),
+    back: normalizeRichTextValue(flashcard.back),
     type: flashcard.type,
     is_deleted: Boolean(flashcard.isDeleted),
   }));
@@ -351,7 +358,7 @@ export function BulkEditContentDialog({
   const validateBeforeSave = () => {
     if (mode === "flashcards") {
       const invalid = visibleFlashcards.find(
-        (flashcard) => !flashcard.front.trim() || !flashcard.back.trim()
+        (flashcard) => isRichTextEmpty(flashcard.front) || isRichTextEmpty(flashcard.back)
       );
 
       if (invalid) {
@@ -404,6 +411,36 @@ export function BulkEditContentDialog({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const stopModalEventPropagation = (event: SyntheticEvent) => {
+    event.stopPropagation();
+  };
+
+  const closeLikeXFromOverlay = () => {
+    const consume = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if ("stopImmediatePropagation" in event) {
+        event.stopImmediatePropagation();
+      }
+    };
+
+    const cleanup = () => {
+      document.removeEventListener("pointerup", consume, true);
+      document.removeEventListener("mouseup", consume, true);
+      document.removeEventListener("click", consume, true);
+    };
+
+    document.addEventListener("pointerup", consume, true);
+    document.addEventListener("mouseup", consume, true);
+    document.addEventListener("click", consume, true);
+
+    window.setTimeout(() => {
+      cleanup();
+    }, 120);
+
+    setOpen(false);
   };
 
   const listPanel = (
@@ -460,10 +497,10 @@ export function BulkEditContentDialog({
                         )}
                       </div>
                       <p className="mt-2 line-clamp-2 text-sm font-medium">
-                        {flashcard.front || "Sem frente ainda"}
+                        {richTextPreview(flashcard.front) || "Sem frente ainda"}
                       </p>
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {flashcard.back || "Sem verso ainda"}
+                        {richTextPreview(flashcard.back) || "Sem verso ainda"}
                       </p>
                     </div>
                     <Trash2 className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -545,25 +582,25 @@ export function BulkEditContentDialog({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Frente</label>
-                <Textarea
+                <RichTextEditor
                   value={selectedFlashcard.front}
-                  onChange={(event) =>
-                    updateFlashcardField(selectedFlashcard.localId, "front", event.target.value)
-                  }
+                  onChange={(value) => updateFlashcardField(selectedFlashcard.localId, "front", value)}
                   onFocus={() => setPreviewSide("front")}
-                  className="min-h-[120px] border border-black/10 bg-black/[0.025] shadow-none dark:border-white/10 dark:bg-white/[0.04]"
+                  placeholder="Pergunta, definição ou termo-chave"
+                  minHeightClassName="min-h-[160px]"
+                  className="bg-black/[0.025] dark:bg-white/[0.04]"
                 />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Verso</label>
-                <Textarea
+                <RichTextEditor
                   value={selectedFlashcard.back}
-                  onChange={(event) =>
-                    updateFlashcardField(selectedFlashcard.localId, "back", event.target.value)
-                  }
+                  onChange={(value) => updateFlashcardField(selectedFlashcard.localId, "back", value)}
                   onFocus={() => setPreviewSide("back")}
-                  className="min-h-[220px] border border-black/10 bg-black/[0.025] shadow-none dark:border-white/10 dark:bg-white/[0.04]"
+                  placeholder="Resposta, passos de cálculo, citação, fórmula ou exemplo"
+                  minHeightClassName="min-h-[240px]"
+                  className="bg-black/[0.025] dark:bg-white/[0.04]"
                 />
               </div>
             </div>
@@ -712,27 +749,32 @@ export function BulkEditContentDialog({
                     style={{ transform: previewSide === "back" ? "rotateY(180deg)" : "rotateY(0deg)" }}
                   >
                     <div className="absolute inset-0 backface-hidden">
-                      <div className="flex h-full flex-col rounded-3xl border border-[#FACC15]/35 bg-background/90 p-5 shadow-sm dark:bg-white/[0.02]">
+                      <div className="flex h-full flex-col rounded-xl border border-black/10 bg-card p-5 shadow-sm dark:border-white/10 dark:bg-card">
                         <p className="mb-3 text-xs uppercase tracking-[0.24em] text-muted-foreground">
                           Frente
                         </p>
-                        <div className="flex flex-1 items-center">
-                          <p className="whitespace-pre-wrap text-base font-medium leading-relaxed">
-                            {selectedFlashcard.front || "Digite o conteúdo da frente para visualizar aqui."}
-                          </p>
+                        <div className="flex min-h-0 flex-1">
+                          <EnhancedFlashcardRenderer
+                            content={selectedFlashcard.front || "Digite o conteúdo da frente para visualizar aqui."}
+                            type={selectedFlashcard.type}
+                            className="text-base font-medium"
+                          />
                         </div>
                       </div>
                     </div>
 
                     <div className="absolute inset-0 backface-hidden rotate-y-180">
-                      <div className="flex h-full flex-col rounded-3xl border border-[#FACC15]/35 bg-[#FACC15]/10 p-5 shadow-sm">
+                      <div className="flex h-full flex-col rounded-xl border border-black/10 bg-card p-5 shadow-sm dark:border-white/10 dark:bg-card">
                         <p className="mb-3 text-xs uppercase tracking-[0.24em] text-muted-foreground">
                           Verso
                         </p>
-                        <div className="flex flex-1 items-center">
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                            {selectedFlashcard.back || "O verso atualizado aparece aqui em tempo real."}
-                          </p>
+                        <div className="flex min-h-0 flex-1">
+                          <EnhancedFlashcardRenderer
+                            content={selectedFlashcard.back || "O verso atualizado aparece aqui em tempo real."}
+                            type={selectedFlashcard.type}
+                            isAnswer
+                            className="text-sm"
+                          />
                         </div>
                       </div>
                     </div>
@@ -812,7 +854,27 @@ export function BulkEditContentDialog({
         <DialogContent
           className="flex h-[92vh] w-[calc(100vw-1.5rem)] max-w-7xl flex-col overflow-hidden border border-black/10 bg-background p-0 shadow-2xl dark:border-white/10 dark:bg-[#171922] sm:w-[calc(100vw-3rem)]"
           showCloseButton={!isSaving}
+          closeOnOverlayClick={!isSaving}
+          onOverlayClick={() => {
+            if (!isSaving) {
+              closeLikeXFromOverlay();
+            }
+          }}
+          onPointerDownOutside={(event) => {
+            event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            event.preventDefault();
+          }}
         >
+          <div
+            className="contents"
+            onClick={stopModalEventPropagation}
+            onPointerDown={stopModalEventPropagation}
+            onPointerUp={stopModalEventPropagation}
+            onMouseDown={stopModalEventPropagation}
+            onMouseUp={stopModalEventPropagation}
+          >
           <DialogHeader className="border-b border-black/10 px-6 pb-5 pt-6 dark:border-white/10">
             <DialogTitle>
               {mode === "flashcards" ? "Gerenciamento de flashcards" : "Gerenciamento de quizzes"}
@@ -890,6 +952,7 @@ export function BulkEditContentDialog({
               Salvar alterações
             </Button>
           </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

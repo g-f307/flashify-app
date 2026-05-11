@@ -12,10 +12,11 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { RichTextEditor } from "./rich-text-editor";
+import { isRichTextEmpty, normalizeRichTextValue } from "@/lib/rich-text";
 
 interface EditFlashcardModalProps {
   flashcard: Flashcard | null;
@@ -39,15 +40,26 @@ export function EditFlashcardModal({ flashcard, isOpen, onClose, onUpdate }: Edi
   const handleSave = async () => {
     if (!flashcard) return;
 
-    if (front.trim() === flashcard.front && back.trim() === flashcard.back) {
+    const normalizedFront = normalizeRichTextValue(front);
+    const normalizedBack = normalizeRichTextValue(back);
+
+    if (normalizedFront === flashcard.front && normalizedBack === flashcard.back) {
         toast.info("Nenhuma alteração foi feita.");
         onClose();
         return;
     }
 
+    if (isRichTextEmpty(normalizedFront) || isRichTextEmpty(normalizedBack)) {
+      toast.error("Frente e verso precisam ter conteúdo.");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const updatedFlashcard = await apiClient.updateFlashcard(flashcard.id, { front, back });
+      const updatedFlashcard = await apiClient.updateFlashcard(flashcard.id, {
+        front: normalizedFront,
+        back: normalizedBack,
+      });
       toast.success("Flashcard atualizado com sucesso!");
       onUpdate(updatedFlashcard); 
       onClose();
@@ -62,43 +74,43 @@ export function EditFlashcardModal({ flashcard, isOpen, onClose, onUpdate }: Edi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="flex w-[calc(100vw-1.5rem)] max-w-2xl flex-col p-0 sm:w-full">
-        <DialogHeader className="border-b border-black/10 px-6 py-5 dark:border-white/10">
+      <DialogContent className="flex h-[min(90vh,54rem)] w-[calc(100vw-1.5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:w-full">
+        <DialogHeader className="shrink-0 border-b border-black/10 px-4 py-4 dark:border-white/10 sm:px-6 sm:py-5">
           <DialogTitle>Editar Flashcard</DialogTitle>
         </DialogHeader>
         <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-scrollbar]]:opacity-100 [&_[data-slot=scroll-area-scrollbar]]:w-3 [&_[data-slot=scroll-area-thumb]]:bg-black/15 dark:[&_[data-slot=scroll-area-thumb]]:bg-white/20">
-          <div className="grid gap-4 px-6 py-5">
+          <div className="grid gap-4 px-4 py-4 sm:px-6 sm:py-5">
             <div className="grid gap-3 rounded-xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
               <Label htmlFor="front" className="pt-1">
                 Frente
               </Label>
-              <Textarea
-                id="front"
+              <RichTextEditor
                 value={front}
-                onChange={(e) => setFront(e.target.value)}
-                className="min-h-[140px] resize-none border border-black/10 bg-background/80 shadow-none dark:border-white/10 dark:bg-white/[0.04]"
+                onChange={setFront}
+                placeholder="Pergunta, conceito ou comando principal do card"
+                minHeightClassName="min-h-[160px] sm:min-h-[180px]"
               />
             </div>
             <div className="grid gap-3 rounded-xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
               <Label htmlFor="back" className="pt-1">
                 Verso
               </Label>
-              <Textarea
-                id="back"
+              <RichTextEditor
                 value={back}
-                onChange={(e) => setBack(e.target.value)}
-                className="min-h-[220px] resize-none border border-black/10 bg-background/80 shadow-none dark:border-white/10 dark:bg-white/[0.04]"
+                onChange={setBack}
+                placeholder="Resposta, explicação, passos, fórmulas e observações"
+                minHeightClassName="min-h-[200px] sm:min-h-[220px]"
               />
             </div>
           </div>
         </ScrollArea>
-        <DialogFooter className="border-t border-black/10 px-6 py-4 dark:border-white/10">
+        <DialogFooter className="shrink-0 border-t border-black/10 px-4 py-4 dark:border-white/10 sm:px-6">
           <DialogClose asChild>
-            <Button type="button" variant="secondary">
+            <Button type="button" variant="secondary" className="w-full sm:w-auto">
               Cancelar
             </Button>
           </DialogClose>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto">
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salvar Alterações
           </Button>
