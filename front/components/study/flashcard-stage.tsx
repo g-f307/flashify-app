@@ -53,6 +53,41 @@ export function FlashcardStage({
   footerClassName,
   showCounter = true,
 }: FlashcardStageProps) {
+  const menu = (extraClassName?: string) =>
+    (onEdit || onDelete) ? (
+      <div className={cn("absolute top-2 right-2 z-30 opacity-0 transition-opacity group-hover:opacity-100", extraClassName)}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => e.stopPropagation()}
+              className="h-9 w-9"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {onEdit && (
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="w-4 h-4" />
+                Editar
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                <Trash2 className="w-4 h-4" />
+                Excluir
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    ) : null;
+
   return (
     <>
       <div className={cn("w-full max-w-2xl flex-grow flex flex-col items-center justify-center perspective-1000", stageClassName)}>
@@ -65,44 +100,9 @@ export function FlashcardStage({
           style={{ transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
           onClick={onFlip}
         >
-          {(onEdit || onDelete) && (
-            <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => e.stopPropagation()}
-                    className="h-9 w-9"
-                    style={{ transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
-                  >
-                    <MoreVertical className="w-5 h-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
-                >
-                  {onEdit && (
-                    <DropdownMenuItem onClick={onEdit}>
-                      <Pencil className="w-4 h-4" />
-                      Editar
-                    </DropdownMenuItem>
-                  )}
-                  {onDelete && (
-                    <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                      <Trash2 className="w-4 h-4" />
-                      Excluir
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-
           <Card className="absolute w-full h-full backface-hidden flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
-            <div className="w-full h-full flex items-center justify-center text-center">
+            {menu()}
+            <div className="w-full h-full overflow-hidden text-center">
               <EnhancedFlashcardRenderer
                 content={flashcard.front}
                 type={flashcard.type ?? "concept"}
@@ -111,7 +111,8 @@ export function FlashcardStage({
           </Card>
 
           <Card className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
-            <div className="w-full h-full flex items-center justify-center text-center">
+            {menu("rotate-y-180")}
+            <div className="w-full h-full overflow-hidden text-center">
               <EnhancedFlashcardRenderer
                 content={flashcard.back}
                 type={flashcard.type ?? "concept"}
