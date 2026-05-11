@@ -427,11 +427,15 @@ export function BulkEditContentDialog({
     };
 
     const cleanup = () => {
+      document.removeEventListener("touchstart", consume, true);
+      document.removeEventListener("touchend", consume, true);
       document.removeEventListener("pointerup", consume, true);
       document.removeEventListener("mouseup", consume, true);
       document.removeEventListener("click", consume, true);
     };
 
+    document.addEventListener("touchstart", consume, true);
+    document.addEventListener("touchend", consume, true);
     document.addEventListener("pointerup", consume, true);
     document.addEventListener("mouseup", consume, true);
     document.addEventListener("click", consume, true);
@@ -874,6 +878,8 @@ export function BulkEditContentDialog({
             onPointerUp={stopModalEventPropagation}
             onMouseDown={stopModalEventPropagation}
             onMouseUp={stopModalEventPropagation}
+            onTouchStart={stopModalEventPropagation}
+            onTouchEnd={stopModalEventPropagation}
           >
           <DialogHeader className="border-b border-black/10 px-6 pb-5 pt-6 dark:border-white/10">
             <DialogTitle>
