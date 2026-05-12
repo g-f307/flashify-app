@@ -101,7 +101,7 @@ export function FlashcardStage({
           onClick={onFlip}
         >
           <Card className="absolute w-full h-full backface-hidden flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
-            {menu()}
+            {!isFlipped ? menu() : null}
             <div className="w-full h-full overflow-hidden text-center">
               <EnhancedFlashcardRenderer
                 content={flashcard.front}
@@ -111,7 +111,7 @@ export function FlashcardStage({
           </Card>
 
           <Card className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center p-8 sm:p-12 flashcard-enhanced">
-            {menu("rotate-y-180")}
+            {isFlipped ? menu("rotate-y-180") : null}
             <div className="w-full h-full overflow-hidden text-center">
               <EnhancedFlashcardRenderer
                 content={flashcard.back}
