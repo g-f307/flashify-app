@@ -1,5 +1,6 @@
 # back/app/crud.py
 from sqlmodel import Session, select, func, distinct
+from sqlalchemy import or_
 from . import models, schemas, security
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
@@ -380,15 +381,60 @@ def delete_document_and_related_data(db: Session, document_id: int) -> bool:
     db_document = db.get(models.Document, document_id)
     if not db_document:
         return False
-    
+
+    quiz_id = db_document.quiz.id if db_document.quiz else None
     flashcard_ids = [flashcard.id for flashcard in db_document.flashcards]
+
     if flashcard_ids:
         study_logs_to_delete = db.exec(
             select(models.StudyLog).where(models.StudyLog.flashcard_id.in_(flashcard_ids))
         ).all()
         for log in study_logs_to_delete:
             db.delete(log)
-    
+
+        conversations_to_delete = db.exec(
+            select(models.FlashcardConversation).where(
+                models.FlashcardConversation.flashcard_id.in_(flashcard_ids)
+            )
+        ).all()
+        for conversation in conversations_to_delete:
+            db.delete(conversation)
+
+    guided_sessions_to_delete = db.exec(
+        select(models.GuidedStudySession).where(
+            models.GuidedStudySession.document_id == document_id
+        )
+    ).all()
+    for guided_session in guided_sessions_to_delete:
+        db.delete(guided_session)
+
+    if quiz_id is not None:
+        quiz_attempts_to_delete = db.exec(
+            select(models.QuizAttempt).where(models.QuizAttempt.quiz_id == quiz_id)
+        ).all()
+        for quiz_attempt in quiz_attempts_to_delete:
+            db.delete(quiz_attempt)
+
+        product_events_to_detach = db.exec(
+            select(models.ProductEvent).where(
+                or_(
+                    models.ProductEvent.document_id == document_id,
+                    models.ProductEvent.quiz_id == quiz_id,
+                )
+            )
+        ).all()
+    else:
+        product_events_to_detach = db.exec(
+            select(models.ProductEvent).where(models.ProductEvent.document_id == document_id)
+        ).all()
+
+    for product_event in product_events_to_detach:
+        if product_event.document_id == document_id:
+            product_event.document_id = None
+        if quiz_id is not None and product_event.quiz_id == quiz_id:
+            product_event.quiz_id = None
+        db.add(product_event)
+
     db.delete(db_document)
     db.commit()
     return True
