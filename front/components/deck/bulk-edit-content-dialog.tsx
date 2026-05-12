@@ -449,7 +449,7 @@ export function BulkEditContentDialog({
 
   const listPanel = (
     <div className="flex h-full min-h-0 flex-col border-b border-black/10 bg-black/[0.015] dark:border-white/10 dark:bg-white/[0.02] lg:border-b-0 lg:border-r">
-      <div className="flex items-center justify-between gap-3 px-4 py-4">
+      <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-4">
         <div>
           <p className="text-sm font-medium">
             {mode === "flashcards"
@@ -472,7 +472,8 @@ export function BulkEditContentDialog({
         </Button>
       </div>
 
-      <ScrollArea className={`${sectionScrollAreaClassName} flex-1 px-3 pb-4`}>
+      {/* Desktop: usa ScrollArea do Radix; Mobile: overflow nativo para scroll por toque funcionar */}
+      <ScrollArea className={`${sectionScrollAreaClassName} hidden flex-1 px-3 pb-4 lg:block`}>
         <div className="space-y-2">
           {mode === "flashcards" ? (
             visibleFlashcards.length > 0 ? (
@@ -556,12 +557,256 @@ export function BulkEditContentDialog({
           )}
         </div>
       </ScrollArea>
+
+      {/* Mobile-only: scroll nativo com suporte a toque */}
+      <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y px-3 pb-4 lg:hidden">
+        <div className="space-y-2">
+          {mode === "flashcards" ? (
+            visibleFlashcards.length > 0 ? (
+              visibleFlashcards.map((flashcard, index) => (
+                <button
+                  key={flashcard.localId}
+                  type="button"
+                  className={`w-full rounded-2xl border p-3 text-left transition-colors ${
+                    selectedFlashcard?.localId === flashcard.localId
+                      ? "border-[#FACC15]/55 bg-[#FACC15]/10 shadow-[0_0_0_1px_rgba(250,204,21,0.08)]"
+                      : "border-black/10 bg-background/80 hover:bg-black/[0.03] dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05]"
+                  }`}
+                  onClick={() => {
+                    setSelectedId(flashcard.localId);
+                    setMobileSection("editor");
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">Card {index + 1}</Badge>
+                        {!flashcard.id && (
+                          <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15">
+                            Novo
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm font-medium">
+                        {richTextPreview(flashcard.front) || "Sem frente ainda"}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                        {richTextPreview(flashcard.back) || "Sem verso ainda"}
+                      </p>
+                    </div>
+                    <Trash2 className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-black/15 p-6 text-center text-sm text-muted-foreground dark:border-white/10">
+                Nenhum flashcard ativo.
+              </div>
+            )
+          ) : visibleQuestions.length > 0 ? (
+            visibleQuestions.map((question, index) => (
+              <button
+                key={question.localId}
+                type="button"
+                className={`w-full rounded-2xl border p-3 text-left transition-colors ${
+                  selectedQuestion?.localId === question.localId
+                    ? "border-[#48cfea]/55 bg-[#48cfea]/10 shadow-[0_0_0_1px_rgba(72,207,234,0.08)]"
+                    : "border-black/10 bg-background/80 hover:bg-black/[0.03] dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05]"
+                }`}
+                onClick={() => {
+                  setSelectedId(question.localId);
+                  setMobileSection("editor");
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">Pergunta {index + 1}</Badge>
+                      {!question.id && (
+                        <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15">
+                          Nova
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-2 line-clamp-3 text-sm font-medium">
+                      {question.text || "Sem enunciado ainda"}
+                    </p>
+                  </div>
+                  <Trash2 className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                </div>
+              </button>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-black/15 p-6 text-center text-sm text-muted-foreground dark:border-white/10">
+              Nenhuma pergunta ativa.
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 
   const editorPanel = (
-    <ScrollArea className={`${sectionScrollAreaClassName} h-full border-b border-black/10 bg-background/70 dark:border-white/10 dark:bg-[#151821] lg:border-b-0 lg:border-r`}>
-      <div className="p-6">
+    <div className="flex h-full min-h-0 flex-col border-b border-black/10 bg-background/70 dark:border-white/10 dark:bg-[#151821] lg:border-b-0 lg:border-r">
+      {/* Desktop usa ScrollArea; Mobile usa overflow nativo */}
+      <ScrollArea className={`${sectionScrollAreaClassName} hidden h-full lg:block`}>
+        <div className="p-6">
+        {mode === "flashcards" ? (
+          selectedFlashcard ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">Flashcard selecionado</Badge>
+                  {!selectedFlashcard.id && (
+                    <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15">
+                      Novo
+                    </Badge>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteFlashcard(selectedFlashcard.localId)}
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Frente</label>
+                <RichTextEditor
+                  value={selectedFlashcard.front}
+                  onChange={(value) => updateFlashcardField(selectedFlashcard.localId, "front", value)}
+                  onFocus={() => setPreviewSide("front")}
+                  placeholder="Pergunta, definição ou termo-chave"
+                  minHeightClassName="min-h-[160px]"
+                  className="bg-black/[0.025] dark:bg-white/[0.04]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Verso</label>
+                <RichTextEditor
+                  value={selectedFlashcard.back}
+                  onChange={(value) => updateFlashcardField(selectedFlashcard.localId, "back", value)}
+                  onFocus={() => setPreviewSide("back")}
+                  placeholder="Resposta, passos de cálculo, citação, fórmula ou exemplo"
+                  minHeightClassName="min-h-[240px]"
+                  className="bg-black/[0.025] dark:bg-white/[0.04]"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-black/15 p-8 text-center text-muted-foreground dark:border-white/10">
+              Selecione ou crie um flashcard para editar.
+            </div>
+          )
+        ) : selectedQuestion ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">Pergunta selecionada</Badge>
+                {!selectedQuestion.id && (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15">
+                    Nova
+                  </Badge>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDeleteQuestion(selectedQuestion.localId)}
+              >
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Enunciado</label>
+              <Textarea
+                value={selectedQuestion.text}
+                onChange={(event) => updateQuestionField(selectedQuestion.localId, event.target.value)}
+                className="min-h-[120px] border border-black/10 bg-black/[0.025] shadow-none dark:border-white/10 dark:bg-white/[0.04]"
+              />
+            </div>
+
+            <div className="space-y-3">
+              {selectedQuestion.answers.map((answer, answerIndex) => (
+                <div key={answer.localId} className="rounded-xl border border-black/10 bg-black/[0.02] p-3 space-y-3 dark:border-white/10 dark:bg-white/[0.035]">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={answer.is_correct ? "default" : "secondary"}>
+                        {answer.is_correct ? "Correta" : `Alternativa ${answerIndex + 1}`}
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => markCorrectAnswer(selectedQuestion.localId, answer.localId)}
+                      >
+                        <ShieldCheck className="w-4 h-4 mr-2" />
+                        Marcar correta
+                      </Button>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={selectedQuestion.answers.length <= 2}
+                      onClick={() => removeAnswer(selectedQuestion.localId, answer.localId)}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+
+                  <Input
+                    value={answer.text}
+                    onChange={(event) =>
+                      updateAnswerField(
+                        selectedQuestion.localId,
+                        answer.localId,
+                        "text",
+                        event.target.value
+                      )
+                    }
+                    placeholder="Texto da alternativa"
+                    className="border border-black/10 bg-background/80 shadow-none dark:border-white/10 dark:bg-white/[0.04]"
+                  />
+                  <Textarea
+                    value={answer.explanation}
+                    onChange={(event) =>
+                      updateAnswerField(
+                        selectedQuestion.localId,
+                        answer.localId,
+                        "explanation",
+                        event.target.value
+                      )
+                    }
+                    placeholder="Explicação opcional para feedback da resposta"
+                    className="min-h-[84px] border border-black/10 bg-background/80 shadow-none dark:border-white/10 dark:bg-white/[0.04]"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <Button type="button" variant="outline" onClick={() => addAnswer(selectedQuestion.localId)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar alternativa
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-black/15 p-8 text-center text-muted-foreground dark:border-white/10">
+            Selecione ou crie uma pergunta para editar.
+          </div>
+        )}
+        </div>
+      </ScrollArea>
+
+      {/* Mobile: scroll nativo */}
+      <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y p-6 lg:hidden">
         {mode === "flashcards" ? (
           selectedFlashcard ? (
             <div className="space-y-4">
@@ -714,18 +959,19 @@ export function BulkEditContentDialog({
           </div>
         )}
       </div>
-    </ScrollArea>
+    </div>
   );
 
   const previewPanel = (
     <div className="flex h-full min-h-0 flex-col bg-black/[0.02] dark:bg-white/[0.02]">
-      <div className="flex items-center gap-2 px-6 py-4">
+      <div className="flex shrink-0 items-center gap-2 px-6 py-4">
         <Eye className="w-4 h-4 text-muted-foreground" />
         <h3 className="font-semibold">Preview ao vivo</h3>
       </div>
       <Separator />
 
-      <ScrollArea className={`${sectionScrollAreaClassName} flex-1`}>
+      {/* Desktop usa ScrollArea; Mobile usa overflow nativo */}
+      <ScrollArea className={`${sectionScrollAreaClassName} hidden flex-1 lg:block`}>
         <div className="p-6">
           {mode === "flashcards" ? (
             selectedFlashcard ? (
@@ -836,6 +1082,117 @@ export function BulkEditContentDialog({
           )}
         </div>
       </ScrollArea>
+
+      {/* Mobile: scroll nativo */}
+      <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y p-6 lg:hidden">
+        {mode === "flashcards" ? (
+          selectedFlashcard ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <Badge variant="secondary">
+                  Preview {previewSide === "front" ? "da frente" : "do verso"}
+                </Badge>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setPreviewSide((current) => (current === "front" ? "back" : "front"))
+                  }
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Virar preview
+                </Button>
+              </div>
+
+              <div className="perspective-1000">
+                <div
+                  className="relative h-[320px] w-full transform-style-preserve-3d transition-transform duration-500"
+                  style={{ transform: previewSide === "back" ? "rotateY(180deg)" : "rotateY(0deg)" }}
+                >
+                  <div className="absolute inset-0 backface-hidden">
+                    <div className="flex h-full flex-col rounded-xl border border-black/10 bg-card p-5 shadow-sm dark:border-white/10 dark:bg-card">
+                      <p className="mb-3 text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                        Frente
+                      </p>
+                      <div className="flex min-h-0 flex-1">
+                        <EnhancedFlashcardRenderer
+                          content={selectedFlashcard.front || "Digite o conteúdo da frente para visualizar aqui."}
+                          type={selectedFlashcard.type}
+                          className="text-base font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="absolute inset-0 backface-hidden rotate-y-180">
+                    <div className="flex h-full flex-col rounded-xl border border-black/10 bg-card p-5 shadow-sm dark:border-white/10 dark:bg-card">
+                      <p className="mb-3 text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                        Verso
+                      </p>
+                      <div className="flex min-h-0 flex-1">
+                        <EnhancedFlashcardRenderer
+                          content={selectedFlashcard.back || "O verso atualizado aparece aqui em tempo real."}
+                          type={selectedFlashcard.type}
+                          isAnswer
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-black/15 p-6 text-sm text-muted-foreground dark:border-white/10">
+              Selecione ou crie um flashcard para ver o preview.
+            </div>
+          )
+        ) : selectedQuestion ? (
+          <div className="space-y-4">
+            <div className="rounded-3xl border border-[#48cfea]/35 bg-background/90 p-5 shadow-sm dark:bg-white/[0.02]">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground mb-3">
+                Pergunta
+              </p>
+              <p className="whitespace-pre-wrap text-base font-medium leading-relaxed">
+                {selectedQuestion.text || "Digite o enunciado para visualizar aqui."}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {selectedQuestion.answers.filter((answer) => answer.text.trim()).length > 0 ? (
+                selectedQuestion.answers
+                  .filter((answer) => answer.text.trim())
+                  .map((answer) => (
+                    <div
+                      key={answer.localId}
+                      className={`rounded-2xl border p-4 ${
+                        answer.is_correct
+                          ? "border-emerald-500/40 bg-emerald-500/10"
+                          : "border-black/10 bg-background/90 dark:border-white/10 dark:bg-white/[0.03]"
+                      }`}
+                    >
+                      <p className="text-sm font-medium whitespace-pre-wrap">{answer.text}</p>
+                      {answer.explanation && (
+                        <p className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap">
+                          {answer.explanation}
+                        </p>
+                      )}
+                    </div>
+                  ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-black/15 p-6 text-sm text-muted-foreground dark:border-white/10">
+                  As alternativas preenchidas aparecem aqui com destaque para a correta.
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-black/15 p-6 text-sm text-muted-foreground dark:border-white/10">
+            Selecione ou crie uma pergunta para ver o preview.
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -871,6 +1228,7 @@ export function BulkEditContentDialog({
             event.preventDefault();
           }}
         >
+          {/* onTouchStart/onTouchEnd não são bloqueados para permitir scroll por deslize em mobile */}
           <div
             className="contents"
             onClick={stopModalEventPropagation}
@@ -878,8 +1236,6 @@ export function BulkEditContentDialog({
             onPointerUp={stopModalEventPropagation}
             onMouseDown={stopModalEventPropagation}
             onMouseUp={stopModalEventPropagation}
-            onTouchStart={stopModalEventPropagation}
-            onTouchEnd={stopModalEventPropagation}
           >
           <DialogHeader className="border-b border-black/10 px-6 pb-5 pt-6 dark:border-white/10">
             <DialogTitle>
@@ -937,7 +1293,7 @@ export function BulkEditContentDialog({
                 {previewPanel}
               </div>
 
-              <div className="flex min-h-0 flex-1 flex-col lg:hidden">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
                 {mobileSection === "items" && listPanel}
                 {mobileSection === "editor" && editorPanel}
                 {mobileSection === "preview" && previewPanel}
