@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { BugReportForm } from "@/components/support/bug-report-form";
 import { ExperienceForm } from "@/components/support/experience-form";
 import { SuggestionForm } from "@/components/support/suggestion-form";
+import { SrsHelpLink } from "@/components/support/srs-help-link";
 import Link from "next/link";
 
 type FormType = 'bug' | 'experience' | 'suggestion' | null;
@@ -178,8 +179,9 @@ export default function SupportPage() {
                 </div>
                 <div>
                   <CardTitle className="text-xl">Revisão inteligente</CardTitle>
-                  <CardDescription className="mt-2 leading-relaxed">
-                    Entenda como o SRS organiza prioridades, agenda revisões e mostra pendências no deck.
+                  <CardDescription className="mt-2 flex items-center gap-1.5 leading-relaxed">
+                    <span>Entenda como o SRS organiza prioridades, agenda revisões e mostra pendências no deck.</span>
+                    <SrsHelpLink className="h-6 w-6 shrink-0" ariaLabel="Saiba mais sobre o SRS" />
                   </CardDescription>
                 </div>
               </CardHeader>

@@ -15,6 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { SrsHelpLink } from "@/components/support/srs-help-link";
 
 interface SrsOverviewPanelProps {
   documentId: number;
@@ -153,10 +154,13 @@ export function SrsOverviewPanel({
               </p>
             </div>
 
-            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-primary">
-              <ListTodo className="mr-1 h-3.5 w-3.5" />
-              SRS ativo
-            </Badge>
+            <div className="flex items-center gap-1">
+              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-primary">
+                <ListTodo className="mr-1 h-3.5 w-3.5" />
+                SRS ativo
+              </Badge>
+              <SrsHelpLink className="h-6 w-6" ariaLabel="Saiba mais sobre SRS ativo" />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -215,8 +219,9 @@ export function SrsOverviewPanel({
         <SheetContent side="right" className="w-full sm:max-w-xl border-border/50 bg-background dark:border-zinc-800 dark:bg-zinc-950">
           <SheetHeader className="border-b border-border/50 pr-10 pb-4 dark:border-zinc-800">
             <SheetTitle>O que revisar hoje</SheetTitle>
-            <SheetDescription>
-              As pendências são organizadas pelo SRS para você estudar primeiro o que mais precisa de atenção.
+            <SheetDescription className="flex items-center gap-1.5">
+              <span>As pendências são organizadas pelo SRS para você estudar primeiro o que mais precisa de atenção.</span>
+              <SrsHelpLink className="h-6 w-6 shrink-0" ariaLabel="Saiba mais sobre o SRS" />
             </SheetDescription>
           </SheetHeader>
 

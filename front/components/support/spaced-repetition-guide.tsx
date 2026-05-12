@@ -125,12 +125,13 @@ export function SpacedRepetitionGuide({ backHref, backLabel }: SpacedRepetitionG
               Como funciona?
             </CardTitle>
             <CardDescription>
-              O sistema acompanha seu desempenho e agenda novas revisões para reforçar o que ainda está instável.
+              SRS significa <strong>Spaced Repetition System</strong>, ou <strong>Sistema de Repetição Espaçada</strong>. Ele acompanha seu desempenho e agenda novas revisões para reforçar o que ainda está instável.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="p-4 rounded-lg bg-muted/50 dark:bg-zinc-900/50 border border-border dark:border-zinc-800">
               <p className="text-sm leading-relaxed">
+                No Flashify, quando você vir a sigla <strong>SRS</strong>, ela se refere exatamente a esse sistema de repetição espaçada.
                 A repetição espaçada evita que todos os conteúdos apareçam com a mesma urgência.
                 Quando você interage com um flashcard ou responde um quiz, o Flashify calcula
                 quando aquele item deve voltar e reorganiza o deck de acordo com a dificuldade.

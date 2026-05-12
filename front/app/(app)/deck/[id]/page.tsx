@@ -26,7 +26,6 @@ import {
     ChevronUp,
     Sparkles,
     RotateCcw,
-    HelpCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -41,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { useLoading } from "@/components/providers/loading-provider";
 import { useGenerationLimit } from "@/contexts/generation-limit-context";
 import { ResumeStudyDialog } from "@/components/study/resume-study-dialog";
+import { SrsHelpLink } from "@/components/support/srs-help-link";
 
 const ActionCard = ({
     icon: Icon,
@@ -833,16 +833,7 @@ export default function DeckDashboardPage() {
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-sm font-medium">SRS</span>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-5 w-5 text-muted-foreground hover:text-[#48cfea]"
-                                                    asChild
-                                                >
-                                                    <Link href="/support/saiba-mais/revisao-inteligente" aria-label="Saiba mais sobre revisão inteligente">
-                                                        <HelpCircle className="w-3.5 h-3.5" />
-                                                    </Link>
-                                                </Button>
+                                                <SrsHelpLink />
                                             </div>
                                             <p className="text-[11px] text-muted-foreground">Revisão diária automática</p>
                                         </div>
