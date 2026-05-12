@@ -11,7 +11,7 @@
 
 ## 2. Visao geral
 
-Esta release concentra melhorias estruturais na experiencia de estudo, criacao e manutencao de flashcards, com foco especial em conteudo tecnico, cientifico e academico. O objetivo e permitir que o produto trate melhor textos formatados, equacoes matematicas, notacao tecnica e fluxos de edicao mais robustos, ao mesmo tempo em que prepara a base para ajustes adicionais de interface, barras de progresso e evolucoes na rota `/admin`.
+Esta release concentra melhorias estruturais na experiencia de estudo, criacao e manutencao de flashcards, com foco especial em conteudo tecnico, cientifico e academico. O objetivo e permitir que o produto trate melhor textos formatados, equacoes matematicas, notacao tecnica e fluxos de edicao mais robustos, ao mesmo tempo em que incorpora correcoes operacionais importantes, como estabilizacao da exclusao de decks e maior robustez visual para titulos longos em cards e na pagina individual do deck.
 
 ## 3. Objetivo
 
@@ -19,6 +19,8 @@ Esta release concentra melhorias estruturais na experiencia de estudo, criacao e
 - suportar conteudo tecnico e matematico gerado ou editado com ajuda da IA
 - manter boa experiencia visual no desktop e no mobile sem quebra de layout
 - consolidar melhorias de estabilidade e usabilidade em areas criticas do produto
+- evitar regressao visual causada por titulos extensos em cards e cabecalhos de deck
+- garantir exclusao de decks sem falhas por referencias residuais no backend
 - preparar a release para incorporar novos ajustes operacionais antes do fechamento
 
 ## 4. Escopo da release
@@ -29,6 +31,8 @@ Esta release concentra melhorias estruturais na experiencia de estudo, criacao e
 - suporte a renderizacao de conteudo rico e equacoes matematicas nos flashcards
 - adaptacao dos cards para conteudo tecnico mais denso no estudo e na edicao
 - estabilizacao de interacoes sensiveis em modais e areas de gerenciamento
+- correcoes de layout para titulos longos em cards de deck e na pagina individual
+- estabilizacao do fluxo de exclusao de decks e dados associados
 - ajustes futuros em bugs de interface
 - revisao futura da logica de algumas barras de progresso
 - adicoes futuras na rota `/admin`
@@ -73,6 +77,22 @@ Esta release concentra melhorias estruturais na experiencia de estudo, criacao e
 - `Impacto no usuario`: A experiencia de editar um flashcard e gerenciar varios cards ficou mais previsivel, com menos interferencia acidental no uso.
 - `Impacto tecnico`: A camada de modais e interacoes passou por estabilizacao especifica para desktop e mobile.
 
+### 5.5. Robustez visual para titulos longos de decks
+
+- `Nome`: Estabilizacao de layout para nomes extensos de deck
+- `Status`: `Concluida`
+- `Descricao`: Foram aplicados ajustes na exibicao de titulos longos nos cards da biblioteca, cards recentes do dashboard e na pagina individual do deck, preservando alinhamento, altura consistente e comportamento previsivel tanto no mobile quanto no desktop.
+- `Impacto no usuario`: Decks com nomes extensos deixaram de empurrar o corpo dos cards, desalinharem badges ou invadirem areas vizinhas da interface.
+- `Impacto tecnico`: O frontend passou a usar limites de largura, truncamento controlado e distribuicao vertical mais estavel nos componentes de card e no cabecalho do deck.
+
+### 5.6. Estabilizacao da exclusao de decks
+
+- `Nome`: Correcao de falha na exclusao de decks com referencias associadas
+- `Status`: `Concluida`
+- `Descricao`: O fluxo de exclusao de decks foi ajustado para limpar ou desassociar registros relacionados antes da remocao do documento principal, evitando erro interno ao apagar decks que ainda possuam eventos e vinculos residuais.
+- `Impacto no usuario`: O usuario consegue excluir decks sem encontrar falhas inesperadas durante a operacao.
+- `Impacto tecnico`: O backend passou a tratar explicitamente dependencias como eventos de produto, sessoes guiadas, tentativas de quiz e referencias associadas ao documento excluido.
+
 ## 6. Itens em andamento
 
 ### 6.1. Correcoes adicionais de erros e bugs de interface
@@ -107,19 +127,22 @@ Esta release concentra melhorias estruturais na experiencia de estudo, criacao e
 - restauracao do comportamento esperado do preview em edicao em massa ao alternar foco entre frente e verso
 - refinamento da posicao e leitura do menu de acoes do flashcard nas duas faces
 - blindagem de interacoes indevidas em modais de gerenciamento, inclusive em cenarios mobile
+- correcoes de truncamento, alinhamento e distribuicao vertical para decks com titulos longos em cards da biblioteca e do dashboard
+- correcao da sobreposicao do titulo na pagina individual do deck sem alterar a composicao desejada da sidebar
+- estabilizacao da exclusao de decks com limpeza de referencias residuais que bloqueavam a operacao no backend
 
 ## 9. Impacto tecnico
 
 ### 9.1. Frontend
 
-- componentes afetados: estudo, edicao individual, edicao em massa, modais, renderizacao de conteudo e estilos globais
+- componentes afetados: estudo, edicao individual, edicao em massa, modais, renderizacao de conteudo, cards de deck, pagina individual do deck e estilos globais
 - riscos principais: regressao visual em componentes compartilhados e sensibilidade de interacoes em modal no mobile
-- cuidados de responsividade: preservar leitura, scroll interno, overflow controlado e estabilidade do card em telas menores
+- cuidados de responsividade: preservar leitura, scroll interno, overflow controlado, estabilidade do card em telas menores e comportamento consistente para titulos extensos
 
 ### 9.2. Backend
 
-- servicos ou rotas afetadas: geracao por IA, persistencia de flashcards e fluxo de documentos relacionados
-- impactos de compatibilidade: necessidade de preservar conteudo com mais estrutura sem degradar o fluxo legado
+- servicos ou rotas afetadas: geracao por IA, persistencia de flashcards, fluxo de documentos relacionados e exclusao de decks
+- impactos de compatibilidade: necessidade de preservar conteudo com mais estrutura sem degradar o fluxo legado e manter integridade ao remover documentos com referencias associadas
 
 ### 9.3. Banco de dados
 
@@ -149,6 +172,9 @@ Esta release concentra melhorias estruturais na experiencia de estudo, criacao e
 - [ ] validar edicao individual sem quebra de layout em viewport reduzida
 - [ ] validar edicao em massa com preview coerente entre frente e verso
 - [ ] validar ausencia de cliques ou toques fantasmas em gerenciamento no desktop e no mobile
+- [ ] validar alinhamento de badges e altura padronizada dos cards com titulos curtos, medios e muito longos
+- [ ] validar pagina individual do deck com titulo extenso sem sobreposicao da sidebar no desktop
+- [ ] validar exclusao de deck com flashcards, quiz, sessoes guiadas e eventos associados
 
 ## 11. Deploy
 
@@ -179,6 +205,8 @@ Descrever como desfazer a release se necessario.
 - conteudo tecnico mais denso aumenta a superficie de testes de layout e responsividade
 - qualquer ajuste em modais compartilhados pode gerar regressao indireta em fluxos adjacentes
 - a release ainda depende de definicao final das melhorias de interface, barras de progresso e `/admin`
+- ajustes em cards compartilhados exigem cuidado para nao introduzir desalinhamentos entre biblioteca, dashboard e pastas
+- a exclusao de decks deve continuar sendo observada em cenarios com historico analitico e eventos antigos
 
 ## 14. Criterios para fechamento da release
 
@@ -203,3 +231,5 @@ Descrever como desfazer a release se necessario.
 - criacao do primeiro documento oficial da release em construcao
 - registro das funcionalidades ja entregues para rich text, conteudo tecnico e estabilizacao inicial de UX
 - abertura formal das frentes futuras de bugs de interface, barras de progresso e evolucoes em `/admin`
+- inclusao das correcoes de layout para titulos longos em cards e na pagina do deck
+- inclusao da correcao operacional para exclusao de decks com referencias residuais no backend
