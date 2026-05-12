@@ -165,8 +165,8 @@ export default function QuizPage() {
     const currentQuestion = useMemo(() => questions[currentQuestionIndex], [questions, currentQuestionIndex]);
     const progressPercentage = useMemo(() => {
         if (questions.length === 0) return 0;
-        const currentStep = showResults ? questions.length : currentQuestionIndex + 1;
-        return (currentStep / questions.length) * 100;
+        if (showResults) return 100;
+        return (currentQuestionIndex / questions.length) * 100;
     }, [currentQuestionIndex, questions.length, showResults]);
 
 
