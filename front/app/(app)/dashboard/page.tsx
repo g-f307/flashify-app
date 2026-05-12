@@ -132,10 +132,9 @@ const CarouselSection = ({ onCreateClick }) => {
               className="bg-card border border-gray-200 dark:border-zinc-800 rounded-lg p-6"
             >
               <div className="flex items-center gap-4 sm:gap-6">
-                <div className={`flex-shrink-0 p-2.5 rounded-xl transition-all duration-300 ${
-                  slides[currentSlide].color === "text-[#FACC15]" ? "bg-[#FACC15]/10" :
-                  "bg-[#48cfea]/10"
-                }`}>
+                <div className={`flex-shrink-0 p-2.5 rounded-xl transition-all duration-300 ${slides[currentSlide].color === "text-[#FACC15]" ? "bg-[#FACC15]/10" :
+                    "bg-[#48cfea]/10"
+                  }`}>
                   {(() => {
                     const Icon = slides[currentSlide].icon;
                     return <Icon className={`w-6 h-6 ${slides[currentSlide].color}`} />;
@@ -168,11 +167,10 @@ const CarouselSection = ({ onCreateClick }) => {
                 <motion.button
                   key={index}
                   onClick={() => goToSlide(index)}
-                  className={`transition-all duration-300 rounded-full ${
-                    index === currentSlide
+                  className={`transition-all duration-300 rounded-full ${index === currentSlide
                       ? 'bg-primary w-6 h-1.5'
                       : 'bg-muted hover:bg-muted-foreground/30 w-1.5 h-1.5'
-                  }`}
+                    }`}
                   whileHover={{ scale: 1.1 }}
                   aria-label={`Ir para slide ${index + 1}`}
                 />
@@ -196,8 +194,8 @@ const CarouselSection = ({ onCreateClick }) => {
           transition={{ delay: 0.2 }}
           className="text-center mt-8"
         >
-          <Button 
-            size="lg" 
+          <Button
+            size="lg"
             onClick={onCreateClick}
             className="shadow-lg hover:shadow-xl transition-all hover:scale-105"
           >
@@ -245,15 +243,15 @@ const getDailyHeadline = (
     const phrases =
       pendingDeckCount === 1
         ? [
-            "Um deck levantou a mão. Serviço rápido, sem novela.",
-            "Tem só um deck na fila. Dá para resolver antes do café esfriar.",
-            "Hoje veio manso: uma revisão e a chance real de zerar a pendência.",
-          ]
+          "Um deck levantou a mão. Serviço rápido, sem novela.",
+          "Tem só um deck na fila. Dá para resolver antes do café esfriar.",
+          "Hoje veio manso: uma revisão e a chance real de zerar a pendência.",
+        ]
         : [
-            "Dois deckzinhos pedindo atenção. Nada dramático, mas eles notaram sua ausência.",
-            "Tem pouca coisa esperando. Dá para resolver bonito hoje.",
-            "O dia veio educado: poucas revisões, bom ritmo e chance real de fechar tudo.",
-          ];
+          "Dois deckzinhos pedindo atenção. Nada dramático, mas eles notaram sua ausência.",
+          "Tem pouca coisa esperando. Dá para resolver bonito hoje.",
+          "O dia veio educado: poucas revisões, bom ritmo e chance real de fechar tudo.",
+        ];
     const index = (pendingDeckCount + totalPending + safeName.length) % phrases.length;
     return {
       greeting: `Olá, ${safeName}`,
@@ -348,34 +346,34 @@ const DailyTasksBanner = ({
               <div className="relative flex h-full items-center justify-center">
                 <div className="grid w-full max-w-[392px] translate-y-2 grid-cols-2 gap-3 sm:translate-y-4 lg:translate-y-5 sm:gap-4">
                   <div className="relative flex min-h-[184px] flex-col items-center justify-center">
-                  <div className="pointer-events-none absolute top-1 h-3 w-3 rounded-full border border-border/70 bg-background/90 shadow-[0_0_18px_rgba(255,255,255,0.18)] dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-[0_0_18px_rgba(255,255,255,0.08)]" />
-                  <div className="pointer-events-none absolute left-1/2 top-[110px] h-12 w-36 -translate-x-1/2 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_26%,rgba(254,249,195,0.94)_46%,rgba(253,230,138,0.38)_64%,rgba(255,255,255,0)_82%)] blur-[0.2px] sm:top-[108px] sm:h-12 sm:w-40 dark:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.34)_0%,rgba(125,211,252,0.24)_36%,rgba(125,211,252,0.1)_60%,rgba(255,255,255,0)_78%)]" />
+                    <div className="pointer-events-none absolute top-1 h-3 w-3 rounded-full border border-border/70 bg-background/90 shadow-[0_0_18px_rgba(255,255,255,0.18)] dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-[0_0_18px_rgba(255,255,255,0.08)]" />
+                    <div className="pointer-events-none absolute left-1/2 top-[110px] h-12 w-36 -translate-x-1/2 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_26%,rgba(254,249,195,0.94)_46%,rgba(253,230,138,0.38)_64%,rgba(255,255,255,0)_82%)] blur-[0.2px] sm:top-[108px] sm:h-12 sm:w-40 dark:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.34)_0%,rgba(125,211,252,0.24)_36%,rgba(125,211,252,0.1)_60%,rgba(255,255,255,0)_78%)]" />
 
-                  <div className="relative z-10 flex h-[148px] w-full max-w-[176px] flex-col items-center justify-center rounded-2xl border border-red-500/20 bg-card/94 px-3 py-4 text-center shadow-[0_18px_34px_-24px_rgba(239,68,68,0.45)] dark:border-red-500/20 dark:bg-zinc-900/94">
-                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/10">
-                      <Flame className="h-5 w-5 text-red-500" />
+                    <div className="relative z-10 flex h-[148px] w-full max-w-[176px] flex-col items-center justify-center rounded-2xl border border-red-500/20 bg-card/94 px-3 py-4 text-center shadow-[0_18px_34px_-24px_rgba(239,68,68,0.45)] dark:border-red-500/20 dark:bg-zinc-900/94">
+                      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/10">
+                        <Flame className="h-5 w-5 text-red-500" />
+                      </div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
+                        Decks pendentes
+                      </p>
+                      <p className="mt-2 text-3xl font-bold text-foreground">{pendingDeckCount}</p>
                     </div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
-                      Decks pendentes
-                    </p>
-                    <p className="mt-2 text-3xl font-bold text-foreground">{pendingDeckCount}</p>
                   </div>
-                </div>
 
                   <div className="relative flex min-h-[184px] flex-col items-center justify-center">
-                  <div className="pointer-events-none absolute top-1 h-3 w-3 rounded-full border border-border/70 bg-background/90 shadow-[0_0_18px_rgba(255,255,255,0.18)] dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-[0_0_18px_rgba(255,255,255,0.08)]" />
-                  <div className="pointer-events-none absolute left-1/2 top-[110px] h-12 w-36 -translate-x-1/2 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_26%,rgba(254,249,195,0.94)_46%,rgba(253,230,138,0.38)_64%,rgba(255,255,255,0)_82%)] blur-[0.2px] sm:top-[108px] sm:h-12 sm:w-40 dark:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.34)_0%,rgba(125,211,252,0.24)_36%,rgba(125,211,252,0.1)_60%,rgba(255,255,255,0)_78%)]" />
+                    <div className="pointer-events-none absolute top-1 h-3 w-3 rounded-full border border-border/70 bg-background/90 shadow-[0_0_18px_rgba(255,255,255,0.18)] dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-[0_0_18px_rgba(255,255,255,0.08)]" />
+                    <div className="pointer-events-none absolute left-1/2 top-[110px] h-12 w-36 -translate-x-1/2 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_0%,rgba(255,250,235,1)_26%,rgba(254,249,195,0.94)_46%,rgba(253,230,138,0.38)_64%,rgba(255,255,255,0)_82%)] blur-[0.2px] sm:top-[108px] sm:h-12 sm:w-40 dark:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.34)_0%,rgba(125,211,252,0.24)_36%,rgba(125,211,252,0.1)_60%,rgba(255,255,255,0)_78%)]" />
 
-                  <div className="relative z-10 flex h-[148px] w-full max-w-[176px] flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-card/94 px-3 py-4 text-center shadow-[0_18px_34px_-24px_rgba(16,185,129,0.42)] dark:border-emerald-500/20 dark:bg-zinc-900/94">
-                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10">
-                      <BookOpenCheck className="h-5 w-5 text-emerald-500" />
+                    <div className="relative z-10 flex h-[148px] w-full max-w-[176px] flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-card/94 px-3 py-4 text-center shadow-[0_18px_34px_-24px_rgba(16,185,129,0.42)] dark:border-emerald-500/20 dark:bg-zinc-900/94">
+                      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10">
+                        <BookOpenCheck className="h-5 w-5 text-emerald-500" />
+                      </div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
+                        Revisados hoje
+                      </p>
+                      <p className="mt-2 text-3xl font-bold text-foreground">{reviewedDecksToday}</p>
                     </div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
-                      Revisados hoje
-                    </p>
-                    <p className="mt-2 text-3xl font-bold text-foreground">{reviewedDecksToday}</p>
                   </div>
-                </div>
                 </div>
               </div>
             </div>
@@ -452,7 +450,10 @@ const ContinueWhereLeftOffCard = ({
 
           <div className="min-w-0 space-y-3">
             <div className="space-y-1.5">
-              <h4 className="text-xl font-semibold leading-tight text-foreground sm:text-[1.55rem]">
+              <h4
+                className="truncate text-xl font-semibold leading-tight text-foreground sm:text-[1.55rem]"
+                title={displayName}
+              >
                 {displayName}
               </h4>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-muted-foreground sm:text-sm">
@@ -643,8 +644,8 @@ const StreakCalendarCard = ({
                     day.status === "active" && "bg-[#FACC15] text-black shadow-[0_10px_24px_-16px_rgba(250,204,21,0.92)]",
                     day.status === "missed" && "bg-[#48cfea]/12 text-foreground/80 dark:bg-[#48cfea]/8 dark:text-foreground/70"
                   )}
-                  >
-                    <span>{day.day}</span>
+                >
+                  <span>{day.day}</span>
                   {day.status === "missed" && (
                     <span className="pointer-events-none absolute right-1 top-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500/12 text-red-500 dark:bg-red-500/15 dark:text-red-400">
                       <X className="h-2.5 w-2.5" />
@@ -673,7 +674,7 @@ const calculateContinueProgress = (
     const flashcardsProgress = document.srs_enabled
       ? Math.max(0, ((studiedFlashcards - flashcardsPending) / document.total_flashcards) * 100)
       : stats?.flashcards.progress_percentage ??
-        Math.min(100, (studiedFlashcards / document.total_flashcards) * 100);
+      Math.min(100, (studiedFlashcards / document.total_flashcards) * 100);
 
     progressParts.push(Math.min(100, flashcardsProgress));
   }
@@ -800,10 +801,10 @@ export default function HomePage() {
     try {
       await apiClient.deleteDocument(deletedId);
       toast.success("Deck excluído com sucesso!");
-      setRecentDocuments(currentDocs => 
+      setRecentDocuments(currentDocs =>
         currentDocs.filter(doc => doc.id !== deletedId)
       );
-      setAllDocuments(currentDocs => 
+      setAllDocuments(currentDocs =>
         currentDocs.filter(doc => doc.id !== deletedId)
       );
     } catch (error: any) {
@@ -813,8 +814,8 @@ export default function HomePage() {
 
   // Calcular pendências de revisão globais
   const pendingReviewDocs = allDocuments.filter(
-    d => d.srs_enabled !== false && d.status === 'COMPLETED' && 
-    ((d.flashcards_pending || 0) + (d.questions_pending || 0)) > 0
+    d => d.srs_enabled !== false && d.status === 'COMPLETED' &&
+      ((d.flashcards_pending || 0) + (d.questions_pending || 0)) > 0
   );
   const totalPending = pendingReviewDocs.reduce(
     (sum, d) => sum + (d.flashcards_pending || 0) + (d.questions_pending || 0), 0
@@ -1060,12 +1061,12 @@ export default function HomePage() {
                       {visibleRecentCarouselItems.map((item, index) =>
                         item ? (
                           <div key={item.id} className="min-w-0">
-                          <RecentDocumentCard
-                            document={item}
-                            onSelect={() => handleDocumentSelect(item)}
-                            onDelete={() => handleDelete(item.id)} 
-                            onUpdate={fetchRecent}
-                          />
+                            <RecentDocumentCard
+                              document={item}
+                              onSelect={() => handleDocumentSelect(item)}
+                              onDelete={() => handleDelete(item.id)}
+                              onUpdate={fetchRecent}
+                            />
                           </div>
                         ) : (
                           <div key={`library-card-${recentCarouselIndex + index}`} className="min-w-0">

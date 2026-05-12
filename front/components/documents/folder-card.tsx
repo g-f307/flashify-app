@@ -43,7 +43,7 @@ export function FolderCard({ folder, onRename, onDelete }: FolderCardProps) {
       </div>
 
       <Link href={`/library/folder/${folder.id}`} legacyBehavior>
-      <a className="block p-4 bg-card rounded-lg border-0 dark:border-0 shadow-none dark:shadow-none hover:shadow-md transition-shadow duration-200 h-full">
+        <a className="block p-4 bg-card rounded-lg border-0 dark:border-0 shadow-none dark:shadow-none hover:shadow-md transition-shadow duration-200 h-full">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Folder className="w-8 h-8 text-yellow-500" />

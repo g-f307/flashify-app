@@ -119,7 +119,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
             <div className="pointer-events-none absolute right-4 top-4 h-10 w-10 rounded-tr-xl border-r border-t border-[#48cfea]/12 opacity-60 dark:border-zinc-800 dark:opacity-100" />
             <div className="pointer-events-none absolute bottom-4 left-4 h-10 w-10 rounded-bl-xl border-b border-l border-[#FACC15]/12 opacity-60 dark:border-zinc-800 dark:opacity-100" />
 
-            <div className="relative mb-4 flex items-start justify-between gap-3">
+            <div className="relative mb-3 flex h-14 items-start justify-between gap-3">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[#48cfea]/25 bg-[#48cfea]/10 dark:border-[#48cfea]/20 dark:bg-[#48cfea]/8">
                   <BookOpen className="h-4.5 w-4.5 text-[#1f8cab] dark:text-[#48cfea]" />
@@ -127,12 +127,15 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                     <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-4 ring-card dark:ring-[#2a2e38]" />
                   )}
                 </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h3 className="line-clamp-2 text-base font-semibold leading-tight text-foreground" title={displayName}>
+
+                <div className="flex min-w-0 flex-1 flex-col justify-between self-stretch">
+                  <h3
+                    className="truncate text-base font-semibold leading-tight text-foreground"
+                    title={displayName}
+                  >
                     {displayName}
                   </h3>
-                  <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                     <CalendarDays className="h-3.5 w-3.5 opacity-70" />
                     <span className="truncate whitespace-nowrap">
                       <TimeAgo date={document.created_at} />
@@ -140,13 +143,13 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                   </div>
                 </div>
               </div>
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="relative h-8 w-8 flex-shrink-0 rounded-lg hover:bg-muted/80 transition-all opacity-60 group-hover:opacity-100 dark:hover:bg-zinc-700/70" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative h-8 w-8 flex-shrink-0 rounded-lg hover:bg-muted/80 transition-all opacity-60 group-hover:opacity-100 dark:hover:bg-zinc-700/70"
                     onClick={(e) => { e.stopPropagation(); }}
                   >
                     <MoreVertical className="h-4 w-4" />
@@ -159,9 +162,9 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                     </DropdownMenuItem>
                   )}
                   {onDelete && (
-                    <DropdownMenuItem 
-                      className="text-red-600 focus:text-red-600 focus:bg-red-50" 
-                      onSelect={handleDeleteClick} 
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                      onSelect={handleDeleteClick}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -171,12 +174,12 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
               </DropdownMenu>
             </div>
 
-            <div className="relative flex flex-1 flex-col justify-between min-h-0">
-              <div className="space-y-4">
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <div className="space-y-3">
                 <div
                   className={cn(
                     "flex flex-wrap items-start gap-2",
-                    document.srs_enabled || statusBadge ? "min-h-8" : "min-h-0"
+                    document.srs_enabled || statusBadge ? "min-h-7" : "min-h-0"
                   )}
                 >
                   {statusBadge}
@@ -219,22 +222,22 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                 </div>
               </div>
             </div>
-            
-            <div className="relative mt-4 border-t border-muted pt-4 dark:border-zinc-700/60">
-              <Button 
+
+            <div className="relative mt-auto border-t border-muted pt-4 dark:border-zinc-700/60">
+              <Button
                 className={cn(
                   "w-full rounded-xl transition-all duration-200",
-                  isClickable 
-                    ? "bg-[#48cfea] hover:bg-[#48cfea]/90 text-black shadow-sm" 
+                  isClickable
+                    ? "bg-[#48cfea] hover:bg-[#48cfea]/90 text-black shadow-sm"
                     : ""
                 )}
                 variant={document.status === 'COMPLETED' ? "default" : "secondary"}
-                onClick={handleStartStudy} 
+                onClick={handleStartStudy}
                 disabled={document.status !== 'COMPLETED'}
               >
                 {document.status === 'PROCESSING' ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin"/> 
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Processando
                   </>
                 ) : (
@@ -247,7 +250,7 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
           </Card>
         </a>
       </Link>
-      
+
       {onUpdate && (
         <MoveToFolderModal
           doc={document}
