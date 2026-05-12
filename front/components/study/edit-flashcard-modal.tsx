@@ -11,7 +11,6 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -78,8 +77,8 @@ export function EditFlashcardModal({ flashcard, isOpen, onClose, onUpdate }: Edi
         <DialogHeader className="shrink-0 border-b border-black/10 px-4 py-4 dark:border-white/10 sm:px-6 sm:py-5">
           <DialogTitle>Editar Flashcard</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-scrollbar]]:opacity-100 [&_[data-slot=scroll-area-scrollbar]]:w-3 [&_[data-slot=scroll-area-thumb]]:bg-black/15 dark:[&_[data-slot=scroll-area-thumb]]:bg-white/20">
-          <div className="grid gap-4 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y px-4 py-4 sm:px-6 sm:py-5">
+          <div className="grid gap-4">
             <div className="grid gap-3 rounded-xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
               <Label htmlFor="front" className="pt-1">
                 Frente
@@ -103,7 +102,7 @@ export function EditFlashcardModal({ flashcard, isOpen, onClose, onUpdate }: Edi
               />
             </div>
           </div>
-        </ScrollArea>
+        </div>
         <DialogFooter className="shrink-0 border-t border-black/10 px-4 py-4 dark:border-white/10 sm:px-6">
           <DialogClose asChild>
             <Button type="button" variant="secondary" className="w-full sm:w-auto">

@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -150,8 +149,8 @@ export function EditQuestionModal({
           <DialogTitle>Editar pergunta</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-scrollbar]]:opacity-100 [&_[data-slot=scroll-area-scrollbar]]:w-3 [&_[data-slot=scroll-area-thumb]]:bg-black/15 dark:[&_[data-slot=scroll-area-thumb]]:bg-white/20">
-          <div className="space-y-4 px-6 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y px-6 py-5">
+          <div className="space-y-4">
             <div className="space-y-2 rounded-xl border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]">
               <label className="text-sm font-medium">Enunciado</label>
               <Textarea
@@ -208,7 +207,7 @@ export function EditQuestionModal({
               Adicionar alternativa
             </Button>
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="border-t border-black/10 px-6 py-4 dark:border-white/10">
           <Button type="button" variant="secondary" onClick={onClose}>
