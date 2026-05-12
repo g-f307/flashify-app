@@ -283,6 +283,24 @@ export interface UserRoutineDetail {
   total_study_minutes: number;
 }
 
+export interface StudyModeStats {
+  flashcard_sessions: number;
+  quiz_sessions: number;
+  guided_sessions: number;
+  flashcard_minutes: number;
+  quiz_minutes: number;
+  guided_minutes: number;
+  total_sessions: number;
+  total_minutes: number;
+}
+
+export interface ScreenActivityItem {
+  screen: string;
+  label: string;
+  sessions: number;
+  unique_users: number;
+}
+
 export interface Token {
   access_token: string;
   token_type: string;
@@ -766,6 +784,31 @@ class ApiClient {
 
   async getUserRoutine(userId: number, days = 90): Promise<UserRoutineDetail> {
     return this.request<UserRoutineDetail>(`/analytics/users/${userId}/routine?days=${days}`);
+  }
+
+  trackScreenView(screen: string): void {
+    const token = this.getToken();
+    if (!token) return;
+    // Fire-and-forget: não bloqueia navegação, falha silenciosa
+    fetch(`${this.baseURL}/analytics/screen-view`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ screen }),
+      keepalive: true,
+    }).catch(() => {
+      // silencia erros intencionalmente — tracking nunca deve afetar o app
+    });
+  }
+
+  async getStudyModeStats(filters: AnalyticsFilters = {}): Promise<StudyModeStats> {
+    return this.request<StudyModeStats>(`/analytics/study-modes${this.buildQuery(filters)}`);
+  }
+
+  async getScreenActivity(filters: AnalyticsFilters = {}): Promise<ScreenActivityItem[]> {
+    return this.request<ScreenActivityItem[]>(`/analytics/screen-activity${this.buildQuery(filters)}`);
   }
 
   async getFolders(): Promise<Folder[]> {
