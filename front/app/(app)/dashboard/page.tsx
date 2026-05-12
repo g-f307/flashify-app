@@ -486,7 +486,7 @@ const ContinueWhereLeftOffCard = ({
               <div className="h-2.5 rounded-full bg-muted/70 dark:bg-zinc-800">
                 <div
                   className="h-full rounded-full bg-[#FACC15] transition-all duration-500"
-                  style={{ width: `${Math.max(progressPercentage, 8)}%` }}
+                  style={{ width: `${Math.max(0, progressPercentage)}%` }}
                 />
               </div>
             </div>
