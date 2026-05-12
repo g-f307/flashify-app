@@ -33,6 +33,9 @@ Esta release concentra melhorias estruturais na experiencia de estudo, criacao e
 - estabilizacao de interacoes sensiveis em modais e areas de gerenciamento
 - correcoes de layout para titulos longos em cards de deck e na pagina individual
 - estabilizacao do fluxo de exclusao de decks e dados associados
+- ajustes de documentacao e ajuda contextual para o sistema de revisao inteligente
+- refinos visuais na exibicao de barras de progresso para evitar progresso artificial
+- correcao de duplicidade do menu de acoes em flashcards no mobile
 - ajustes futuros em bugs de interface
 - revisao futura da logica de algumas barras de progresso
 - adicoes futuras na rota `/admin`
@@ -93,6 +96,30 @@ Esta release concentra melhorias estruturais na experiencia de estudo, criacao e
 - `Impacto no usuario`: O usuario consegue excluir decks sem encontrar falhas inesperadas durante a operacao.
 - `Impacto tecnico`: O backend passou a tratar explicitamente dependencias como eventos de produto, sessoes guiadas, tentativas de quiz e referencias associadas ao documento excluido.
 
+### 5.7. Documentacao contextual do SRS
+
+- `Nome`: Esclarecimento da sigla SRS e atalhos de ajuda na interface
+- `Status`: `Concluida`
+- `Descricao`: A documentacao de revisao inteligente passou a explicar explicitamente que SRS significa Spaced Repetition System, e a interface recebeu atalhos com icone de ajuda nos pontos em que a sigla aparece.
+- `Impacto no usuario`: O usuario entende com mais clareza o que significa SRS e consegue abrir rapidamente a explicacao sem precisar procurar manualmente no suporte.
+- `Impacto tecnico`: Foi criado um padrao reutilizavel de link de ajuda contextual conectado ao guia de revisao inteligente.
+
+### 5.8. Ajuste de progresso visual real
+
+- `Nome`: Barras de progresso exibem avancos apenas quando ha progresso efetivo
+- `Status`: `Concluida`
+- `Descricao`: As barras de progresso do quiz e do card "Continue de onde parou" foram ajustadas para nao sugerirem avancos artificiais em 0% ou antes da conclusao real de uma etapa.
+- `Impacto no usuario`: O progresso visual ficou mais honesto e previsivel, sem transmitir a impressao de avancos que ainda nao aconteceram.
+- `Impacto tecnico`: O frontend deixou de forcar preenchimento minimo visual e passou a calcular o quiz com base em etapas efetivamente concluidas.
+
+### 5.9. Correcao do menu duplicado em flashcard mobile
+
+- `Nome`: Remocao de duplicidade do menu de acoes no verso do flashcard
+- `Status`: `Concluida`
+- `Descricao`: O menu de tres pontos do flashcard individual foi corrigido para aparecer apenas na face ativa do card, evitando duplicidade visual em navegadores mobile.
+- `Impacto no usuario`: A experiencia no mobile ficou mais limpa e sem elementos sobrepostos no verso do flashcard.
+- `Impacto tecnico`: A renderizacao do menu de acoes passou a respeitar o estado ativo da face do flashcard durante a rotacao 3D.
+
 ## 6. Itens em andamento
 
 ### 6.1. Correcoes adicionais de erros e bugs de interface
@@ -130,12 +157,18 @@ Esta release concentra melhorias estruturais na experiencia de estudo, criacao e
 - correcoes de truncamento, alinhamento e distribuicao vertical para decks com titulos longos em cards da biblioteca e do dashboard
 - correcao da sobreposicao do titulo na pagina individual do deck sem alterar a composicao desejada da sidebar
 - estabilizacao da exclusao de decks com limpeza de referencias residuais que bloqueavam a operacao no backend
+- explicacao explicita da sigla SRS no guia de revisao inteligente
+- inclusao de atalhos de ajuda com icone de interrogacao nos pontos da interface em que SRS aparece
+- ajuste da barra de progresso do quiz para avancar apenas apos a progressao real entre perguntas
+- remocao de preenchimento minimo artificial da barra de progresso em 0% no card de continuidade
+- correcao do menu de tres pontos duplicado no verso do flashcard individual no mobile
 
 ## 9. Impacto tecnico
 
 ### 9.1. Frontend
 
 - componentes afetados: estudo, edicao individual, edicao em massa, modais, renderizacao de conteudo, cards de deck, pagina individual do deck e estilos globais
+- componentes afetados: estudo, edicao individual, edicao em massa, modais, renderizacao de conteudo, cards de deck, pagina individual do deck, componentes de suporte e estilos globais
 - riscos principais: regressao visual em componentes compartilhados e sensibilidade de interacoes em modal no mobile
 - cuidados de responsividade: preservar leitura, scroll interno, overflow controlado, estabilidade do card em telas menores e comportamento consistente para titulos extensos
 
@@ -175,6 +208,10 @@ Esta release concentra melhorias estruturais na experiencia de estudo, criacao e
 - [ ] validar alinhamento de badges e altura padronizada dos cards com titulos curtos, medios e muito longos
 - [ ] validar pagina individual do deck com titulo extenso sem sobreposicao da sidebar no desktop
 - [ ] validar exclusao de deck com flashcards, quiz, sessoes guiadas e eventos associados
+- [ ] validar que a barra de progresso do quiz inicia em 0% e so avanca apos cada proxima pergunta
+- [ ] validar que o card "Continue de onde parou" nao mostra preenchimento quando o progresso estiver em 0%
+- [ ] validar os atalhos de ajuda do SRS em desktop e mobile
+- [ ] validar que o menu de tres pontos do flashcard individual nao aparece duplicado no mobile
 
 ## 11. Deploy
 
@@ -233,3 +270,6 @@ Descrever como desfazer a release se necessario.
 - abertura formal das frentes futuras de bugs de interface, barras de progresso e evolucoes em `/admin`
 - inclusao das correcoes de layout para titulos longos em cards e na pagina do deck
 - inclusao da correcao operacional para exclusao de decks com referencias residuais no backend
+- inclusao do esclarecimento da sigla SRS com atalhos de ajuda contextual na interface
+- inclusao dos refinamentos de progresso visual real em quiz e card de continuidade
+- inclusao da correcao do menu duplicado no flashcard individual em navegadores mobile
