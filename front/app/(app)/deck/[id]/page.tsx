@@ -3,13 +3,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiClient, Document, DeckStats, GuidedStudyProgress } from "@/lib/api";
-import { 
-    Card, 
+import {
+    Card,
     CardAction,
-    CardContent, 
-    CardDescription, 
-    CardHeader, 
-    CardTitle 
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +39,7 @@ import { SrsOverviewPanel } from "@/components/deck/srs-overview-panel";
 import { BulkEditContentDialog } from "@/components/deck/bulk-edit-content-dialog";
 import { cn } from "@/lib/utils";
 import { useLoading } from "@/components/providers/loading-provider";
-import { useGenerationLimit } from "@/contexts/generation-limit-context"; 
+import { useGenerationLimit } from "@/contexts/generation-limit-context";
 import { ResumeStudyDialog } from "@/components/study/resume-study-dialog";
 
 const ActionCard = ({
@@ -85,14 +85,14 @@ const ActionCard = ({
             onActivate && "cursor-pointer",
             className
         )}
-        onClick={(event) => {
-            if (!onActivate) return;
-            const target = event.target as HTMLElement;
-            if (target.closest("button, a, input, textarea, select, [role='button'], [data-card-ignore-click='true']")) {
-                return;
-            }
-            onActivate();
-        }}>
+            onClick={(event) => {
+                if (!onActivate) return;
+                const target = event.target as HTMLElement;
+                if (target.closest("button, a, input, textarea, select, [role='button'], [data-card-ignore-click='true']")) {
+                    return;
+                }
+                onActivate();
+            }}>
             <div className={cn(
                 "absolute inset-0 opacity-0 transition-opacity duration-500",
                 !isLocked && "group-hover:opacity-100",
@@ -196,9 +196,9 @@ export default function DeckDashboardPage() {
     };
 
     useEffect(() => {
-        if(documentId) fetchDeckData();
+        if (documentId) fetchDeckData();
     }, [documentId]);
-    
+
     useEffect(() => {
         return () => {
             if (progressIntervalRef.current) {
@@ -252,31 +252,31 @@ export default function DeckDashboardPage() {
         try {
             await apiClient.generateFlashcardsForDocument(document.id);
             await fetchDeckData();
-            
+
             stopProgressSimulation();
             toast.success("Flashcards gerados com sucesso!");
 
             await refreshLimitInfo();
 
             setTimeout(() => {
-            setIsCreatingFlashcards(false);
-            setCreationProgress(0);
+                setIsCreatingFlashcards(false);
+                setCreationProgress(0);
             }, 1000);
 
         } catch (error: any) {
             stopProgressSimulation(true);
-        
+
             if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
-            toast.error("Limite diário atingido", {
-                description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
-                duration: 5000
-            });
+                toast.error("Limite diário atingido", {
+                    description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
+                    duration: 5000
+                });
             } else {
-            toast.error("Falha ao gerar os flashcards", { 
-                description: error.message || "Tente novamente mais tarde." 
-            });
+                toast.error("Falha ao gerar os flashcards", {
+                    description: error.message || "Tente novamente mais tarde."
+                });
             }
-            
+
             setIsCreatingFlashcards(false);
         }
     }
@@ -296,24 +296,24 @@ export default function DeckDashboardPage() {
             await refreshLimitInfo();
 
             setTimeout(() => {
-            setIsCreatingQuiz(false);
-            setCreationProgress(0);
+                setIsCreatingQuiz(false);
+                setCreationProgress(0);
             }, 1000);
 
         } catch (error: any) {
             stopProgressSimulation(true);
-            
+
             if (error.message === "LIMIT_EXCEEDED" && error.limitInfo) {
-            toast.error("Limite diário atingido", {
-                description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
-                duration: 5000
-            });
+                toast.error("Limite diário atingido", {
+                    description: `Você já usou todas as ${error.limitInfo.limit} gerações hoje. Renova em ${error.limitInfo.hours_until_reset}h.`,
+                    duration: 5000
+                });
             } else {
-            toast.error("Falha ao gerar o quiz", { 
-                description: error.message || "Tente novamente mais tarde." 
-            });
+                toast.error("Falha ao gerar o quiz", {
+                    description: error.message || "Tente novamente mais tarde."
+                });
             }
-            
+
             setIsCreatingQuiz(false);
         }
     }
@@ -380,7 +380,7 @@ export default function DeckDashboardPage() {
             setIsRestructuring(false);
         }
     };
-    
+
     if (isLoading) {
         return (
             <div className="flex flex-col justify-center items-center min-h-screen">
@@ -394,7 +394,7 @@ export default function DeckDashboardPage() {
 
     if (error || !document) {
         return (
-             <div className="flex flex-col justify-center items-center min-h-screen text-center p-4">
+            <div className="flex flex-col justify-center items-center min-h-screen text-center p-4">
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", duration: 0.6 }}>
                     <div className="relative mb-6">
                         <AlertTriangle className="w-16 h-16 text-destructive" />
@@ -430,12 +430,19 @@ export default function DeckDashboardPage() {
                 />
             )}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8">
-                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-4 lg:max-w-[calc(60%-1rem)] xl:max-w-[calc(60%-1.5rem)]"
+                >
                     <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-2 hover:bg-primary/10">
                         <ArrowLeft className="w-4 h-4 mr-2" />Voltar
                     </Button>
-                    <div className="relative">
-                        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-2">
+                    <div className="relative max-w-full">
+                        <h1
+                            className="mb-2 max-w-full text-2xl font-bold tracking-tight text-balance [overflow-wrap:anywhere] sm:text-3xl lg:text-4xl"
+                            title={formatDocumentTitle(document.file_path, document.title)}
+                        >
                             {formatDocumentTitle(document.file_path, document.title)}
                         </h1>
                         <p className="text-base sm:text-lg text-muted-foreground">Escolha sua atividade de estudo para este deck</p>
@@ -473,9 +480,9 @@ export default function DeckDashboardPage() {
                                     </div>
                                 ) : hasFlashcards ? (
                                     <div className="space-y-4">
-                                        <Button 
-                                            className="w-full h-12 text-base shadow-md transition-all group" 
-                                            size="lg" 
+                                        <Button
+                                            className="w-full h-12 text-base shadow-md transition-all group"
+                                            size="lg"
                                             asChild
                                         >
                                             <Link href={`/study/${document.id}`}>
@@ -485,7 +492,7 @@ export default function DeckDashboardPage() {
                                         </Button>
                                         {document.srs_enabled && srsGroups && (
                                             <div className="space-y-2" data-card-ignore-click="true">
-                                                <div 
+                                                <div
                                                     className="flex items-center justify-between mb-1 cursor-pointer hover:bg-[#FACC15]/10 p-1.5 -mx-1.5 rounded-lg transition-colors group/toggle"
                                                     onClick={() => setShowFlashcardSrs(!showFlashcardSrs)}
                                                 >
@@ -497,13 +504,13 @@ export default function DeckDashboardPage() {
                                                         {showFlashcardSrs ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                                                     </Button>
                                                 </div>
-                                                
+
                                                 <AnimatePresence initial={false}>
                                                     {showFlashcardSrs && (
-                                                        <motion.div 
-                                                            initial={{ height: 0, opacity: 0 }} 
-                                                            animate={{ height: "auto", opacity: 1 }} 
-                                                            exit={{ height: 0, opacity: 0 }} 
+                                                        <motion.div
+                                                            initial={{ height: 0, opacity: 0 }}
+                                                            animate={{ height: "auto", opacity: 1 }}
+                                                            exit={{ height: 0, opacity: 0 }}
                                                             transition={{ duration: 0.2 }}
                                                             className="overflow-hidden space-y-2"
                                                         >
@@ -564,9 +571,9 @@ export default function DeckDashboardPage() {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <Button 
-                                            className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all bg-[#FACC15] hover:bg-[#FACC15]/90 text-black" 
-                                            size="lg" 
+                                        <Button
+                                            className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all bg-[#FACC15] hover:bg-[#FACC15]/90 text-black"
+                                            size="lg"
                                             onClick={handleCreateFlashcards}
                                         >
                                             <Wand2 className="w-5 h-5 mr-2" />
@@ -608,9 +615,9 @@ export default function DeckDashboardPage() {
                                     </div>
                                 ) : hasQuiz ? (
                                     <div className="space-y-4">
-                                        <Button 
-                                            className="w-full h-12 text-base shadow-md transition-all group bg-[#48cfea] hover:bg-[#48cfea]/90 text-black" 
-                                            size="lg" 
+                                        <Button
+                                            className="w-full h-12 text-base shadow-md transition-all group bg-[#48cfea] hover:bg-[#48cfea]/90 text-black"
+                                            size="lg"
                                             onClick={handleStartQuiz}
                                         >
                                             <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
@@ -618,7 +625,7 @@ export default function DeckDashboardPage() {
                                         </Button>
                                         {document.srs_enabled && quizSrsGroups && (
                                             <div className="space-y-2" data-card-ignore-click="true">
-                                                <div 
+                                                <div
                                                     className="flex items-center justify-between mb-1 cursor-pointer hover:bg-[#48cfea]/10 p-1.5 -mx-1.5 rounded-lg transition-colors group/toggle"
                                                     onClick={() => setShowQuizSrs(!showQuizSrs)}
                                                 >
@@ -633,10 +640,10 @@ export default function DeckDashboardPage() {
 
                                                 <AnimatePresence initial={false}>
                                                     {showQuizSrs && (
-                                                        <motion.div 
-                                                            initial={{ height: 0, opacity: 0 }} 
-                                                            animate={{ height: "auto", opacity: 1 }} 
-                                                            exit={{ height: 0, opacity: 0 }} 
+                                                        <motion.div
+                                                            initial={{ height: 0, opacity: 0 }}
+                                                            animate={{ height: "auto", opacity: 1 }}
+                                                            exit={{ height: 0, opacity: 0 }}
                                                             transition={{ duration: 0.2 }}
                                                             className="overflow-hidden space-y-2"
                                                         >
@@ -685,9 +692,9 @@ export default function DeckDashboardPage() {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <Button 
-                                            className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all bg-[#48cfea] hover:bg-[#48cfea]/90 text-black" 
-                                            size="lg" 
+                                        <Button
+                                            className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all bg-[#48cfea] hover:bg-[#48cfea]/90 text-black"
+                                            size="lg"
                                             onClick={handleCreateQuiz}
                                         >
                                             <Wand2 className="w-5 h-5 mr-2" />
