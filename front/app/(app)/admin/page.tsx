@@ -7,6 +7,7 @@ import {
   Activity,
   ArrowDownWideNarrow,
   BarChart3,
+  BookOpen,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
@@ -21,7 +22,9 @@ import {
   FileText,
   Filter,
   Flame,
+  Layers,
   Loader2,
+  Monitor,
   RefreshCcw,
   Search,
   ShieldCheck,
@@ -44,6 +47,8 @@ import {
   RoutineOverview,
   RoutineHeatmap,
   UserRoutineDetail,
+  StudyModeStats,
+  ScreenActivityItem,
   apiClient,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -742,6 +747,11 @@ export default function AdminPage() {
   const [isRoutineLoading, setIsRoutineLoading] = useState(false);
   const [selectedUserRoutine, setSelectedUserRoutine] = useState<UserRoutineDetail | null>(null);
 
+  // Uso tab state
+  const [studyModeStats, setStudyModeStats] = useState<StudyModeStats | null>(null);
+  const [screenActivity, setScreenActivity] = useState<ScreenActivityItem[]>([]);
+  const [isUsoLoading, setIsUsoLoading] = useState(false);
+
   const apiFilters = useMemo(() => buildFilters(filters), [filters]);
   const userSourceOptions = useMemo(
     () => Array.from(new Set(users.map((entry) => entry.utm_source).filter(Boolean) as string[])).sort(),
@@ -1037,6 +1047,26 @@ export default function AdminPage() {
         console.error("Erro ao carregar dados de rotina:", routineError);
       })
       .finally(() => setIsRoutineLoading(false));
+  }, [activeTab, apiFilters, user?.is_team]);
+
+  // Lazy load uso tab data when the tab is selected
+  useEffect(() => {
+    if (activeTab !== "uso" || !user?.is_team || isUsoLoading) return;
+    setIsUsoLoading(true);
+    setStudyModeStats(null);
+    setScreenActivity([]);
+    Promise.all([
+      apiClient.getStudyModeStats(apiFilters),
+      apiClient.getScreenActivity(apiFilters),
+    ])
+      .then(([modesData, screensData]) => {
+        setStudyModeStats(modesData);
+        setScreenActivity(screensData);
+      })
+      .catch((usoError) => {
+        console.error("Erro ao carregar dados de uso:", usoError);
+      })
+      .finally(() => setIsUsoLoading(false));
   }, [activeTab, apiFilters, user?.is_team]);
 
   useEffect(() => {
@@ -2072,6 +2102,7 @@ export default function AdminPage() {
             <TabsTrigger value="overview" className="px-4 py-2">Visão geral</TabsTrigger>
             <TabsTrigger value="campaigns" className="px-4 py-2">Campanhas</TabsTrigger>
             <TabsTrigger value="routine" className="px-4 py-2">Rotina</TabsTrigger>
+            <TabsTrigger value="uso" className="px-4 py-2">Uso</TabsTrigger>
             <TabsTrigger value="users" className="px-4 py-2">Usuários</TabsTrigger>
           </TabsList>
         </div>
@@ -2664,6 +2695,144 @@ export default function AdminPage() {
                 )}
               </InsightCard>
             </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="uso" className="space-y-4">
+          {isUsoLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <section className="grid gap-4 lg:grid-cols-2">
+              {/* ── Modos de estudo ─────────────────────────────────── */}
+              <InsightCard
+                eyebrow="Preferências"
+                title="Modos de estudo"
+                description={`Distribuição de sessões e tempo dedicado a cada modo no período de ${filters.days} dias.`}
+                accent="yellow"
+              >
+                {!studyModeStats || studyModeStats.total_sessions === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                    <BookOpen className="h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">Nenhuma sessão de estudo registrada no período.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {/* Donut chart reutilizando AnalyticsPieChart */}
+                    <AnalyticsPieChart
+                      data={[
+                        ...(studyModeStats.flashcard_sessions > 0
+                          ? [{ label: "Flashcards", value: studyModeStats.flashcard_sessions, fill: "#facc15" }]
+                          : []),
+                        ...(studyModeStats.quiz_sessions > 0
+                          ? [{ label: "Quiz", value: studyModeStats.quiz_sessions, fill: "#48cfea" }]
+                          : []),
+                        ...(studyModeStats.guided_sessions > 0
+                          ? [{ label: "Estudo Guiado", value: studyModeStats.guided_sessions, fill: "#34d399" }]
+                          : []),
+                      ]}
+                      centerLabel="Sessões totais"
+                    />
+
+                    {/* Tabela de detalhe por modo */}
+                    <div className="space-y-2">
+                      {[
+                        {
+                          icon: BookOpen,
+                          label: "Flashcards",
+                          sessions: studyModeStats.flashcard_sessions,
+                          minutes: studyModeStats.flashcard_minutes,
+                          color: "bg-[#facc15]",
+                        },
+                        {
+                          icon: Target,
+                          label: "Quiz",
+                          sessions: studyModeStats.quiz_sessions,
+                          minutes: studyModeStats.quiz_minutes,
+                          color: "bg-[#48cfea]",
+                        },
+                        {
+                          icon: Layers,
+                          label: "Estudo Guiado",
+                          sessions: studyModeStats.guided_sessions,
+                          minutes: studyModeStats.guided_minutes,
+                          color: "bg-emerald-400",
+                        },
+                      ].map(({ icon: Icon, label, sessions, minutes, color }) => {
+                        const pct = studyModeStats.total_sessions > 0
+                          ? Math.round((sessions / studyModeStats.total_sessions) * 100)
+                          : 0;
+                        return (
+                          <div
+                            key={label}
+                            className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-800/45"
+                          >
+                            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-medium text-foreground">{label}</p>
+                                <span className="shrink-0 text-sm font-semibold text-foreground">{pct}%</span>
+                              </div>
+                              <div className="mt-1.5 h-1.5 rounded-full bg-muted/70">
+                                <div
+                                  className={`h-1.5 rounded-full transition-all ${color}`}
+                                  style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%` }}
+                                />
+                              </div>
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                {sessions} {sessions !== 1 ? "sessões" : "sessão"} • {formatMinutes(minutes)}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-800/45">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Tempo total de estudo</p>
+                      <p className="mt-1 text-xl font-semibold text-foreground">{formatMinutes(studyModeStats.total_minutes)}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{studyModeStats.total_sessions} sessões no período</p>
+                    </div>
+                  </div>
+                )}
+              </InsightCard>
+
+              {/* ── Telas mais acessadas ─────────────────────────────── */}
+              <InsightCard
+                eyebrow="Navegação"
+                title="Telas mais acessadas"
+                description={`Visitações reais registradas por tela no período de ${filters.days} dias.`}
+                accent="blue"
+              >
+                {screenActivity.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                    <Monitor className="h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma visita registrada ainda.
+                    </p>
+                    <p className="max-w-[26ch] text-xs text-muted-foreground/70">
+                      O tracking começa a colectar dados a partir de agora — os dados aparecerão após os primeiros acessos.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <RankedList
+                      items={screenActivity.map((item) => ({
+                        label: item.label,
+                        value: item.sessions,
+                        helper: `${item.unique_users} usuário${item.unique_users !== 1 ? "s" : ""} único${item.unique_users !== 1 ? "s" : ""}`,
+                      }))}
+                      colorClass="bg-[#48cfea]"
+                      emptyMessage="Sem dados de telas."
+                    />
+                    <p className="text-[10px] text-muted-foreground/70">
+                      * Cada visita de tela é rastreada uma vez por navegação. Recarregamentos contam separadamente.
+                    </p>
+                  </div>
+                )}
+              </InsightCard>
+            </section>
           )}
         </TabsContent>
 
