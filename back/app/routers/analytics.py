@@ -10,6 +10,7 @@ from ..database import get_session
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 CurrentTeamUser = Annotated[models.User, Depends(security.get_current_team_user)]
+CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
 
 
 class AnalyticsOverview(BaseModel):
@@ -1642,3 +1643,220 @@ def get_user_routine(
         total_guided_study_minutes=total_guided_study_mins,
         total_study_minutes=total_study_mins,
     )
+
+
+# ---------------------------------------------------------------------------
+# Screen tracking — endpoint (aceita qualquer usuário autenticado)
+# ---------------------------------------------------------------------------
+
+class ScreenViewRequest(BaseModel):
+    screen: str
+
+
+@router.post("/screen-view", status_code=204)
+def record_screen_view(
+    payload: ScreenViewRequest,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    """
+    Registra uma visita de tela (screen_view) como ProductEvent.
+    Chamado pelo frontend de forma fire-and-forget — não bloqueia navegação.
+    """
+    screen = payload.screen.strip()[:64]
+    if not screen:
+        return
+    analytics_service.track_product_event(
+        session,
+        "screen_view",
+        user_id=current_user.id,
+        properties={"screen": screen},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Study modes analytics — response models & endpoint
+# ---------------------------------------------------------------------------
+
+class StudyModeStats(BaseModel):
+    flashcard_sessions: int
+    quiz_sessions: int
+    guided_sessions: int
+    flashcard_minutes: int
+    quiz_minutes: int
+    guided_minutes: int
+    total_sessions: int
+    total_minutes: int
+
+
+@router.get("/study-modes", response_model=StudyModeStats)
+def get_study_mode_stats(
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+    days: int = Query(30, ge=1, le=365),
+    provider: Optional[models.AuthProvider] = Query(None),
+    utm_source: Optional[str] = Query(None),
+    utm_campaign: Optional[str] = Query(None),
+    lifecycle_stage: Optional[str] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
+    include_internal: bool = Query(False),
+):
+    """
+    Agrega totais de sessões e minutos de estudo por modo
+    (flashcards, quiz, estudo guiado) para o período e filtros informados.
+    """
+    del current_user
+
+    range_start = _range_start(days)
+
+    user_stmt = _apply_user_filters(
+        select(models.User.id),
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
+        include_internal=include_internal,
+    )
+    filtered_ids = {row for row in session.exec(user_stmt).all()}
+
+    if not filtered_ids:
+        return StudyModeStats(
+            flashcard_sessions=0, quiz_sessions=0, guided_sessions=0,
+            flashcard_minutes=0, quiz_minutes=0, guided_minutes=0,
+            total_sessions=0, total_minutes=0,
+        )
+
+    agg = session.exec(
+        select(
+            func.coalesce(func.sum(models.UserActivityDay.study_count), 0),
+            func.coalesce(func.sum(models.UserActivityDay.quiz_count), 0),
+            func.coalesce(func.sum(models.UserActivityDay.guided_study_count), 0),
+            func.coalesce(func.sum(models.UserActivityDay.flashcard_study_minutes), 0),
+            func.coalesce(func.sum(models.UserActivityDay.quiz_study_minutes), 0),
+            func.coalesce(func.sum(models.UserActivityDay.guided_study_minutes), 0),
+        ).where(
+            models.UserActivityDay.user_id.in_(filtered_ids),
+            models.UserActivityDay.activity_date >= range_start.date(),
+        )
+    ).one()
+
+    fc_sess, qz_sess, gs_sess, fc_mins, qz_mins, gs_mins = (int(v or 0) for v in agg)
+    total_sess = fc_sess + qz_sess + gs_sess
+    total_mins = fc_mins + qz_mins + gs_mins
+
+    return StudyModeStats(
+        flashcard_sessions=fc_sess,
+        quiz_sessions=qz_sess,
+        guided_sessions=gs_sess,
+        flashcard_minutes=fc_mins,
+        quiz_minutes=qz_mins,
+        guided_minutes=gs_mins,
+        total_sessions=total_sess,
+        total_minutes=total_mins,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Screen activity analytics — response models & endpoint
+# ---------------------------------------------------------------------------
+
+SCREEN_LABELS: dict[str, str] = {
+    "dashboard": "Início",
+    "library": "Biblioteca",
+    "create": "Criar Deck",
+    "study": "Flashcards",
+    "quiz": "Quiz",
+    "guided": "Estudo Guiado",
+    "progress": "Progresso",
+    "settings": "Configurações",
+    "support": "Suporte",
+    "deck": "Detalhe do Deck",
+    "admin": "Admin",
+}
+
+
+class ScreenActivityItem(BaseModel):
+    screen: str
+    label: str
+    sessions: int
+    unique_users: int
+
+
+@router.get("/screen-activity", response_model=list[ScreenActivityItem])
+def get_screen_activity(
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+    days: int = Query(30, ge=1, le=365),
+    provider: Optional[models.AuthProvider] = Query(None),
+    utm_source: Optional[str] = Query(None),
+    utm_campaign: Optional[str] = Query(None),
+    lifecycle_stage: Optional[str] = Query(None),
+    is_team: Optional[bool] = Query(None),
+    is_test_user: Optional[bool] = Query(None),
+    is_blocked: Optional[bool] = Query(None),
+    include_internal: bool = Query(False),
+):
+    """
+    Retorna ranking de telas mais acessadas via eventos screen_view.
+    """
+    del current_user
+
+    range_start = _range_start(days)
+
+    user_stmt = _apply_user_filters(
+        select(models.User.id),
+        provider=provider,
+        utm_source=utm_source,
+        utm_campaign=utm_campaign,
+        lifecycle_stage=lifecycle_stage,
+        is_team=is_team,
+        is_test_user=is_test_user,
+        is_blocked=is_blocked,
+        include_internal=include_internal,
+    )
+    filtered_ids = {row for row in session.exec(user_stmt).all()}
+
+    if not filtered_ids:
+        return []
+
+    # Filtra eventos screen_view e agrega por tela no Python
+    # para compatibilidade máxima com SQLModel/SQLAlchemy
+    event_rows = session.exec(
+        select(models.ProductEvent)
+        .where(
+            models.ProductEvent.event_name == "screen_view",
+            models.ProductEvent.occurred_at >= range_start,
+            models.ProductEvent.user_id.in_(filtered_ids),
+            models.ProductEvent.properties.is_not(None),
+        )
+    ).all()
+
+    from collections import defaultdict as _dd2
+    screen_sessions: dict[str, int] = _dd2(int)
+    screen_users: dict[str, set] = _dd2(set)
+
+    for event in event_rows:
+        if not event.properties:
+            continue
+        screen_key = event.properties.get("screen", "")
+        if not screen_key:
+            continue
+        screen_sessions[screen_key] += 1
+        if event.user_id:
+            screen_users[screen_key].add(event.user_id)
+
+    result: list[ScreenActivityItem] = []
+    for screen_key, sessions in sorted(screen_sessions.items(), key=lambda x: x[1], reverse=True)[:12]:
+        result.append(ScreenActivityItem(
+            screen=screen_key,
+            label=SCREEN_LABELS.get(screen_key, screen_key.replace("_", " ").title()),
+            sessions=sessions,
+            unique_users=len(screen_users.get(screen_key, set())),
+        ))
+
+    return result
