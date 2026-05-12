@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle"; 
 import Image from "next/image";
+import { apiClient } from "@/lib/api";
 import {
   Plus,
   Settings,
@@ -232,6 +233,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       router.push('/');
     }
   }, [user, loading, router]);
+
+  // Page view tracking — fire-and-forget, zero impacto no UX
+  useEffect(() => {
+    if (!user) return;
+    // Extrai a chave de tela do pathname: /study/123 → "study", /dashboard → "dashboard"
+    const segments = pathname.split("/").filter(Boolean);
+    const screenKey = segments[0] ?? "dashboard";
+    // Ignora segmentos dinâmicos que já estão mapeados pelo pai
+    apiClient.trackScreenView(screenKey);
+  }, [pathname, user]);
 
   const getInitials = (name: string | undefined) => {
     if (!name) return "?";
