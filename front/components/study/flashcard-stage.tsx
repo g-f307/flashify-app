@@ -55,7 +55,13 @@ export function FlashcardStage({
 }: FlashcardStageProps) {
   const menu = (extraClassName?: string) =>
     (onEdit || onDelete) ? (
-      <div className={cn("absolute top-2 right-2 z-30 opacity-0 transition-opacity group-hover:opacity-100", extraClassName)}>
+      <div
+        className={cn(
+          "absolute top-2 right-2 z-30 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100",
+          extraClassName
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -93,7 +99,7 @@ export function FlashcardStage({
       <div className={cn("w-full max-w-2xl flex-grow flex flex-col items-center justify-center perspective-1000", stageClassName)}>
         <div
           className={cn(
-            "relative group w-full h-[450px] sm:h-[500px] transform-style-preserve-3d transition-transform duration-600 cursor-pointer",
+            "relative group w-full h-[450px] cursor-pointer touch-pan-y sm:h-[500px] transform-style-preserve-3d transition-transform duration-600",
             cardClassName,
             interactiveClassName ?? "glow-on-hover"
           )}
