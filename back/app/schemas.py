@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 # --- Schemas de Usuário e Autenticação ---
 class AcquisitionContext(SQLModel):
+    visitor_id: Optional[str] = None
     utm_source: Optional[str] = None
     utm_medium: Optional[str] = None
     utm_campaign: Optional[str] = None

@@ -77,6 +77,36 @@ class AcquisitionPerformance(BaseModel):
     top_campaigns: list[AcquisitionPerformanceRow]
 
 
+class LandingVisitRequest(BaseModel):
+    visitor_id: Optional[str] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+    utm_content: Optional[str] = None
+    utm_term: Optional[str] = None
+    referrer: Optional[str] = None
+    landing_page: Optional[str] = None
+    first_touch_at: Optional[datetime] = None
+
+
+class LandingVisitRow(BaseModel):
+    occurred_at: datetime
+    visitor_id: Optional[str] = None
+    landing_page: Optional[str] = None
+    referrer: Optional[str] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+
+
+class LandingVisitSummary(BaseModel):
+    total_visits: int
+    unique_visitors: int
+    top_sources: list[AcquisitionBreakdownItem]
+    top_campaigns: list[AcquisitionBreakdownItem]
+    recent_visits: list[LandingVisitRow]
+
+
 class AnalyticsUserRow(BaseModel):
     id: int
     username: str
@@ -339,6 +369,15 @@ def _build_admin_history_row(event: models.ProductEvent) -> AnalyticsAdminHistor
         actor_email=properties.get("actor_email"),
         summary=summary,
     )
+
+
+def _clean_text(value: Optional[str], max_length: int) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    return cleaned[:max_length]
 
 
 @router.get("/overview", response_model=AnalyticsOverview)
@@ -853,6 +892,105 @@ def get_acquisition_performance(
         attributed_users=attributed_users,
         top_sources=_build_acquisition_rows(users, field_name="utm_source", limit=limit),
         top_campaigns=_build_acquisition_rows(users, field_name="utm_campaign", limit=limit),
+    )
+
+
+@router.post("/landing-visit", status_code=204)
+def record_landing_visit(
+    payload: LandingVisitRequest,
+    session: Session = Depends(get_session),
+):
+    properties = {
+        "visitor_id": _clean_text(payload.visitor_id, 120),
+        "utm_source": _clean_text(payload.utm_source, 120),
+        "utm_medium": _clean_text(payload.utm_medium, 120),
+        "utm_campaign": _clean_text(payload.utm_campaign, 160),
+        "utm_content": _clean_text(payload.utm_content, 160),
+        "utm_term": _clean_text(payload.utm_term, 160),
+        "referrer": _clean_text(payload.referrer, 500),
+        "landing_page": _clean_text(payload.landing_page, 500),
+        "first_touch_at": payload.first_touch_at.isoformat() if payload.first_touch_at else None,
+    }
+
+    analytics_service.track_product_event(
+        session,
+        "landing_page_view",
+        properties={key: value for key, value in properties.items() if value is not None},
+    )
+
+
+@router.get("/landing-visits", response_model=LandingVisitSummary)
+def get_landing_visit_summary(
+    current_user: CurrentTeamUser,
+    session: Session = Depends(get_session),
+    days: int = Query(30, ge=1, le=365),
+    utm_source: Optional[str] = Query(None),
+    utm_campaign: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+):
+    del current_user
+    range_start = _range_start(days)
+
+    events = session.exec(
+        select(models.ProductEvent)
+        .where(
+            models.ProductEvent.event_name == "landing_page_view",
+            models.ProductEvent.occurred_at >= range_start,
+        )
+        .order_by(models.ProductEvent.occurred_at.desc())
+    ).all()
+
+    filtered_events: list[models.ProductEvent] = []
+    source_counts: dict[str, int] = {}
+    campaign_counts: dict[str, int] = {}
+    unique_visitors: set[str] = set()
+
+    for event in events:
+        properties = event.properties or {}
+        source = properties.get("utm_source")
+        campaign = properties.get("utm_campaign")
+
+        if utm_source and source != utm_source:
+            continue
+        if utm_campaign and campaign != utm_campaign:
+            continue
+
+        filtered_events.append(event)
+
+        if isinstance(source, str) and source:
+            source_counts[source] = source_counts.get(source, 0) + 1
+        if isinstance(campaign, str) and campaign:
+            campaign_counts[campaign] = campaign_counts.get(campaign, 0) + 1
+
+        visitor_id = properties.get("visitor_id")
+        if isinstance(visitor_id, str) and visitor_id:
+            unique_visitors.add(visitor_id)
+
+    recent_visits = [
+        LandingVisitRow(
+            occurred_at=event.occurred_at,
+            visitor_id=(event.properties or {}).get("visitor_id"),
+            landing_page=(event.properties or {}).get("landing_page"),
+            referrer=(event.properties or {}).get("referrer"),
+            utm_source=(event.properties or {}).get("utm_source"),
+            utm_medium=(event.properties or {}).get("utm_medium"),
+            utm_campaign=(event.properties or {}).get("utm_campaign"),
+        )
+        for event in filtered_events[:limit]
+    ]
+
+    return LandingVisitSummary(
+        total_visits=len(filtered_events),
+        unique_visitors=len(unique_visitors),
+        top_sources=[
+            AcquisitionBreakdownItem(source=source, users=count)
+            for source, count in sorted(source_counts.items(), key=lambda item: (-item[1], item[0]))[:8]
+        ],
+        top_campaigns=[
+            AcquisitionBreakdownItem(source=campaign, users=count)
+            for campaign, count in sorted(campaign_counts.items(), key=lambda item: (-item[1], item[0]))[:8]
+        ],
+        recent_visits=recent_visits,
     )
 
 
