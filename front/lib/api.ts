@@ -301,6 +301,24 @@ export interface ScreenActivityItem {
   unique_users: number;
 }
 
+export interface LandingVisitItem {
+  occurred_at: string;
+  visitor_id: string | null;
+  landing_page: string | null;
+  referrer: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+}
+
+export interface LandingVisitSummary {
+  total_visits: number;
+  unique_visitors: number;
+  top_sources: AcquisitionBreakdownItem[];
+  top_campaigns: AcquisitionBreakdownItem[];
+  recent_visits: LandingVisitItem[];
+}
+
 export interface Token {
   access_token: string;
   token_type: string;
@@ -744,6 +762,10 @@ class ApiClient {
     return this.request<AcquisitionPerformance>(`/analytics/acquisition-performance${this.buildQuery(filters)}`);
   }
 
+  async getLandingVisitSummary(filters: AnalyticsFilters = {}): Promise<LandingVisitSummary> {
+    return this.request<LandingVisitSummary>(`/analytics/landing-visits${this.buildQuery(filters)}`);
+  }
+
   async getAnalyticsFunnel(filters: AnalyticsFilters = {}): Promise<AnalyticsFunnel> {
     return this.request<AnalyticsFunnel>(`/analytics/funnel${this.buildQuery(filters)}`);
   }
@@ -800,6 +822,19 @@ class ApiClient {
       keepalive: true,
     }).catch(() => {
       // silencia erros intencionalmente — tracking nunca deve afetar o app
+    });
+  }
+
+  trackLandingVisit(data: AcquisitionContext): void {
+    fetch(`${this.baseURL}/analytics/landing-visit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+      keepalive: true,
+    }).catch(() => {
+      // silencia erros intencionalmente — tracking nunca deve afetar a landing page
     });
   }
 

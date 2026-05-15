@@ -44,6 +44,7 @@ import {
   AnalyticsUserDetail,
   AnalyticsOverview,
   AnalyticsUserRow,
+  LandingVisitSummary,
   RoutineOverview,
   RoutineHeatmap,
   UserRoutineDetail,
@@ -167,6 +168,14 @@ const DEFAULT_ACQUISITION_PERFORMANCE: AcquisitionPerformance = {
   attributed_users: 0,
   top_sources: [],
   top_campaigns: [],
+};
+
+const DEFAULT_LANDING_VISITS: LandingVisitSummary = {
+  total_visits: 0,
+  unique_visitors: 0,
+  top_sources: [],
+  top_campaigns: [],
+  recent_visits: [],
 };
 
 const DEFAULT_FUNNEL: AnalyticsFunnel = {
@@ -717,6 +726,7 @@ export default function AdminPage() {
   const [overview, setOverview] = useState<AnalyticsOverview>(DEFAULT_OVERVIEW);
   const [acquisition, setAcquisition] = useState<AcquisitionSummary>(DEFAULT_ACQUISITION);
   const [acquisitionPerformance, setAcquisitionPerformance] = useState<AcquisitionPerformance>(DEFAULT_ACQUISITION_PERFORMANCE);
+  const [landingVisits, setLandingVisits] = useState<LandingVisitSummary>(DEFAULT_LANDING_VISITS);
   const [funnel, setFunnel] = useState<AnalyticsFunnel>(DEFAULT_FUNNEL);
   const [retention, setRetention] = useState<AnalyticsRetention>(DEFAULT_RETENTION);
   const [users, setUsers] = useState<AnalyticsUserRow[]>([]);
@@ -987,15 +997,17 @@ export default function AdminPage() {
       apiClient.getAnalyticsOverview(apiFilters),
       apiClient.getAcquisitionSummary({ ...apiFilters, limit: 8 }),
       apiClient.getAcquisitionPerformance({ ...apiFilters, limit: 6 }),
+      apiClient.getLandingVisitSummary({ ...apiFilters, limit: 20 }),
       apiClient.getAnalyticsFunnel(apiFilters),
       apiClient.getAnalyticsRetention(apiFilters),
       apiClient.getAnalyticsUsers({ ...apiFilters, limit: 200 }),
     ])
-      .then(([overviewResponse, acquisitionResponse, acquisitionPerformanceResponse, funnelResponse, retentionResponse, usersResponse]) => {
+      .then(([overviewResponse, acquisitionResponse, acquisitionPerformanceResponse, landingVisitsResponse, funnelResponse, retentionResponse, usersResponse]) => {
         if (cancelled) return;
         setOverview(overviewResponse);
         setAcquisition(acquisitionResponse);
         setAcquisitionPerformance(acquisitionPerformanceResponse);
+        setLandingVisits(landingVisitsResponse);
         setFunnel(funnelResponse);
         setRetention(retentionResponse);
         setUsers(usersResponse);
@@ -2305,6 +2317,78 @@ export default function AdminPage() {
                   <p className="font-medium text-foreground">Consistência</p>
                   <p className="mt-1">Conta usuários já ativados que continuam ativos nos últimos 7 dias.</p>
                 </div>
+              </div>
+            </InsightCard>
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            <InsightCard
+              eyebrow="Chegada na landing"
+              title="Visitas antes do cadastro"
+              description="Leitura direta para campanhas que trazem tráfego para a landing page."
+              accent="blue"
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  ["Visitas", landingVisits.total_visits, "Total de acessos registrados na landing no período."],
+                  ["Visitantes únicos", landingVisits.unique_visitors, "Identificados por navegador com um `visitor_id` persistido localmente."],
+                  [
+                    "Origem líder",
+                    landingVisits.top_sources[0]?.source || "—",
+                    landingVisits.top_sources[0]
+                      ? `${landingVisits.top_sources[0].users} visitas atribuídas`
+                      : "Sem origem identificada no período",
+                  ],
+                  [
+                    "Campanha líder",
+                    landingVisits.top_campaigns[0]?.source || "—",
+                    landingVisits.top_campaigns[0]
+                      ? `${landingVisits.top_campaigns[0].users} visitas atribuídas`
+                      : "Sem campanha identificada no período",
+                  ],
+                ].map(([label, value, helper]) => (
+                  <div key={label} className="rounded-2xl border border-border/60 bg-background/75 p-4 dark:border-slate-700/70 dark:bg-slate-800/45">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+                    <p className="mt-3 break-words text-2xl font-semibold text-foreground">{value}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{helper}</p>
+                  </div>
+                ))}
+              </div>
+            </InsightCard>
+
+            <InsightCard
+              eyebrow="Últimos acessos"
+              title="Timeline de visitas"
+              description="Cada linha mostra o horário exato em que alguém chegou na landing."
+              accent="yellow"
+            >
+              <div className="overflow-hidden rounded-[24px] border border-border/60 dark:border-slate-700/70">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Horário</TableHead>
+                      <TableHead>Origem</TableHead>
+                      <TableHead>Campanha</TableHead>
+                      <TableHead>Página</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {landingVisits.recent_visits.length ? landingVisits.recent_visits.map((visit, index) => (
+                      <TableRow key={`${visit.visitor_id || "anon"}-${visit.occurred_at}-${index}`}>
+                        <TableCell className="text-sm text-foreground">{formatDateTimeLong(visit.occurred_at)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{visit.utm_source || visit.referrer || "Direto / sem origem"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{visit.utm_campaign || "Sem campanha"}</TableCell>
+                        <TableCell className="max-w-[240px] truncate text-sm text-muted-foreground">{visit.landing_page || "/"}</TableCell>
+                      </TableRow>
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                          Nenhuma visita de landing registrada neste recorte.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </InsightCard>
           </section>
