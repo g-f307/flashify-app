@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY
 from typing import Annotated
 from datetime import datetime, timezone
+import secrets
 
 # Crie uma Enum para o status do documento
 class DocumentStatus(str, Enum):
@@ -168,6 +169,44 @@ class Document(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete"}
     )
     quiz: Optional["Quiz"] = Relationship(back_populates="document", sa_relationship_kwargs={"cascade": "all, delete"})
+
+
+class SharedDeck(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token: str = Field(
+        default_factory=lambda: secrets.token_urlsafe(12),
+        unique=True,
+        index=True,
+    )
+    source_document_id: Optional[int] = Field(default=None, index=True)
+    owner_user_id: int = Field(foreign_key="user.id", index=True)
+    title: str
+    file_path: Optional[str] = Field(default=None)
+    extracted_text: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
+    generates_flashcards: bool = Field(default=True)
+    generates_quizzes: bool = Field(default=False)
+    srs_enabled: bool = Field(default=True)
+    feature_snapshot_version: int = Field(default=1)
+    flashcards_snapshot: list[dict[str, Any]] = Field(
+        sa_column=Column(JSON, nullable=False),
+        default_factory=list,
+    )
+    quiz_snapshot: Optional[dict[str, Any]] = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+    )
+    guided_study_snapshot: Optional[dict[str, Any]] = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+    )
+    extra_features_snapshot: Optional[dict[str, Any]] = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+    )
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc),
+    )
 
 # NOVO MODELO FLASHCARD
 class Flashcard(SQLModel, table=True):

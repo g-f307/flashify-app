@@ -1,6 +1,7 @@
 # back/app/routers/documents.py
 
 import shutil
+import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import re
@@ -440,6 +441,57 @@ def _ensure_exact_quiz_question_count(quiz_data: Optional[dict], expected_count:
             detail=f"A IA retornou {actual_count} perguntas, mas eram esperadas {expected_count}.",
         )
 
+
+def _build_document_detail_response(db_document: models.Document) -> schemas.DocumentDetail:
+    if getattr(db_document, "quiz", None) and getattr(db_document.quiz, "questions", None):
+        db_document.quiz.questions = order_for_start(db_document.quiz.questions)
+
+    return schemas.DocumentDetail(
+        id=db_document.id,
+        status=db_document.status,
+        file_path=db_document.file_path,
+        title=db_document.title,
+        extracted_text=db_document.extracted_text,
+        quiz=db_document.quiz,
+        total_flashcards=len(db_document.flashcards or []),
+        has_quiz=(db_document.quiz is not None),
+        generates_flashcards=db_document.generates_flashcards,
+        generates_quizzes=db_document.generates_quizzes,
+        current_step=db_document.current_step,
+        srs_enabled=getattr(db_document, "srs_enabled", True),
+    )
+
+
+def _build_shared_deck_response(shared_deck: models.SharedDeck) -> schemas.SharedDeckRead:
+    guided_study_payload = shared_deck.guided_study_snapshot or None
+    shared_guided_study = None
+    if guided_study_payload:
+        shared_guided_study = schemas.SharedGuidedStudyRead.model_validate(
+            {
+                "mode": guided_study_payload.get("mode", "guided"),
+                "topics": guided_study_payload.get("topics", []),
+                "summary": guided_study_payload.get("summary", {}),
+            }
+        )
+
+    return schemas.SharedDeckRead(
+        title=shared_deck.title,
+        file_path=shared_deck.file_path,
+        generates_flashcards=shared_deck.generates_flashcards,
+        generates_quizzes=shared_deck.generates_quizzes,
+        srs_enabled=shared_deck.srs_enabled,
+        feature_snapshot_version=shared_deck.feature_snapshot_version,
+        flashcards=[
+            schemas.SharedFlashcardRead.model_validate(flashcard)
+            for flashcard in (shared_deck.flashcards_snapshot or [])
+        ],
+        quiz=schemas.SharedQuizRead.model_validate(shared_deck.quiz_snapshot)
+        if shared_deck.quiz_snapshot
+        else None,
+        guided_study=shared_guided_study,
+        created_at=shared_deck.created_at,
+    )
+
 @router.post("/upload", response_model=models.Document, status_code=status.HTTP_202_ACCEPTED)
 def upload_document(
     current_user: CurrentUser,
@@ -658,6 +710,86 @@ def get_user_documents(
             
     return docs_with_progress
 
+
+@router.get("/shared/{token}", response_model=schemas.SharedDeckRead)
+def get_shared_deck(
+    token: str,
+    session: Session = Depends(get_session),
+):
+    shared_deck = crud.get_shared_deck_by_token(session, token)
+    if not shared_deck:
+        raise HTTPException(status_code=404, detail="Link inválido")
+
+    return _build_shared_deck_response(shared_deck)
+
+
+@router.post("/shared/{token}/import", response_model=schemas.DocumentDetail, status_code=status.HTTP_201_CREATED)
+def import_shared_deck(
+    token: str,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    shared_deck = crud.get_shared_deck_by_token(session, token)
+    if not shared_deck:
+        raise HTTPException(status_code=404, detail="Link inválido")
+
+    imported_document = crud.clone_shared_deck_to_user_library(
+        session=session,
+        shared_deck=shared_deck,
+        user_id=current_user.id,
+    )
+    mark_user_first_deck_created(session, current_user, occurred_at=imported_document.created_at)
+    track_product_event(
+        session,
+        "deck_shared_snapshot_imported",
+        user_id=current_user.id,
+        document_id=imported_document.id,
+        properties={
+            "shared_deck_id": shared_deck.id,
+            "shared_token": shared_deck.token,
+            "owner_user_id": shared_deck.owner_user_id,
+            "source_document_id": shared_deck.source_document_id,
+        },
+    )
+    return _build_document_detail_response(imported_document)
+
+
+@router.post("/{document_id}/share", response_model=schemas.ShareLinkResponse)
+def create_share_link(
+    document_id: int,
+    current_user: CurrentUser,
+    session: Session = Depends(get_session),
+):
+    db_document = crud.get_document_with_details(session, document_id)
+    if not db_document or db_document.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    if db_document.status != models.DocumentStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="O deck ainda não está pronto para compartilhamento.")
+
+    shared_deck = crud.create_shared_deck_snapshot(
+        session=session,
+        document=db_document,
+        owner_user_id=current_user.id,
+    )
+
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:4000").rstrip("/")
+    track_product_event(
+        session,
+        "deck_shared_snapshot_created",
+        user_id=current_user.id,
+        document_id=db_document.id,
+        properties={
+            "shared_deck_id": shared_deck.id,
+            "shared_token": shared_deck.token,
+            "has_quiz": db_document.quiz is not None,
+            "has_guided_study": shared_deck.guided_study_snapshot is not None,
+        },
+    )
+    return schemas.ShareLinkResponse(
+        share_url=f"{frontend_url}/shared/{shared_deck.token}",
+        token=shared_deck.token,
+    )
+
 @router.get("/{document_id}", response_model=schemas.DocumentDetail)
 def get_document_details(
     document_id: int,
@@ -682,24 +814,7 @@ def get_document_details(
     # Debug: descomentar para verificar o que está sendo recebido
     print(f"[ENDPOINT] Doc {document_id} - current_step: {db_document.current_step}, status: {db_document.status}")
 
-    if getattr(db_document, "quiz", None) and getattr(db_document.quiz, "questions", None):
-        db_document.quiz.questions = order_for_start(db_document.quiz.questions)
-
-    # Constrói o objeto de resposta (schema) manualmente
-    return schemas.DocumentDetail(
-        id=db_document.id,
-        status=db_document.status,
-        file_path=db_document.file_path,
-        title=db_document.title,
-        extracted_text=db_document.extracted_text,
-        quiz=db_document.quiz,
-        total_flashcards=len(db_document.flashcards),
-        has_quiz=(db_document.quiz is not None),
-        generates_flashcards=db_document.generates_flashcards,
-        generates_quizzes=db_document.generates_quizzes,
-        current_step=db_document.current_step,
-        srs_enabled=getattr(db_document, "srs_enabled", True)
-    )
+    return _build_document_detail_response(db_document)
 
 @router.get("/{document_id}/flashcards", response_model=list[models.Flashcard])
 def get_document_flashcards(

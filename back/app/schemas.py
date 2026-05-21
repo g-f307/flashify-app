@@ -212,6 +212,79 @@ class GuidedStudyResponse(BaseModel):
     summary: GuidedStudySummary
 
 
+class SharedFlashcardRead(BaseModel):
+    front: str
+    back: str
+    type: str
+
+
+class SharedAnswerRead(BaseModel):
+    text: str
+    is_correct: bool
+    explanation: Optional[str] = None
+
+
+class SharedQuestionRead(BaseModel):
+    text: str
+    answers: List[SharedAnswerRead]
+
+
+class SharedQuizRead(BaseModel):
+    title: str
+    questions: List[SharedQuestionRead]
+
+
+class SharedGuidedStudyStepRead(BaseModel):
+    id: str
+    type: str
+    order: int
+    flashcard_id: Optional[int] = None
+    question_id: Optional[int] = None
+    front: Optional[str] = None
+    back: Optional[str] = None
+    prompt: Optional[str] = None
+    answers: List[SharedAnswerRead] = []
+
+
+class SharedGuidedStudyTopicRead(BaseModel):
+    id: str
+    title: str
+    order: int
+    steps: List[SharedGuidedStudyStepRead]
+
+
+class SharedGuidedStudySummaryRead(BaseModel):
+    topics_count: int
+    steps_count: int
+    flashcards_count: int
+    questions_count: int
+    is_fallback: bool = False
+
+
+class SharedGuidedStudyRead(BaseModel):
+    mode: str = "guided"
+    topics: List[SharedGuidedStudyTopicRead]
+    summary: SharedGuidedStudySummaryRead
+
+
+class SharedDeckRead(BaseModel):
+    title: str
+    file_path: Optional[str] = None
+    generates_flashcards: bool
+    generates_quizzes: bool
+    srs_enabled: bool
+    feature_snapshot_version: int = 1
+    flashcards: List[SharedFlashcardRead]
+    quiz: Optional[SharedQuizRead] = None
+    guided_study: Optional[SharedGuidedStudyRead] = None
+    created_at: datetime
+
+
+class ShareLinkResponse(BaseModel):
+    share_url: str
+    token: str
+
+
 class GuidedStudyProgressRead(BaseModel):
     document_id: int
     completed_step_ids: List[str]

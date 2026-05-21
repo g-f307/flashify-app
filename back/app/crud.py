@@ -2,7 +2,7 @@
 from sqlmodel import Session, select, func, distinct
 from sqlalchemy import or_
 from . import models, schemas, security
-from typing import List, Optional
+from typing import Any, List, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import selectinload
 import random
@@ -241,6 +241,163 @@ def get_document_with_details(session: Session, document_id: int) -> Optional[mo
             )
                 
     return db_document
+
+
+def serialize_flashcards_snapshot(document: models.Document) -> list[dict[str, Any]]:
+    return [
+        {
+            "front": flashcard.front,
+            "back": flashcard.back,
+            "type": flashcard.type.value if isinstance(flashcard.type, models.FlashcardType) else str(flashcard.type),
+        }
+        for flashcard in (document.flashcards or [])
+    ]
+
+
+def serialize_quiz_snapshot(quiz: Optional[models.Quiz]) -> Optional[dict[str, Any]]:
+    if not quiz:
+        return None
+
+    questions = sorted(list(quiz.questions or []), key=lambda question: question.id or 0)
+    return {
+        "title": quiz.title,
+        "questions": [
+            {
+                "text": question.text,
+                "answers": [
+                    {
+                        "text": answer.text,
+                        "is_correct": answer.is_correct,
+                        "explanation": answer.explanation,
+                    }
+                    for answer in (question.answers or [])
+                ],
+            }
+            for question in questions
+        ],
+    }
+
+
+def serialize_guided_study_snapshot(document: models.Document) -> Optional[dict[str, Any]]:
+    if not document.guided_study_cache:
+        return None
+
+    try:
+        return schemas.GuidedStudyResponse.model_validate(document.guided_study_cache).model_dump()
+    except Exception:
+        return None
+
+
+def create_shared_deck_snapshot(
+    session: Session,
+    document: models.Document,
+    owner_user_id: int,
+) -> models.SharedDeck:
+    shared_deck = models.SharedDeck(
+        source_document_id=document.id,
+        owner_user_id=owner_user_id,
+        title=document.title or document.file_path,
+        file_path=document.file_path,
+        extracted_text=document.extracted_text,
+        generates_flashcards=document.generates_flashcards,
+        generates_quizzes=document.generates_quizzes,
+        srs_enabled=getattr(document, "srs_enabled", True),
+        flashcards_snapshot=serialize_flashcards_snapshot(document),
+        quiz_snapshot=serialize_quiz_snapshot(document.quiz),
+        guided_study_snapshot=serialize_guided_study_snapshot(document),
+        extra_features_snapshot={},
+    )
+    session.add(shared_deck)
+    session.commit()
+    session.refresh(shared_deck)
+    return shared_deck
+
+
+def get_shared_deck_by_token(session: Session, token: str) -> Optional[models.SharedDeck]:
+    statement = select(models.SharedDeck).where(models.SharedDeck.token == token)
+    return session.exec(statement).first()
+
+
+def clone_shared_deck_to_user_library(
+    session: Session,
+    shared_deck: models.SharedDeck,
+    user_id: int,
+) -> models.Document:
+    now = datetime.now(timezone.utc)
+    imported_document = models.Document(
+        user_id=user_id,
+        file_path=shared_deck.file_path or shared_deck.title,
+        title=shared_deck.title,
+        status=models.DocumentStatus.COMPLETED,
+        generates_flashcards=shared_deck.generates_flashcards,
+        generates_quizzes=shared_deck.generates_quizzes,
+        extracted_text=shared_deck.extracted_text,
+        current_step=None,
+        can_cancel=False,
+        processing_progress=100.0,
+        srs_enabled=shared_deck.srs_enabled,
+        studied_flashcard_ids=[],
+        created_at=now,
+    )
+    session.add(imported_document)
+    session.flush()
+
+    for flashcard_data in shared_deck.flashcards_snapshot or []:
+        session.add(
+            models.Flashcard(
+                front=str(flashcard_data.get("front", "")).strip(),
+                back=str(flashcard_data.get("back", "")).strip(),
+                type=normalize_flashcard_type(flashcard_data.get("type")),
+                document_id=imported_document.id,
+                ease_factor=2.5,
+                interval_days=1,
+                repetitions=0,
+                next_review=None,
+            )
+        )
+
+    quiz_snapshot = shared_deck.quiz_snapshot or None
+    if quiz_snapshot:
+        quiz = models.Quiz(
+            title=str(quiz_snapshot.get("title", "Quiz")),
+            document_id=imported_document.id,
+        )
+        session.add(quiz)
+        session.flush()
+
+        for question_data in quiz_snapshot.get("questions", []):
+            question = models.Question(
+                text=str(question_data.get("text", "")).strip(),
+                quiz_id=quiz.id,
+                ease_factor=2.5,
+                interval_days=1,
+                repetitions=0,
+                next_review=None,
+            )
+            session.add(question)
+            session.flush()
+
+            for answer_data in question_data.get("answers", []):
+                session.add(
+                    models.Answer(
+                        text=str(answer_data.get("text", "")).strip(),
+                        is_correct=bool(answer_data.get("is_correct", False)),
+                        explanation=answer_data.get("explanation"),
+                        question_id=question.id,
+                    )
+                )
+
+    guided_study_snapshot = shared_deck.guided_study_snapshot or None
+    if guided_study_snapshot:
+        guided_study_cache = dict(guided_study_snapshot)
+        guided_study_cache["document_id"] = imported_document.id
+        guided_study_cache["title"] = imported_document.title or imported_document.file_path
+        imported_document.guided_study_cache = guided_study_cache
+
+    session.add(imported_document)
+    session.commit()
+    session.refresh(imported_document)
+    return get_document_with_details(session, imported_document.id) or imported_document
 
 
 def get_document_with_details_for_update(session: Session, document_id: int) -> Optional[models.Document]:
