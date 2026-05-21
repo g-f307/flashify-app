@@ -11,7 +11,7 @@ import { z } from 'zod'
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { GoogleLoginButton } from './google-login-button'
 import { toast } from "sonner"
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 const formSchema = z.object({
   username: z.string().min(1, { message: 'Por favor, insira o seu e-mail ou usuário.' }),
@@ -23,6 +23,8 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const { login } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/dashboard'
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -32,11 +34,10 @@ export default function LoginForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      await login({ username: values.username, password: values.password })
+      await login({ username: values.username, password: values.password }, redirectTo)
       toast.success("Login bem-sucedido!", {
         description: "Carregando...",
       })
-      router.push('/dashboard')
     } catch (err: any) {
       toast.error("Falha no login", {
         description: err.message || 'Falha no login. Verifique os seus dados.',

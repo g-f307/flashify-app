@@ -4,6 +4,7 @@ import { useGoogleLogin } from "@react-oauth/google"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { Loader2 } from "lucide-react"
 
@@ -11,12 +12,14 @@ export function GoogleLoginButton() {
   const { googleLogin } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get("redirect") || "/dashboard"
 
   const handleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setIsLoading(true)
       try {
-        await googleLogin(tokenResponse.code)
+        await googleLogin(tokenResponse.code, redirectTo)
       } catch (err: any) {
         console.error("Falha no login com Google:", err)
         setError(err.message || "Não foi possível fazer login com o Google.")
@@ -29,7 +32,7 @@ export function GoogleLoginButton() {
       setError("Ocorreu um erro durante a autenticação com o Google.")
       setIsLoading(false)
     },
-    flow: "auth-code", 
+    flow: "auth-code",
   })
 
   return (

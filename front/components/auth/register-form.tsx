@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -23,6 +23,8 @@ export default function RegisterForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/dashboard'
   const { register } = useAuth()
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -45,11 +47,10 @@ export default function RegisterForm() {
         username: values.username,
         email: values.email,
         password: values.password
-      })
+      }, redirectTo)
       toast.success("Registro bem-sucedido!", {
         description: "Carregando...",
       })
-      router.push("/dashboard")
     } catch (error: any) {
       toast.error("Falha no registro", {
         description: error.message || "Por favor, verifique os seus dados e tente novamente.",

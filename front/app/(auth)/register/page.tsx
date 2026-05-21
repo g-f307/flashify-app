@@ -5,8 +5,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Suspense } from "react"
 
-export default function RegisterPage() {
+export default function RegisterPage({
+  searchParams,
+}: {
+  searchParams: { redirect?: string };
+}) {
+  const redirectParam = searchParams.redirect
+    ? `?redirect=${encodeURIComponent(searchParams.redirect)}`
+    : "";
+
   return (
     <div className="relative flex flex-col items-center justify-center w-full px-4 sm:px-6 py-4 sm:py-6 animate-in fade-in duration-500 min-h-screen overflow-hidden">
       {/* Controles no canto superior direito */}
@@ -57,13 +66,15 @@ export default function RegisterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-4 px-6">
-            <RegisterForm />
+            <Suspense fallback={<div className="h-48 flex items-center justify-center text-muted-foreground text-sm">Carregando...</div>}>
+              <RegisterForm />
+            </Suspense>
           </CardContent>
           <CardFooter className="flex flex-col items-center justify-center pt-4 border-t border-border dark:border-white/10 px-6 pb-6">
             <p className="text-center text-sm text-muted-foreground">
               Já tem uma conta?{" "}
               <Link 
-                href="/login" 
+                href={`/login${redirectParam}`}
                 className="font-semibold text-primary hover:underline transition-all"
               >
                 Faça login

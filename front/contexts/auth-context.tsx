@@ -11,10 +11,10 @@ import { useLoading } from "@/components/providers/loading-provider";
 export interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (credentials: LoginRequest) => Promise<void>;
-  register: (userData: RegisterRequest) => Promise<void>;
+  login: (credentials: LoginRequest, redirectTo?: string) => Promise<void>;
+  register: (userData: RegisterRequest, redirectTo?: string) => Promise<void>;
   logout: () => void;
-  googleLogin: (code: string) => Promise<void>;
+  googleLogin: (code: string, redirectTo?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initializeAuth();
   }, [pathname]);
 
-  const login = async (credentials: LoginRequest) => {
+  const login = async (credentials: LoginRequest, redirectTo = '/dashboard') => {
     showAuthLoading("Fazendo login...");
     try {
       const tokenData = await apiClient.login(credentials);
@@ -78,12 +78,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       showAuthLoading("Login realizado com sucesso!");
       
-      // ✅ CORREÇÃO: Aguarda mais tempo antes de esconder o loading
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      router.push('/dashboard');
+      router.push(redirectTo);
       
-      // ✅ CORREÇÃO: Só esconde o loading após garantir que a navegação começou
       await new Promise(resolve => setTimeout(resolve, 2000));
       hideLoading();
       
@@ -93,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
-  const googleLogin = async (code: string) => {
+  const googleLogin = async (code: string, redirectTo = '/dashboard') => {
     showAuthLoading("Conectando com Google...");
     try {
       const tokenData = await apiClient.googleLogin(code, getAcquisitionContext());
@@ -103,12 +101,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       showAuthLoading("Login realizado com sucesso!");
       
-      // ✅ CORREÇÃO: Aguarda mais tempo antes de esconder o loading
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      router.push('/dashboard');
+      router.push(redirectTo);
       
-      // ✅ CORREÇÃO: Só esconde o loading após garantir que a navegação começou
       await new Promise(resolve => setTimeout(resolve, 2000));
       hideLoading();
       
@@ -118,7 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (userData: RegisterRequest) => {
+  const register = async (userData: RegisterRequest, redirectTo = '/dashboard') => {
     showAuthLoading("Criando sua conta...");
     try {
       await apiClient.register({
@@ -138,12 +134,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       showAuthLoading("Bem-vindo ao Flashify!");
       
-      // ✅ CORREÇÃO: Aguarda mais tempo antes de esconder o loading
       await new Promise(resolve => setTimeout(resolve, 1200));
       
-      router.push('/dashboard');
+      router.push(redirectTo);
       
-      // ✅ CORREÇÃO: Só esconde o loading após garantir que a navegação começou
       await new Promise(resolve => setTimeout(resolve, 2000));
       hideLoading();
       

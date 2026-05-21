@@ -230,9 +230,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/');
+      // Preserva o fluxo de link compartilhado: redireciona para cadastro
+      // mantendo o destino, para que após login/registro o usuário retorne ao deck
+      if (pathname.startsWith('/shared/')) {
+        router.push(`/register?redirect=${encodeURIComponent(pathname)}`);
+      } else {
+        router.push('/');
+      }
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
 
   // Page view tracking — fire-and-forget, zero impacto no UX
   useEffect(() => {
