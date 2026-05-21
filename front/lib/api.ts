@@ -578,6 +578,83 @@ export interface LimitExceededError {
   hours_until_reset: number;
 }
 
+// ---------------------------------------------------------------------------
+// Compartilhamento de decks por snapshot
+// ---------------------------------------------------------------------------
+
+export interface ShareLinkResponse {
+  share_url: string;
+  token: string;
+}
+
+export interface SharedFlashcard {
+  front: string;
+  back: string;
+  type: string;
+}
+
+export interface SharedAnswer {
+  text: string;
+  is_correct: boolean;
+  explanation: string | null;
+}
+
+export interface SharedQuestion {
+  text: string;
+  answers: SharedAnswer[];
+}
+
+export interface SharedQuiz {
+  title: string;
+  questions: SharedQuestion[];
+}
+
+export interface SharedGuidedStudyStep {
+  id: string;
+  type: "flashcard" | "question";
+  order: number;
+  flashcard_id?: number | null;
+  question_id?: number | null;
+  front?: string | null;
+  back?: string | null;
+  prompt?: string | null;
+  answers?: SharedAnswer[];
+}
+
+export interface SharedGuidedStudyTopic {
+  id: string;
+  title: string;
+  order: number;
+  steps: SharedGuidedStudyStep[];
+}
+
+export interface SharedGuidedStudySummary {
+  topics_count: number;
+  steps_count: number;
+  flashcards_count: number;
+  questions_count: number;
+  is_fallback: boolean;
+}
+
+export interface SharedGuidedStudy {
+  mode: "guided";
+  topics: SharedGuidedStudyTopic[];
+  summary: SharedGuidedStudySummary;
+}
+
+export interface SharedDeckRead {
+  title: string;
+  file_path: string;
+  generates_flashcards: boolean;
+  generates_quizzes: boolean;
+  srs_enabled: boolean;
+  flashcards: SharedFlashcard[];
+  quiz: SharedQuiz | null;
+  guided_study: SharedGuidedStudy | null;
+  feature_snapshot_version: number;
+  created_at: string;
+}
+
 type UploadDocumentParams = {
   file: File;
   title: string;
@@ -1229,8 +1306,28 @@ class ApiClient {
     });
   }
 
-    async getGenerationLimitStatus(): Promise<GenerationLimitInfo> {
+  async getGenerationLimitStatus(): Promise<GenerationLimitInfo> {
     return this.request<GenerationLimitInfo>('/documents/generation-limit');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Compartilhamento de decks por snapshot
+  // ---------------------------------------------------------------------------
+
+  async createShareLink(documentId: number): Promise<ShareLinkResponse> {
+    return this.request<ShareLinkResponse>(`/documents/${documentId}/share`, {
+      method: 'POST',
+    });
+  }
+
+  async getSharedDeck(token: string): Promise<SharedDeckRead> {
+    return this.request<SharedDeckRead>(`/documents/shared/${token}`);
+  }
+
+  async importSharedDeck(token: string): Promise<Document> {
+    return this.request<Document>(`/documents/shared/${token}/import`, {
+      method: 'POST',
+    });
   }
 
 }

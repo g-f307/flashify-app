@@ -41,6 +41,7 @@ import { useLoading } from "@/components/providers/loading-provider";
 import { useGenerationLimit } from "@/contexts/generation-limit-context";
 import { ResumeStudyDialog } from "@/components/study/resume-study-dialog";
 import { SrsHelpLink } from "@/components/support/srs-help-link";
+import { ShareDeckModal } from "@/components/deck/share-deck-modal";
 
 const ActionCard = ({
     icon: Icon,
@@ -435,16 +436,28 @@ export default function DeckDashboardPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-4 lg:max-w-[calc(60%-1rem)] xl:max-w-[calc(60%-1.5rem)]"
                 >
-                    <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-2 hover:bg-primary/10">
-                        <ArrowLeft className="w-4 h-4 mr-2" />Voltar
-                    </Button>
+                    <div className="mb-2 flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => router.back()} className="hover:bg-primary/10">
+                            <ArrowLeft className="w-4 h-4 mr-2" />Voltar
+                        </Button>
+                    </div>
                     <div className="relative max-w-full">
-                        <h1
-                            className="mb-2 max-w-full text-2xl font-bold tracking-tight text-balance [overflow-wrap:anywhere] sm:text-3xl lg:text-4xl"
-                            title={formatDocumentTitle(document.file_path, document.title)}
-                        >
-                            {formatDocumentTitle(document.file_path, document.title)}
-                        </h1>
+                        <div className="mb-2 flex flex-wrap items-start gap-3">
+                            <h1
+                                className="max-w-full flex-1 text-2xl font-bold tracking-tight text-balance [overflow-wrap:anywhere] sm:text-3xl lg:text-4xl"
+                                title={formatDocumentTitle(document.file_path, document.title)}
+                            >
+                                {formatDocumentTitle(document.file_path, document.title)}
+                            </h1>
+                            {document.status === "COMPLETED" && (
+                                <div className="shrink-0 pt-1 sm:pt-1.5">
+                                    <ShareDeckModal
+                                        documentId={document.id}
+                                        documentTitle={formatDocumentTitle(document.file_path, document.title)}
+                                    />
+                                </div>
+                            )}
+                        </div>
                         <p className="text-base sm:text-lg text-muted-foreground">Escolha sua atividade de estudo para este deck</p>
                     </div>
                 </motion.div>

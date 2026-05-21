@@ -15,6 +15,7 @@ import {
   BookOpen,
   CalendarDays,
   Sparkles,
+  Share2,
 } from "lucide-react";
 import TimeAgo from "../common/time-ago";
 import { cn, formatDocumentTitle } from "@/lib/utils";
@@ -29,6 +30,7 @@ import { MoveToFolderModal } from "./move-to-folder-modal";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { ShareDeckModal } from "@/components/deck/share-deck-modal";
 
 interface RecentDocumentCardProps {
   document: Document;
@@ -39,6 +41,7 @@ interface RecentDocumentCardProps {
 
 export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: RecentDocumentCardProps) {
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const { showLoading } = useLoading();
   const pathname = usePathname();
 
@@ -156,6 +159,14 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
+                  {document.status === "COMPLETED" && (
+                    <DropdownMenuItem
+                      onSelect={(e) => { e.preventDefault(); setIsShareModalOpen(true); }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Share2 className="mr-2 h-4 w-4" /> Compartilhar
+                    </DropdownMenuItem>
+                  )}
                   {onUpdate && (
                     <DropdownMenuItem onSelect={handleMoveClick} onClick={(e) => e.stopPropagation()}>
                       <Move className="mr-2 h-4 w-4" /> Mover para...
@@ -257,6 +268,16 @@ export function RecentDocumentCard({ document, onSelect, onDelete, onUpdate }: R
           isOpen={isMoveModalOpen}
           onClose={() => setIsMoveModalOpen(false)}
           onSuccess={handleMoveSuccess}
+        />
+      )}
+
+      {/* Share modal — controlled by dropdown item */}
+      {document.status === "COMPLETED" && (
+        <ShareDeckModal
+          documentId={document.id}
+          documentTitle={formatDocumentTitle(document.file_path, document.title)}
+          open={isShareModalOpen}
+          onOpenChange={setIsShareModalOpen}
         />
       )}
     </>
