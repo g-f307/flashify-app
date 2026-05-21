@@ -263,6 +263,9 @@ export default function SharedDeckPage() {
   const flashcardsCount = deck.flashcards?.length ?? 0;
   const questionsCount = deck.quiz?.questions?.length ?? 0;
   const topicsCount = deck.guided_study?.topics?.length ?? 0;
+  const hasSharedFlashcards = flashcardsCount > 0;
+  const hasSharedQuiz = questionsCount > 0;
+  const hasSharedGuidedStudy = topicsCount > 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8">
@@ -297,60 +300,48 @@ export default function SharedDeckPage() {
         <div className="order-2 space-y-6 lg:order-1 lg:col-span-3">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Flashcards */}
-            {deck.generates_flashcards && (
+            {hasSharedFlashcards && (
               <ActionCard
                 icon={FileText}
                 iconBgColor="flashcards"
                 title="Flashcards"
                 description="Veja e revise flashcards, otimizando seu aprendizado."
                 delay={0.1}
-                onActivate={flashcardsCount > 0 ? () => router.push(`/shared/${token}/study`) : undefined}
+                onActivate={() => router.push(`/shared/${token}/study`)}
               >
-                {flashcardsCount > 0 ? (
-                  <Button
-                    className="w-full h-12 text-base shadow-md transition-all group"
-                    size="lg"
-                    onClick={() => router.push(`/shared/${token}/study`)}
-                  >
-                    Iniciar
-                  </Button>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    Sem flashcards neste snapshot
-                  </div>
-                )}
+                <Button
+                  className="w-full h-12 text-base shadow-md transition-all group"
+                  size="lg"
+                  onClick={() => router.push(`/shared/${token}/study`)}
+                >
+                  Iniciar
+                </Button>
               </ActionCard>
             )}
 
             {/* Quiz */}
-            {deck.generates_quizzes && (
+            {hasSharedQuiz && (
               <ActionCard
                 icon={BrainCircuit}
                 iconBgColor="quiz"
                 title="Quiz"
                 description="Responda perguntas de quiz geradas pela IA."
                 delay={0.2}
-                onActivate={questionsCount > 0 ? () => router.push(`/shared/${token}/quiz`) : undefined}
+                onActivate={() => router.push(`/shared/${token}/quiz`)}
               >
-                {questionsCount > 0 ? (
-                  <Button
-                    className="w-full h-12 text-base shadow-md transition-all group bg-[#48cfea] hover:bg-[#48cfea]/90 text-black"
-                    size="lg"
-                    onClick={() => router.push(`/shared/${token}/quiz`)}
-                  >
-                    Iniciar
-                  </Button>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    Sem quiz neste snapshot
-                  </div>
-                )}
+                <Button
+                  className="w-full h-12 text-base shadow-md transition-all group bg-[#48cfea] hover:bg-[#48cfea]/90 text-black"
+                  size="lg"
+                  onClick={() => router.push(`/shared/${token}/quiz`)}
+                >
+                  Iniciar
+                </Button>
               </ActionCard>
             )}
           </div>
 
           {/* Estudo Guiado */}
-          {deck.guided_study && (
+          {hasSharedGuidedStudy && (
             <ActionCard
               icon={Wand2}
               iconBgColor="guided"

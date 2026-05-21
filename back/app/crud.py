@@ -293,18 +293,22 @@ def create_shared_deck_snapshot(
     document: models.Document,
     owner_user_id: int,
 ) -> models.SharedDeck:
+    flashcards_snapshot = serialize_flashcards_snapshot(document)
+    quiz_snapshot = serialize_quiz_snapshot(document.quiz)
+    guided_study_snapshot = serialize_guided_study_snapshot(document)
+
     shared_deck = models.SharedDeck(
         source_document_id=document.id,
         owner_user_id=owner_user_id,
         title=document.title or document.file_path,
         file_path=document.file_path,
         extracted_text=document.extracted_text,
-        generates_flashcards=document.generates_flashcards,
-        generates_quizzes=document.generates_quizzes,
+        generates_flashcards=bool(flashcards_snapshot) or document.generates_flashcards,
+        generates_quizzes=bool(quiz_snapshot and quiz_snapshot.get("questions")) or document.generates_quizzes,
         srs_enabled=getattr(document, "srs_enabled", True),
-        flashcards_snapshot=serialize_flashcards_snapshot(document),
-        quiz_snapshot=serialize_quiz_snapshot(document.quiz),
-        guided_study_snapshot=serialize_guided_study_snapshot(document),
+        flashcards_snapshot=flashcards_snapshot,
+        quiz_snapshot=quiz_snapshot,
+        guided_study_snapshot=guided_study_snapshot,
         extra_features_snapshot={},
     )
     session.add(shared_deck)
