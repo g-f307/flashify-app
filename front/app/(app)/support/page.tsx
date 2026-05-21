@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bug, MessageSquare, Lightbulb, Send, Cpu, BrainCircuit, ArrowRight } from "lucide-react";
+import { Bug, MessageSquare, Lightbulb, Send, Cpu, BrainCircuit, ArrowRight, Mail } from "lucide-react";
 import { motion } from "framer-motion";
 import { BugReportForm } from "@/components/support/bug-report-form";
 import { ExperienceForm } from "@/components/support/experience-form";
 import { SuggestionForm } from "@/components/support/suggestion-form";
 import { SrsHelpLink } from "@/components/support/srs-help-link";
 import Link from "next/link";
+import { FaInstagram, FaWhatsapp } from "react-icons/fa6";
 
 type FormType = 'bug' | 'experience' | 'suggestion' | null;
 
@@ -46,6 +47,36 @@ const formOptions = [
 export default function SupportPage() {
   const [selectedForm, setSelectedForm] = useState<FormType>(null);
 
+  const contactOptions = [
+    {
+      title: "WhatsApp",
+      description: "Converse com o Flashify diretamente no WhatsApp.",
+      href: "https://wa.me/message/UDBVSRGDHXOAC1",
+      icon: FaWhatsapp,
+      iconClassName: "text-[#25D366]",
+      borderClassName: "border-[#25D366]/25 hover:border-[#25D366]/45",
+      cta: "Abrir conversa",
+    },
+    {
+      title: "Instagram",
+      description: "Acompanhe novidades e conteúdos pelo perfil oficial.",
+      href: "https://www.instagram.com/flashify.study",
+      icon: FaInstagram,
+      iconClassName: "text-pink-500",
+      borderClassName: "border-pink-500/25 hover:border-pink-500/45",
+      cta: "Abrir perfil",
+    },
+    {
+      title: "E-mail",
+      description: "Entre em contato por e-mail para dúvidas e suporte.",
+      href: "mailto:flashify.study@gmail.com",
+      icon: Mail,
+      iconClassName: "text-[#48cfea]",
+      borderClassName: "border-[#48cfea]/25 hover:border-[#48cfea]/45",
+      cta: "Enviar e-mail",
+    },
+  ];
+
   const renderForm = () => {
     switch(selectedForm) {
       case 'bug':
@@ -76,59 +107,106 @@ export default function SupportPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight">Central de Suporte</h1>
-        <p className="text-muted-foreground mt-1">
-          Como podemos ajudar você hoje? Escolha uma opção abaixo.
-        </p>
-      </header>
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Fale com a equipe</h2>
+          <p className="mt-1 text-muted-foreground">
+            Escolha a melhor forma de nos contar um problema, compartilhar sua experiência ou sugerir melhorias.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {formOptions.map((option, index) => {
-          const Icon = option.icon;
-          return (
-            <motion.div
-              key={option.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Card 
-                className={`cursor-pointer transition-all duration-300 hover:shadow-lg border-2 ${option.borderColor} h-full`}
-                onClick={() => setSelectedForm(option.id)}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg">💡 Dica</CardTitle>
+            <CardDescription className="leading-relaxed">
+              Quanto mais detalhes você fornecer, melhor conseguiremos entender e atender sua solicitação.
+              Agradecemos por dedicar seu tempo para nos ajudar a melhorar!
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {formOptions.map((option, index) => {
+            const Icon = option.icon;
+            return (
+              <motion.div
+                key={option.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
               >
-                <CardHeader className="space-y-4">
-                  <div className={`w-14 h-14 rounded-2xl ${option.bgColor} flex items-center justify-center`}>
-                    <Icon className={`w-7 h-7 ${option.color}`} />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">{option.title}</CardTitle>
-                    <CardDescription className="mt-2 leading-relaxed">
-                      {option.description}
-                    </CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="ghost" className="w-full justify-between group">
-                    Abrir formulário
-                    <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-          );
-        })}
-      </div>
+                <Card 
+                  className={`cursor-pointer transition-all duration-300 hover:shadow-lg border-2 ${option.borderColor} h-full`}
+                  onClick={() => setSelectedForm(option.id)}
+                >
+                  <CardHeader className="space-y-4">
+                    <div className={`w-14 h-14 rounded-2xl ${option.bgColor} flex items-center justify-center`}>
+                      <Icon className={`w-7 h-7 ${option.color}`} />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">{option.title}</CardTitle>
+                      <CardDescription className="mt-2 leading-relaxed">
+                        {option.description}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Button variant="ghost" className="w-full justify-between group">
+                      Abrir formulário
+                      <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
+      </section>
 
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="text-lg">💡 Dica</CardTitle>
-          <CardDescription className="leading-relaxed">
-            Quanto mais detalhes você fornecer, melhor conseguiremos entender e atender sua solicitação. 
-            Agradecemos por dedicar seu tempo para nos ajudar a melhorar!
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Contatos do Flashify</h2>
+          <p className="mt-1 text-muted-foreground">
+            Se preferir, você também pode falar com a gente pelos canais oficiais abaixo.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {contactOptions.map((contact, index) => {
+            const Icon = contact.icon;
+            return (
+              <motion.div
+                key={contact.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 * index }}
+              >
+                <Card className={`h-full border-2 transition-all duration-300 hover:shadow-lg ${contact.borderClassName}`}>
+                  <CardHeader className="space-y-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/70">
+                      <Icon className={`h-7 w-7 ${contact.iconClassName}`} />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">{contact.title}</CardTitle>
+                      <CardDescription className="mt-2 leading-relaxed">
+                        {contact.description}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Button asChild variant="ghost" className="w-full justify-between group">
+                      <a href={contact.href} target={contact.href.startsWith("http") ? "_blank" : undefined} rel={contact.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+                        {contact.cta}
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </a>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="space-y-4">
         <div>
