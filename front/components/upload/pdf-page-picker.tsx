@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Expand, Loader2 } from "lucide-react";
+import { Expand, Loader2, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -222,8 +222,8 @@ export function PdfPagePicker({
   return (
     <div className="space-y-3">
       <div className="rounded-xl border bg-background/80 p-3">
-        <div>
-          <p className="text-sm font-medium text-foreground">
+        <div className="min-w-0">
+          <p className="max-w-full break-words text-sm font-medium text-foreground [overflow-wrap:anywhere]">
             {fileName}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -328,8 +328,19 @@ export function PdfPagePicker({
       </div>
 
       <Dialog open={expandedPageNumber !== null} onOpenChange={(open) => !open && setExpandedPageNumber(null)}>
-        <DialogContent className="max-w-5xl w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] p-0 overflow-hidden" showCloseButton={true}>
-          <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] max-h-[92vh]">
+        <DialogContent className="max-w-5xl w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] p-0 overflow-hidden" showCloseButton={false}>
+          <div className="flex items-center justify-end border-b bg-background px-3 py-2 sm:px-4">
+            <button
+              type="button"
+              onClick={() => setExpandedPageNumber(null)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Fechar visualização ampliada"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] max-h-[calc(92vh-3.5rem)]">
             <div className="bg-muted/30 p-3 sm:p-6 overflow-auto">
               <div className="rounded-xl overflow-hidden border bg-white shadow-sm">
                 {expandedThumbnailUrl ? (
