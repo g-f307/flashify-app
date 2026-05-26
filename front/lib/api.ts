@@ -333,6 +333,7 @@ export interface Document {
   id: number;
   file_path: string;
   title?: string | null;
+  page_selection_raw?: string | null;
   status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   generates_flashcards: boolean;
   generates_quizzes: boolean;
@@ -655,6 +656,16 @@ export interface SharedDeckRead {
   created_at: string;
 }
 
+export interface PdfInspectResponse {
+  file_name: string;
+  total_pages: number;
+  pages: {
+    page_number: number;
+    preview_text: string;
+    has_text: boolean;
+  }[];
+}
+
 type UploadDocumentParams = {
   file: File;
   title: string;
@@ -665,6 +676,7 @@ type UploadDocumentParams = {
   num_flashcards: number;
   difficulty: string;
   num_questions: number;
+  pageSelection?: string;
 };
 
 type CreateFromTextParams = {
@@ -941,8 +953,22 @@ class ApiClient {
 
     formData.append("generates_flashcards", String(params.generates_flashcards));
     formData.append("generates_quizzes", String(params.generates_quizzes));
+    if (params.pageSelection?.trim()) {
+      formData.append("page_selection", params.pageSelection.trim());
+    }
 
     return this.request<Document>("/documents/upload", {
+      method: "POST",
+      body: formData,
+      useJsonContentType: false,
+    });
+  }
+
+  async inspectPdf(file: File): Promise<PdfInspectResponse> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return this.request<PdfInspectResponse>("/documents/pdf/inspect", {
       method: "POST",
       body: formData,
       useJsonContentType: false,

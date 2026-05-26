@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { apiClient, Document, LimitExceededError } from "@/lib/api";
+import { apiClient, Document, LimitExceededError, PdfInspectResponse } from "@/lib/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
+import { PdfPagePicker } from "@/components/upload/pdf-page-picker";
 import { cn } from "@/lib/utils";
 import ContentLoader from "@/components/content-loader";
 import { GenerationLimitAlert } from "@/components/generation-limit-alert";
@@ -35,6 +36,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+type WizardStepId = "name" | "content" | "pdf-pages" | "customize";
+
 type WizardData = {
   name: string;
   inputType: "text" | "upload";
@@ -45,17 +48,6 @@ type WizardData = {
   difficulty: string;
   num_questions: number;
 };
-
-interface CreationWizardProps {
-  onCreationSuccess: () => void;
-  folderId?: number;
-}
-
-const steps = [
-  { id: 1, name: "Nome", icon: Sparkles },
-  { id: 2, name: "Conteúdo", icon: FileText },
-  { id: 3, name: "Customizar", icon: Settings2 },
-];
 
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -70,12 +62,128 @@ const ACCEPTED_FILE_TYPES = [
 const ACCEPTED_FILE_TYPES_STRING = ".pdf, .jpg, .jpeg, .png, .docx, .pptx";
 const ACCEPTED_FILE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".docx", ".pptx"];
 
+interface CreationWizardProps {
+  onCreationSuccess: () => void;
+  folderId?: number;
+}
+
+function getFileExtension(file: File | null): string {
+  if (!file) return "";
+  return `.${file.name.split(".").pop()?.toLowerCase() || ""}`;
+}
+
+function validatePdfPageSelection(selection: string, totalPages: number): string | null {
+  const normalized = selection.trim();
+  if (!normalized) {
+    return "Informe pelo menos uma pagina ou selecione todas as paginas.";
+  }
+
+  const tokens = normalized.split(",");
+  const pages = new Set<number>();
+
+  for (const rawToken of tokens) {
+    const token = rawToken.trim();
+    if (!token) {
+      return "Use formatos como 1,2,3 ou 1-5.";
+    }
+
+    if (!/^\d+(?:-\d+)?$/.test(token)) {
+      return `Trecho invalido: ${token}.`;
+    }
+
+    if (token.includes("-")) {
+      const [startStr, endStr] = token.split("-");
+      const start = Number(startStr);
+      const end = Number(endStr);
+      if (start > end) {
+        return `Intervalo invalido: ${token}.`;
+      }
+      for (let page = start; page <= end; page += 1) {
+        if (page < 1 || page > totalPages) {
+          return `A pagina ${page} precisa estar entre 1 e ${totalPages}.`;
+        }
+        pages.add(page);
+      }
+      continue;
+    }
+
+    const page = Number(token);
+    if (page < 1 || page > totalPages) {
+      return `A pagina ${page} precisa estar entre 1 e ${totalPages}.`;
+    }
+    pages.add(page);
+  }
+
+  if (!pages.size) {
+    return "Nenhuma pagina valida foi informada.";
+  }
+
+  return null;
+}
+
+function parsePdfPageSelection(selection: string, totalPages: number): number[] {
+  const tokens = selection.trim().split(",");
+  const pages = new Set<number>();
+
+  for (const rawToken of tokens) {
+    const token = rawToken.trim();
+    if (!token) continue;
+
+    if (token.includes("-")) {
+      const [startStr, endStr] = token.split("-");
+      const start = Number(startStr);
+      const end = Number(endStr);
+      for (let page = start; page <= end; page += 1) {
+        if (page >= 1 && page <= totalPages) {
+          pages.add(page);
+        }
+      }
+      continue;
+    }
+
+    const page = Number(token);
+    if (page >= 1 && page <= totalPages) {
+      pages.add(page);
+    }
+  }
+
+  return Array.from(pages).sort((a, b) => a - b);
+}
+
+function formatPdfPageSelection(pages: number[]): string {
+  if (!pages.length) return "";
+
+  const ranges: string[] = [];
+  let rangeStart = pages[0];
+  let previous = pages[0];
+
+  for (let index = 1; index < pages.length; index += 1) {
+    const current = pages[index];
+    if (current === previous + 1) {
+      previous = current;
+      continue;
+    }
+
+    ranges.push(rangeStart === previous ? String(rangeStart) : `${rangeStart}-${previous}`);
+    rangeStart = current;
+    previous = current;
+  }
+
+  ranges.push(rangeStart === previous ? String(rangeStart) : `${rangeStart}-${previous}`);
+  return ranges.join(",");
+}
+
 export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardProps) {
-  const [step, setStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState<WizardStepId>("name");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingDocument, setProcessingDocument] = useState<Document | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [pdfInspectInfo, setPdfInspectInfo] = useState<PdfInspectResponse | null>(null);
+  const [isInspectingPdf, setIsInspectingPdf] = useState(false);
+  const [pageSelection, setPageSelection] = useState("");
+  const [useAllPdfPages, setUseAllPdfPages] = useState(true);
+  const [pageSelectionError, setPageSelectionError] = useState<string | null>(null);
   
   // 🆕 USAR O CONTEXT EM VEZ DE ESTADO LOCAL
   const { limitInfo, loading: loadingLimit, refreshLimitInfo, incrementUsage } = useGenerationLimit();
@@ -102,9 +210,52 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   const requestedGeneratesQuizzes =
     data.contentType === "quiz" || data.contentType === "both";
   const requestedGenerationUnits = data.contentType === "both" ? 2 : 1;
+  const isPdfUpload = data.inputType === "upload" && getFileExtension(data.file) === ".pdf";
+  const totalPdfPages = pdfInspectInfo?.total_pages || 0;
+  const selectedPdfPages =
+    !isPdfUpload || useAllPdfPages ? null : parsePdfPageSelection(pageSelection, totalPdfPages);
+  const steps = [
+    { id: "name" as const, name: "Nome", icon: Sparkles },
+    { id: "content" as const, name: "Conteúdo", icon: FileText },
+    ...(isPdfUpload ? [{ id: "pdf-pages" as const, name: "Páginas", icon: FileText }] : []),
+    { id: "customize" as const, name: "Customizar", icon: Settings2 },
+  ];
+  const currentStepIndex = steps.findIndex((step) => step.id === currentStep);
 
-  const handleNext = () => setStep((s) => Math.min(s + 1, steps.length));
-  const handleBack = () => setStep((s) => Math.max(s - 1, 1));
+  const resetPdfSelectionState = () => {
+    setPdfInspectInfo(null);
+    setIsInspectingPdf(false);
+    setUseAllPdfPages(true);
+    setPageSelection("");
+    setPageSelectionError(null);
+  };
+
+  const applyPdfPageSelection = (pages: number[] | null) => {
+    if (!pages || pages.length === 0) {
+      setUseAllPdfPages(true);
+      setPageSelection("");
+      setPageSelectionError(null);
+      return;
+    }
+
+    setUseAllPdfPages(false);
+    setPageSelection(formatPdfPageSelection(pages));
+    setPageSelectionError(null);
+  };
+
+  const handleNext = () => {
+    const nextStep = steps[currentStepIndex + 1];
+    if (nextStep) {
+      setCurrentStep(nextStep.id);
+    }
+  };
+
+  const handleBack = () => {
+    const previousStep = steps[currentStepIndex - 1];
+    if (previousStep) {
+      setCurrentStep(previousStep.id);
+    }
+  };
 
   const monitorProcessing = async (documentId: number) => {
     try {
@@ -165,6 +316,12 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   };
 
   useEffect(() => {
+    if (currentStep === "pdf-pages" && !isPdfUpload) {
+      setCurrentStep("content");
+    }
+  }, [currentStep, isPdfUpload]);
+
+  useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -192,6 +349,18 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     if (data.inputType === 'text' && !data.text.trim()) return toast.error("O conteúdo de texto não pode estar vazio.");
     if (data.inputType === 'upload' && !data.file) return toast.error("Por favor, selecione um arquivo para upload.");
     if (fileError) return toast.error(fileError);
+    if (isPdfUpload && !pdfInspectInfo) return toast.error("Não foi possível carregar os metadados do PDF.");
+
+    if (isPdfUpload && !useAllPdfPages) {
+      const validationError = validatePdfPageSelection(
+        pageSelection,
+        totalPdfPages,
+      );
+      setPageSelectionError(validationError);
+      if (validationError) {
+        return toast.error("Revise o filtro de páginas informado.");
+      }
+    }
 
     // Verifica limite antes de submeter
     if (limitInfo && limitInfo.remaining < requestedGenerationUnits) {
@@ -221,7 +390,11 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
       };
 
       if (data.inputType === 'upload' && data.file) {
-        document = await apiClient.uploadDocument({ ...baseParams, file: data.file });
+        document = await apiClient.uploadDocument({
+          ...baseParams,
+          file: data.file,
+          pageSelection: isPdfUpload && !useAllPdfPages ? pageSelection.trim() : undefined,
+        });
       } else {
         document = await apiClient.createDocumentFromText({ ...baseParams, text: data.text });
       }
@@ -247,9 +420,10 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files ? e.target.files[0] : null;
-    setFileError(null); 
+    setFileError(null);
+    resetPdfSelectionState();
 
     if (!file) return;
 
@@ -276,7 +450,25 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     }
 
     setFileError(null);
-    setData({ ...data, file: file, text: "" });
+    setData({ ...data, file, text: "" });
+
+    if (fileExtension !== ".pdf") {
+      return;
+    }
+
+    setIsInspectingPdf(true);
+    try {
+      const inspectInfo = await apiClient.inspectPdf(file);
+      setPdfInspectInfo(inspectInfo);
+    } catch (error: any) {
+      const errorMsg = error.message || "Não foi possível inspecionar o PDF.";
+      setFileError(errorMsg);
+      setData({ ...data, file: null, text: "" });
+      toast.error(errorMsg);
+      e.target.value = '';
+    } finally {
+      setIsInspectingPdf(false);
+    }
   };
 
   const WizardProgress = () => (
@@ -285,22 +477,22 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
             <div key={s.id} className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                 <div className={cn(
                   "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0",
-                  step > s.id ? "bg-primary text-primary-foreground" : 
-                  step === s.id ? "bg-primary/20 border-2 border-primary text-primary" : 
+                  index < currentStepIndex ? "bg-primary text-primary-foreground" : 
+                  s.id === currentStep ? "bg-primary/20 border-2 border-primary text-primary" : 
                   "bg-muted text-muted-foreground"
                 )}>
                     <s.icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <span className={cn(
                   "font-medium text-xs sm:text-sm hidden sm:inline transition-colors whitespace-nowrap",
-                  step === s.id ? "text-primary" : "text-muted-foreground"
+                  s.id === currentStep ? "text-primary" : "text-muted-foreground"
                 )}>
                   {s.name}
                 </span>
                 {index < steps.length - 1 && (
                   <div className={cn(
                     "h-0.5 w-4 sm:w-8 md:w-12 transition-all flex-shrink-0",
-                    step > s.id ? "bg-primary" : "bg-muted"
+                    index < currentStepIndex ? "bg-primary" : "bg-muted"
                   )}/>
                 )}
             </div>
@@ -324,8 +516,8 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     }
 
     return (
-      <div key={step} className="animate-in fade-in-50 duration-500">
-        {step > 1 && (
+      <div key={currentStep} className="animate-in fade-in-50 duration-500">
+        {currentStepIndex > 0 && (
           <Button 
             variant="ghost" 
             size="sm" 
@@ -363,7 +555,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
           </CardContent>
         )}
         
-        {step === 2 && (
+        {currentStep === "content" && (
           <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
             <CardTitle className="text-center text-xl sm:text-2xl mt-8 sm:mt-0">
               Forneça o Conteúdo
@@ -374,8 +566,16 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
              <Tabs 
                value={data.inputType} 
                onValueChange={(value) => {
-                 setData({...data, inputType: value as 'text' | 'upload'});
+                 setData({
+                   ...data,
+                   inputType: value as 'text' | 'upload',
+                   file: value === 'text' ? null : data.file,
+                   text: value === 'upload' ? data.text : data.text,
+                 });
                  setFileError(null); 
+                 if (value === 'text') {
+                   resetPdfSelectionState();
+                 }
                }} 
                className="w-full mt-4 sm:mt-6"
              >
@@ -415,10 +615,15 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                   >
                     {!data.file && !fileError && <UploadCloud className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4" />}
                     {fileError && <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4" />}
-                    {data.file && !fileError && <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-primary mx-auto mb-3 sm:mb-4" />}
+                    {data.file && !fileError && !isInspectingPdf && <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-primary mx-auto mb-3 sm:mb-4" />}
+                    {isInspectingPdf && <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-primary mx-auto mb-3 sm:mb-4 animate-spin" />}
                     
                     <p className="text-xs sm:text-sm px-2">
-                      {data.file && !fileError ? (
+                      {isInspectingPdf ? (
+                        <span className="font-medium text-foreground break-all">
+                          Analisando páginas do PDF...
+                        </span>
+                      ) : data.file && !fileError ? (
                         <span className="font-medium text-foreground break-all">✓ {data.file.name}</span>
                       ) : fileError ? (
                         <span className="font-medium">{fileError}</span>
@@ -442,10 +647,18 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                 </TabsContent>
               </Tabs>
             <Button 
-              onClick={handleNext} 
+              onClick={() => {
+                if (isPdfUpload) {
+                  setCurrentStep("pdf-pages");
+                  return;
+                }
+                setCurrentStep("customize");
+              }} 
               className="w-full mt-4 sm:mt-6 h-10 sm:h-11" 
               disabled={
                 fileError ? true :
+                isInspectingPdf ? true :
+                (isPdfUpload && !pdfInspectInfo) ? true :
                 (data.inputType === 'text' && !data.text.trim()) || 
                 (data.inputType === 'upload' && !data.file)
               }
@@ -454,8 +667,105 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
             </Button>
           </CardContent>
         )}
-        
-        {step === 3 && (
+
+        {currentStep === "pdf-pages" && (
+          <CardContent className="pt-8 pb-6 px-4 sm:px-6 space-y-5">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-3 sm:mb-4">
+                <FileText className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+              </div>
+              <CardTitle className="text-xl sm:text-2xl">Escolha as páginas do PDF</CardTitle>
+              <CardDescription className="mt-2 text-sm sm:text-base px-2">
+                Use todas as páginas ou informe um filtro como <span className="font-medium">1,2,5-8</span>.
+              </CardDescription>
+            </div>
+
+            {data.file && pdfInspectInfo && (
+              <PdfPagePicker
+                file={data.file}
+                fileName={pdfInspectInfo.file_name || data.file.name}
+                totalPages={pdfInspectInfo.total_pages}
+                pages={pdfInspectInfo.pages}
+                selectedPages={selectedPdfPages}
+                onSelectedPagesChange={applyPdfPageSelection}
+              />
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={useAllPdfPages ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => {
+                  setUseAllPdfPages(true);
+                  setPageSelection("");
+                  setPageSelectionError(null);
+                }}
+              >
+                Usar todas
+              </Button>
+              <Button
+                type="button"
+                variant={!useAllPdfPages ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => {
+                  setUseAllPdfPages(false);
+                  if (!pageSelection.trim() && totalPdfPages > 0) {
+                    setPageSelection("1");
+                  }
+                }}
+              >
+                Escolher páginas
+              </Button>
+            </div>
+
+            {!useAllPdfPages && (
+              <div className="space-y-2">
+                <Label htmlFor="page-selection-input">Filtro de páginas</Label>
+                <Input
+                  id="page-selection-input"
+                  placeholder="Ex: 1,2,5-8"
+                  value={pageSelection}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setUseAllPdfPages(false);
+                    setPageSelection(value);
+                    setPageSelectionError(
+                      validatePdfPageSelection(value, totalPdfPages)
+                    );
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Exemplos válidos: 1,2,3 • 1-5 • 2,4,7-9
+                </p>
+                {pageSelectionError && (
+                  <p className="text-xs text-red-600">{pageSelectionError}</p>
+                )}
+              </div>
+            )}
+
+            <Button
+              onClick={() => {
+                if (!useAllPdfPages) {
+                  const validationError = validatePdfPageSelection(
+                    pageSelection,
+                    totalPdfPages,
+                  );
+                  setPageSelectionError(validationError);
+                  if (validationError) {
+                    return;
+                  }
+                }
+                setCurrentStep("customize");
+              }}
+              className="w-full h-10 sm:h-11"
+            >
+              Próximo
+            </Button>
+          </CardContent>
+        )}
+
+        {currentStep === "customize" && (
             <CardContent className="pt-6 sm:pt-8 pb-6 sm:pb-8 px-4 sm:px-6 space-y-5 sm:space-y-6">
                 <div className="text-center mb-6 sm:mb-8">
                     <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-3 sm:mb-4">
