@@ -68,7 +68,7 @@ function FlashcardScoreRing({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(72, 207, 234, 0.16)"
+          stroke="rgba(250, 204, 21, 0.18)"
           strokeWidth={strokeWidth}
           fill="transparent"
         />
