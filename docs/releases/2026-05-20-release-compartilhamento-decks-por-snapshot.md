@@ -103,6 +103,38 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - `Impacto no usuário`: O fluxo de compartilhar e retornar ao deck compartilhado após cadastro/login ficou mais fluido e previsível.
 - `Impacto técnico`: O frontend ajustou o `AuthContext`, formulários, páginas de auth e botão de login social para manter o destino original.
 
+### 5.8. Filtros avançados de PDF no fluxo de criação
+
+- `Nome`: Seleção de páginas para extração parcial de PDF
+- `Status`: `Concluída`
+- `Descrição`: Foi implementado um fluxo completo de inspeção de `PDF`, com endpoint dedicado, parser de seleção de páginas, persistência do filtro no `Document`, extração parcial no backend e passo condicional no wizard para escolha das páginas antes da geração.
+- `Impacto no usuário`: O usuário pode limitar a geração de flashcards e quiz apenas às páginas relevantes do arquivo, evitando ruído e melhorando a qualidade do material gerado.
+- `Impacto técnico`: O sistema agora suporta inspeção prévia de `PDF`, validação de intervalos como `1,2,5-8`, processamento assíncrono respeitando o recorte escolhido e contratos de API específicos para esse fluxo.
+
+### 5.9. Pré-visualização visual de páginas de PDF
+
+- `Nome`: Preview visual e seleção manual de páginas
+- `Status`: `Concluída`
+- `Descrição`: O wizard passou a exibir visualização das páginas do `PDF`, com seleção manual, expansão da página em modal e sincronização com o filtro textual.
+- `Impacto no usuário`: A escolha das páginas deixou de depender apenas do número da página, aproximando a experiência de um preview de impressão e dando mais confiança antes da geração.
+- `Impacto técnico`: O frontend ganhou um componente dedicado para visualização e seleção de páginas, com estados de carregamento, inspeção ampliada e comportamento responsivo para desktop e mobile.
+
+### 5.10. Refino na concisão dos flashcards gerados
+
+- `Nome`: Respostas mais curtas e cards mais objetivos
+- `Status`: `Concluída`
+- `Descrição`: As instruções da IA e a normalização backend foram ajustadas para privilegiar cards com um conceito por vez, respostas curtas e rejeição de flashcards longos demais ou com múltiplas perguntas no mesmo item.
+- `Impacto no usuário`: Os flashcards ficaram mais alinhados com revisão rápida e memorização, reduzindo respostas excessivamente longas e complexas.
+- `Impacto técnico`: O backend passou a aplicar limites de concisão por dificuldade e filtros adicionais de qualidade na etapa de normalização dos flashcards.
+
+### 5.11. Ajustes visuais complementares no estudo e criação
+
+- `Nome`: Polimentos de UI no relatório e no cabeçalho da criação
+- `Status`: `Concluída`
+- `Descrição`: Foram aplicados ajustes visuais no relatório final de estudo e no bloco de gerações da tela `/create`, incluindo a correção do tom do gráfico circular e a integração do status de gerações no cabeçalho da seção inicial do wizard.
+- `Impacto no usuário`: A interface ficou mais coerente visualmente e com menor ruído, especialmente na etapa inicial de criação de decks.
+- `Impacto técnico`: Houve refinamento pontual de componentes de UI sem alterar contratos de API nem comportamento de negócio.
+
 ## 6. Itens em andamento
 
 ### 6.1. Validação final da rota compartilhada
@@ -122,13 +154,6 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - `Descrição esperada`: Revisar o tratamento de `token` inválido, expirado ou ausente para garantir mensagens e navegação coerentes em todos os fluxos.
 - `Criterio de entrada na release`: validação manual confirmar que não há lacunas relevantes de UX em estados de erro
 
-### 7.2. Filtros avancados de PDF no fluxo de criacao
-
-- `Nome`: Selecao de paginas para extracao parcial de PDF
-- `Status`: `Planejado`
-- `Descricao esperada`: Adicionar inspecao de PDF, passo condicional no wizard e suporte backend para processar apenas as paginas escolhidas pelo usuario no upload de arquivos PDF.
-- `Criterio de entrada na release`: contrato do backend definido, migration planejada, fluxo do wizard mapeado e escopo limitado exclusivamente a `PDF`
-
 ## 8. Correções e ajustes incluídos
 
 - migração do botão `Compartilhar` para junto do título do deck
@@ -141,36 +166,42 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - remoção de barras de ação duplicadas no estudo guiado com flashcards
 - padronização de botões azuis no quiz e verdes no estudo guiado
 - correção do fluxo de login com Google, preservando `redirect` para o link compartilhado
-- definição de escopo da futura seleção de páginas limitada a `PDF`, evitando ampliar a complexidade para `DOCX` e `PPTX`
+- definição e implementação do escopo da seleção de páginas limitada a `PDF`, evitando ampliar a complexidade para `DOCX` e `PPTX`
+- criação de endpoint de inspeção de `PDF` com metadados e previews de páginas
+- inclusão de etapa condicional no wizard para seleção manual e textual de páginas do `PDF`
+- adição de preview visual de páginas com expansão em modal e refinamentos responsivos para mobile
+- persistência do filtro bruto de páginas no `Document` para rastreabilidade do processamento
+- refinamento da geração de flashcards para respostas mais curtas, mais objetivas e com foco em memorização rápida
+- correção do tom do anel de progresso no relatório de estudo, substituindo o azul residual por amarelo suave
 
 ## 9. Impacto técnico
 
 ### 9.1. Frontend
 
-- componentes afetados: página do deck individual, layout autenticado, auth forms, contexto de autenticação, cliente de API, estilos globais, modal de share e nova árvore de rotas `shared/[token]`
+- componentes afetados: página do deck individual, layout autenticado, auth forms, contexto de autenticação, cliente de API, estilos globais, modal de share, nova árvore de rotas `shared/[token]`, `creation-wizard`, indicador de gerações e componente de seleção visual de páginas de `PDF`
 - componentes novos: `share-deck-modal`, `import-shared-deck-button`, páginas `shared/[token]`, `shared/[token]/study`, `shared/[token]/quiz` e `shared/[token]/guided`
-- riscos principais: regressão visual em breakpoints menores, inconsistência entre modos de estudo e UX incompleta em estados de erro
+- componentes novos adicionais: `pdf-page-picker`
+- riscos principais: regressão visual em breakpoints menores, inconsistência entre modos de estudo, UX incompleta em estados de erro e comportamento visual do picker de `PDF` em diferentes viewports
 - cuidados de responsividade: manter visão geral acima dos cards no mobile, preservar legibilidade, evitar controles fora da viewport e respeitar claro/escuro
-- impacto planejado adicional: `creation-wizard` passará a ter passo condicional para `PDF`, exigindo cuidado para não quebrar o fluxo atual de `DOCX`, `PPTX` e imagens
+- impacto implementado adicional: `creation-wizard` passou a ter passo condicional para `PDF`, exigindo preservação do fluxo atual de `DOCX`, `PPTX` e imagens
 
 ### 9.2. Backend
 
-- serviços ou rotas afetadas: modelos de documentos, CRUD de compartilhamento, schemas públicos, router de documentos e analytics de compartilhamento
+- serviços ou rotas afetadas: modelos de documentos, CRUD de compartilhamento, schemas públicos, router de documentos, analytics de compartilhamento, extração de texto, task assíncrona de processamento e parser de seleção de páginas de `PDF`
 - impactos de compatibilidade: nenhuma rota legada foi removida; a feature entra como capacidade adicional
 - observação funcional: a snapshot não copia progresso, sessões, relatórios ou estado SRS do remetente
-- impacto planejado adicional: `documents.py`, `tasks.py` e `text_extractor.py` deverão receber suporte a inspeção e extração parcial de `PDF`
+- impacto implementado adicional: `documents.py`, `tasks.py` e `text_extractor.py` agora suportam inspeção e extração parcial de `PDF`
 
 ### 9.3. Banco de dados
 
-- migrations envolvidas: `back/alembic/versions/20260520_0011_add_shared_deck_snapshots.py`
-- impacto esperado: criação da persistência de snapshots compartilhadas com payload serializado do deck
+- migrations envolvidas: `back/alembic/versions/20260520_0011_add_shared_deck_snapshots.py` e `back/alembic/versions/20260525_0012_add_document_page_selection.py`
+- impacto esperado: criação da persistência de snapshots compartilhadas com payload serializado do deck e persistência do filtro bruto de páginas aplicado ao `PDF`
 - cuidados de rollback: rollback deve considerar perda dos registros de snapshots compartilhadas criadas após o deploy
-- migration planejada adicional: novos campos no `Document` para persistir o filtro de páginas aplicado ao `PDF`
 
 ### 9.4. Dependências
 
-- novas dependências: nenhuma
-- dependências alteradas: nenhuma nova instalação necessária; o modal reutiliza `react-icons`, já presente no projeto
+- novas dependências: visualização de `PDF` no frontend exigiu integração adicional para renderização de páginas no wizard
+- dependências alteradas: frontend passou a incluir suporte ao fluxo de preview visual de `PDF`; validar consistência entre `npm` e `pnpm` no ambiente de build
 
 ## 10. QA e validação
 
@@ -197,7 +228,11 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - [ ] validar upload de `PDF` com seleção simples de páginas, como `1,2,3`
 - [ ] validar upload de `PDF` com intervalo de páginas, como `1-5`
 - [ ] validar rejeição de filtro inválido ou página fora do total do documento
+- [ ] validar preview visual de páginas do `PDF`, incluindo seleção manual e modal expandido
+- [ ] validar comportamento do picker de `PDF` no mobile, incluindo centralização e densidade da UI
 - [ ] validar que `DOCX`, `PPTX` e imagens mantêm o fluxo atual sem passo extra
+- [ ] validar que a linha de gerações na etapa inicial de criação não quebra em mais de uma linha no desktop
+- [ ] validar que novos flashcards gerados estão mais curtos e objetivos do que a versão anterior
 
 ## 11. Deploy
 
@@ -205,16 +240,18 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 
 - [ ] migrations aplicadas
 - [ ] backend reiniciado com novas rotas
-- [ ] frontend rebuildado com as rotas compartilhadas
-- [ ] ambiente revisado com dados de teste para share/import
+- [ ] frontend rebuildado com as rotas compartilhadas e o picker visual de `PDF`
+- [ ] ambiente revisado com dados de teste para share/import e upload de `PDF`
 
 ### 11.2. Passos de deploy
 
 1. aplicar a migration de snapshots compartilhadas no banco
-2. subir o backend com os novos endpoints de share, leitura e importação
-3. rebuildar o frontend com o modal de share e as novas rotas `shared/[token]`
-4. criar um deck real, compartilhar, abrir o link e testar importação para a biblioteca
-5. validar os modos `study`, `quiz` e `guided` do deck compartilhado em desktop e mobile
+2. aplicar a migration de persistência de filtro de páginas em `Document`
+3. subir o backend com os novos endpoints de share, leitura, importação e inspeção de `PDF`
+4. rebuildar o frontend com o modal de share, as novas rotas `shared/[token]` e o picker visual de `PDF`
+5. criar um deck real, compartilhar, abrir o link e testar importação para a biblioteca
+6. validar upload de `PDF` com seleção de páginas, preview visual e geração parcial de conteúdo
+7. validar os modos `study`, `quiz` e `guided` do deck compartilhado em desktop e mobile
 
 ## 12. Rollback
 
@@ -228,6 +265,8 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - a feature depende de dados serializados; futuras mudanças de schema do deck exigirão cuidado com retrocompatibilidade de snapshots
 - a decisão de exigir autenticação para visualizar o link aumenta a sensibilidade do fluxo de `redirect`
 - decks compartilhados sem `guided_study_cache` não exibem estudo guiado até que o destinatário importe e gere a própria cópia
+- o fluxo visual de seleção de páginas de `PDF` depende de validação manual cuidadosa em mobile e desktop para evitar desalinhamentos sutis
+- a integração de preview de `PDF` no frontend merece atenção em ambiente de build para garantir consistência entre gerenciadores de pacote e estratégia de carregamento do visualizador
 
 ## 14. Critérios para fechamento da release
 
@@ -248,6 +287,11 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
   - [schemas.py](/home/gf307/Documentos/ifam/dra_gps/flashify-app/back/app/schemas.py:1)
   - [documents.py](/home/gf307/Documentos/ifam/dra_gps/flashify-app/back/app/routers/documents.py:1)
   - [20260520_0011_add_shared_deck_snapshots.py](/home/gf307/Documentos/ifam/dra_gps/flashify-app/back/alembic/versions/20260520_0011_add_shared_deck_snapshots.py:1)
+  - [20260525_0012_add_document_page_selection.py](/home/gf307/Documentos/ifam/dra_gps/flashify-app/back/alembic/versions/20260525_0012_add_document_page_selection.py:1)
+  - [text_extractor.py](/home/gf307/Documentos/ifam/dra_gps/flashify-app/back/app/text_extractor.py:1)
+  - [tasks.py](/home/gf307/Documentos/ifam/dra_gps/flashify-app/back/app/tasks.py:1)
+  - [pdf_page_selection.py](/home/gf307/Documentos/ifam/dra_gps/flashify-app/back/app/pdf_page_selection.py:1)
+  - [ai_generator.py](/home/gf307/Documentos/ifam/dra_gps/flashify-app/back/app/ai_generator.py:1)
 - arquivos principais do frontend:
   - [deck page](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/app/(app)/deck/[id]/page.tsx:1)
   - [shared hub](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/app/(app)/shared/[token]/page.tsx:1)
@@ -256,6 +300,10 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
   - [shared guided](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/app/(app)/shared/[token]/guided/page.tsx:1)
   - [share-deck-modal.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/deck/share-deck-modal.tsx:1)
   - [google-login-button.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/auth/google-login-button.tsx:1)
+  - [creation-wizard.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/creation-wizard.tsx:1)
+  - [pdf-page-picker.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/upload/pdf-page-picker.tsx:1)
+  - [generation-limit-alert.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/generation-limit-alert.tsx:1)
+  - [performance-report.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/study/performance-report.tsx:1)
   - [api.ts](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/lib/api.ts:1)
 
 ## 16. Histórico de atualização
