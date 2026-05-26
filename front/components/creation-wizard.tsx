@@ -708,11 +708,11 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
               />
             )}
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Button
                 type="button"
                 variant={useAllPdfPages ? "default" : "outline"}
-                className="flex-1"
+                className="w-full"
                 onClick={() => {
                   setUseAllPdfPages(true);
                   setPageSelection("");
@@ -724,7 +724,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
               <Button
                 type="button"
                 variant={!useAllPdfPages ? "default" : "outline"}
-                className="flex-1"
+                className="w-full"
                 onClick={() => {
                   setUseAllPdfPages(false);
                   if (!pageSelection.trim() && totalPdfPages > 0) {
