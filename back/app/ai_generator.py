@@ -65,6 +65,37 @@ def _normalize_rich_text(text: Any) -> str:
     return normalized.strip()
 
 
+def _count_words(text: str) -> int:
+    return len([token for token in (text or "").replace("\n", " ").split(" ") if token.strip()])
+
+
+def _get_flashcard_length_limits(difficulty: str) -> tuple[int, int]:
+    if difficulty == "Fácil":
+        return 18, 28
+    if difficulty == "Difícil":
+        return 22, 45
+    return 20, 35
+
+
+def _is_flashcard_concise(front: str, back: str, difficulty: str) -> bool:
+    max_front_words, max_back_words = _get_flashcard_length_limits(difficulty)
+
+    front_words = _count_words(front)
+    back_words = _count_words(back)
+
+    if front_words > max_front_words or back_words > max_back_words:
+        return False
+
+    if front.count("?") > 1:
+        return False
+
+    # Evita cards que parecem uma mini-aula com listas longas demais.
+    if back.count("<li>") > 3:
+        return False
+
+    return True
+
+
 def _compact_flashcard_payload(flashcards: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
     return [
         {
@@ -209,7 +240,11 @@ def _extract_response_text(response: Any) -> str:
     return "\n".join(text_parts).strip()
 
 
-def _normalize_flashcards(raw_flashcards: Any, requested_count: int) -> List[Dict[str, Any]]:
+def _normalize_flashcards(
+    raw_flashcards: Any,
+    requested_count: int,
+    difficulty: str,
+) -> List[Dict[str, Any]]:
     if not isinstance(raw_flashcards, list):
         return []
 
@@ -225,6 +260,9 @@ def _normalize_flashcards(raw_flashcards: Any, requested_count: int) -> List[Dic
         raw_type = str(item.get("type", "concept")).strip().lower() or "concept"
 
         if not front or not back:
+            continue
+
+        if not _is_flashcard_concise(front, back, difficulty):
             continue
 
         dedupe_key = front.casefold()
@@ -423,6 +461,8 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             f"   Exemplo: {difficulty_config['exemplo']}",
             "",
             "📌 PERGUNTAS (front):",
+            "✓ Pense em flashcards como ferramenta de MEMORIZAÇÃO RÁPIDA, não como mini-capítulos",
+            "✓ UM conceito, fato, relação ou cálculo por card",
             "✓ UMA pergunta específica por flashcard (NUNCA duas ou mais perguntas juntas)",
             "✓ Perguntas claras, diretas e COMPLETAMENTE RESPONDÍVEIS com a resposta fornecida",
             "✓ Máximo de 15-20 palavras por pergunta",
@@ -433,17 +473,20 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "✓ Pode usar HTML semântico leve para formatação: <strong>, <em>, <ul>, <ol>, <li>, <blockquote>, <code>, <pre>, <p>",
             "",
             "📌 RESPOSTAS (back):",
-            "✓ Respostas CONCISAS e OBJETIVAS, mas podem usar múltiplos blocos curtos",
+            "✓ Respostas CURTAS para revisão rápida",
+            "✓ Regra principal: a resposta deve caber em leitura de poucos segundos",
+            "✓ Prefira 1 frase curta ou no máximo 2 bullet points curtos",
+            "✓ Máximo ideal de 35 palavras na resposta; só passe disso se for estritamente necessário",
             "✓ Vá direto ao ponto - sem introduções desnecessárias",
             "✓ A resposta deve RESPONDER COMPLETAMENTE a pergunta feita",
             "✓ Se a pergunta menciona dois conceitos, a resposta DEVE abordar AMBOS",
-            "✓ Para cálculos: mostre o resultado e uma explicação breve (1-2 linhas)",
+            "✓ Para cálculos: mostre o resultado e uma explicação MUITO breve (1 linha ou 2 passos curtos)",
             "✓ Para comparações: mencione EXPLICITAMENTE as diferenças ou semelhanças",
-            "✓ Use bullet points quando listar itens múltiplos",
+            "✓ Use bullet points apenas quando realmente precisar listar itens múltiplos",
             "✓ Prefira HTML semântico leve para formatação: <strong>, <em>, <ul>, <ol>, <li>, <blockquote>, <code>, <pre>, <p>",
             "✓ Para fórmulas inline use \\(...\\) e para fórmulas em bloco use $$...$$",
             "✓ Preserve quebras de linha entre passos de resolução, listas e observações",
-            "✓ Evite parágrafos longos - quebre em frases curtas",
+            "✓ Evite parágrafos longos e explicações em tom de aula",
             "",
             "📌 QUALIDADE DO CONTEÚDO:",
             "✓ Perguntas que façam o usuário PENSAR (não decorar)",
@@ -451,6 +494,7 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "✓ Inclua exemplos numéricos quando relevante",
             "✓ Para áreas como matemática, física, química e engenharia, escreva a notação técnica correta",
             "✓ Varie os tipos de perguntas (conceito, cálculo, comparação, exemplo)",
+            "✓ Se uma ideia exigir resposta longa, DIVIDA em 2 ou mais flashcards menores",
             "",
             "📌 FORMATO JSON:",
             "✓ Saída APENAS em JSON puro (sem markdown ```json)",
@@ -495,6 +539,8 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "✗ HTML complexo, estilos inline ou scripts",
             "✗ Múltiplas perguntas no mesmo 'front'",
             "✗ Perguntas genéricas como 'O que você sabe sobre X?'",
+            "✗ Flashcards que funcionam como resumo de parágrafo",
+            "✗ Respostas com mais de 3 frases",
             "✗ Perguntas que mencionam conceito A e B, mas resposta só fala de A",
             "✗ Perguntas de comparação sem mencionar ambos os lados na resposta",
             "✗ Respostas que começam com 'Bem...', 'Basicamente...', 'É importante notar que...'",
@@ -519,6 +565,8 @@ Foque em {difficulty_instruction}."""
             f"   Exemplo: {difficulty_config['exemplo']}",
             "",
             "📌 PERGUNTAS (front):",
+            "✓ Pense em flashcards como ferramenta de MEMORIZAÇÃO RÁPIDA, não como mini-capítulos",
+            "✓ UM conceito, fato, relação ou cálculo por card",
             "✓ UMA pergunta específica por flashcard (NUNCA duas ou mais perguntas juntas)",
             "✓ Perguntas claras, diretas e COMPLETAMENTE RESPONDÍVEIS com a resposta fornecida",
             "✓ Máximo de 15-20 palavras por pergunta",
@@ -529,17 +577,20 @@ Foque em {difficulty_instruction}."""
             "✓ Pode usar HTML semântico leve com moderação para termos-chave e estrutura",
             "",
             "📌 RESPOSTAS (back):",
-            "✓ Respostas CONCISAS e OBJETIVAS, podendo usar múltiplos blocos curtos",
+            "✓ Respostas CURTAS para revisão rápida",
+            "✓ Regra principal: a resposta deve caber em leitura de poucos segundos",
+            "✓ Prefira 1 frase curta ou no máximo 2 bullet points curtos",
+            "✓ Máximo ideal de 35 palavras na resposta; só passe disso se for estritamente necessário",
             "✓ Vá direto ao ponto - sem introduções desnecessárias",
             "✓ A resposta deve RESPONDER COMPLETAMENTE a pergunta feita",
             "✓ Se a pergunta menciona dois conceitos, a resposta DEVE abordar AMBOS",
-            "✓ Para cálculos: mostre o resultado e uma explicação breve (1-2 linhas)",
+            "✓ Para cálculos: mostre o resultado e uma explicação MUITO breve (1 linha ou 2 passos curtos)",
             "✓ Para comparações: mencione EXPLICITAMENTE as diferenças ou semelhanças",
-            "✓ Use bullet points quando listar itens múltiplos",
+            "✓ Use bullet points apenas quando realmente precisar listar itens múltiplos",
             "✓ Prefira HTML semântico leve para formatação: <strong>, <em>, <ul>, <ol>, <li>, <blockquote>, <code>, <pre>, <p>",
             "✓ Para fórmulas inline use \\(...\\) e para fórmulas em bloco use $$...$$",
             "✓ Preserve quebras de linha entre passos de derivação, resolução e observações",
-            "✓ Evite parágrafos longos - quebre em frases curtas",
+            "✓ Evite parágrafos longos e explicações em tom de aula",
             "",
             "📌 QUALIDADE DO CONTEÚDO:",
             "✓ Extraia os conceitos MAIS IMPORTANTES do texto",
@@ -548,6 +599,7 @@ Foque em {difficulty_instruction}."""
             "✓ Inclua cálculos específicos quando o texto tiver dados numéricos",
             "✓ Para disciplinas técnicas, mantenha símbolos, subscritos/sobrescritos em notação LaTeX",
             "✓ Varie os tipos de perguntas (conceito, cálculo, comparação, exemplo)",
+            "✓ Se uma ideia exigir resposta longa, DIVIDA em 2 ou mais flashcards menores",
             "",
             "📌 FORMATO JSON:",
             "✓ Saída APENAS em JSON puro (sem markdown ```json)",
@@ -592,6 +644,8 @@ Foque em {difficulty_instruction}."""
             "✗ HTML complexo, estilos inline ou scripts",
             "✗ Múltiplas perguntas no mesmo 'front'",
             "✗ Perguntas genéricas como 'O que o texto fala sobre X?'",
+            "✗ Flashcards que funcionam como resumo de parágrafo",
+            "✗ Respostas com mais de 3 frases",
             "✗ Perguntas que mencionam conceito A e B, mas resposta só fala de A",
             "✗ Perguntas de comparação sem mencionar ambos os lados na resposta",
             "✗ Respostas que começam com 'Bem...', 'Basicamente...', 'O texto menciona que...'",
@@ -610,7 +664,11 @@ Foque em {difficulty_instruction}."""
         print(f"⏱️ Tempo de resposta Gemini: {elapsed:.2f}s")
         data = _parse_jsonish_object(response.text)
         if "flashcards" in data and isinstance(data["flashcards"], list):
-            normalized_flashcards = _normalize_flashcards(data["flashcards"], num_flashcards)
+            normalized_flashcards = _normalize_flashcards(
+                data["flashcards"],
+                num_flashcards,
+                difficulty,
+            )
             if len(normalized_flashcards) < num_flashcards and _attempt < 1:
                 missing_count = num_flashcards - len(normalized_flashcards)
                 print(f"⚠️ Gemini retornou {len(normalized_flashcards)}/{num_flashcards} flashcards válidos. Tentando completar {missing_count}.")
@@ -623,6 +681,7 @@ Foque em {difficulty_instruction}."""
                 normalized_flashcards = _normalize_flashcards(
                     normalized_flashcards + supplemental_flashcards,
                     num_flashcards,
+                    difficulty,
                 )
 
             print(f"✅ Flashcards gerados com sucesso pelo Gemini ({len(normalized_flashcards)}/{num_flashcards}).")
