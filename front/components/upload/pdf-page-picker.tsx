@@ -221,7 +221,7 @@ export function PdfPagePicker({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border bg-background/80 p-3">
+      <div className="rounded-xl border border-border/70 bg-background/80 p-3 dark:border-zinc-700/80 dark:bg-muted/30">
         <div className="min-w-0">
           <p className="max-w-full break-words text-sm font-medium text-foreground [overflow-wrap:anywhere]">
             {fileName}
@@ -241,12 +241,12 @@ export function PdfPagePicker({
       </div>
 
       {renderError && (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-300">
           {renderError}
         </p>
       )}
 
-      <div className="max-h-[34rem] overflow-y-auto rounded-xl border bg-muted/20 p-2.5 sm:max-h-[36rem] sm:p-4">
+      <div className="max-h-[34rem] overflow-y-auto rounded-xl border border-border/70 bg-muted/20 p-2.5 dark:border-zinc-700/80 dark:bg-muted/30 sm:max-h-[36rem] sm:p-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {pages.map((page) => {
             const isSelected = selectedSet.has(page.page_number);
@@ -262,14 +262,14 @@ export function PdfPagePicker({
                 onClick={() => togglePage(page.page_number)}
                 onKeyDown={(event) => handleCardKeyDown(event, page.page_number)}
                 className={cn(
-                  "text-left rounded-xl border bg-background overflow-hidden transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30",
+                  "text-left rounded-xl border bg-background overflow-hidden transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30 dark:bg-card",
                   "hover:border-primary/60 hover:shadow-sm",
                   isSelected
                     ? "border-primary ring-2 ring-primary/20"
-                    : "border-border",
+                    : "border-border dark:border-zinc-700/80",
                 )}
               >
-                <div className="aspect-[0.58] sm:aspect-[0.64] bg-muted/40 flex items-center justify-center border-b overflow-hidden">
+                <div className="aspect-[0.58] sm:aspect-[0.64] bg-muted/40 flex items-center justify-center overflow-hidden border-b border-border/70 dark:border-zinc-700/80 dark:bg-muted/40">
                   {thumbnailUrl ? (
                     <img
                       src={thumbnailUrl}
@@ -301,7 +301,7 @@ export function PdfPagePicker({
                           event.stopPropagation();
                           setExpandedPageNumber(page.page_number);
                         }}
-                        className="inline-flex items-center justify-center rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                        className="inline-flex items-center justify-center rounded-md border border-border/70 bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground dark:border-zinc-700/80 dark:bg-card dark:hover:bg-muted"
                         aria-label={`Expandir página ${page.page_number}`}
                       >
                         <Expand className="w-3 h-3 mr-1" />
@@ -328,8 +328,8 @@ export function PdfPagePicker({
       </div>
 
       <Dialog open={expandedPageNumber !== null} onOpenChange={(open) => !open && setExpandedPageNumber(null)}>
-        <DialogContent className="max-w-5xl w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] p-0 overflow-hidden" showCloseButton={false}>
-          <div className="flex items-center justify-end border-b bg-background px-3 py-2 sm:px-4">
+        <DialogContent className="max-w-5xl w-[calc(100vw-1rem)] overflow-hidden p-0 sm:w-[calc(100vw-2rem)] dark:border-zinc-700/80 dark:bg-card" showCloseButton={false}>
+          <div className="flex items-center justify-end border-b border-border/70 bg-background px-3 py-2 dark:border-zinc-700/80 dark:bg-card sm:px-4">
             <button
               type="button"
               onClick={() => setExpandedPageNumber(null)}
@@ -341,8 +341,8 @@ export function PdfPagePicker({
           </div>
 
           <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] max-h-[calc(92vh-3.5rem)]">
-            <div className="bg-muted/30 p-3 sm:p-6 overflow-auto">
-              <div className="rounded-xl overflow-hidden border bg-white shadow-sm">
+            <div className="overflow-auto bg-muted/30 p-3 dark:bg-muted/40 sm:p-6">
+              <div className="overflow-hidden rounded-xl border border-border/70 bg-white shadow-sm dark:border-zinc-700/80">
                 {expandedThumbnailUrl ? (
                   <img
                     src={expandedThumbnailUrl}
@@ -362,7 +362,7 @@ export function PdfPagePicker({
               </div>
             </div>
 
-            <div className="border-t lg:border-t-0 lg:border-l bg-background p-4 sm:p-6 overflow-auto">
+            <div className="overflow-auto border-t border-border/70 bg-background p-4 dark:border-zinc-700/80 dark:bg-card lg:border-l lg:border-t-0 sm:p-6">
               <DialogHeader className="text-left">
                 <DialogTitle>Página {expandedPageNumber}</DialogTitle>
                 <DialogDescription>
@@ -372,7 +372,7 @@ export function PdfPagePicker({
 
               {expandedPage && (
                 <div className="mt-4 space-y-4 pb-20 lg:pb-0">
-                  <div className="inline-flex items-center rounded-full px-2.5 py-1 text-xs bg-muted text-muted-foreground">
+                  <div className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground dark:bg-muted dark:text-muted-foreground">
                     {selectedSet.has(expandedPage.page_number) ? "Selecionada no deck" : "Fora da seleção"}
                   </div>
 
@@ -380,10 +380,10 @@ export function PdfPagePicker({
                     type="button"
                     onClick={() => togglePage(expandedPage.page_number)}
                     className={cn(
-                      "hidden lg:block w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                      "hidden w-full rounded-lg border px-4 py-2 text-sm font-medium transition-colors lg:block",
                       selectedSet.has(expandedPage.page_number)
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                        ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "border-border/70 bg-secondary text-secondary-foreground hover:bg-secondary/80 dark:border-zinc-700/80 dark:bg-muted dark:text-foreground dark:hover:bg-muted/80",
                     )}
                   >
                     {selectedSet.has(expandedPage.page_number)
@@ -394,15 +394,15 @@ export function PdfPagePicker({
               )}
 
               {expandedPage && (
-                <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 backdrop-blur px-4 py-3">
+                <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 px-4 py-3 backdrop-blur dark:border-zinc-700/80 dark:bg-background/95 lg:hidden">
                   <button
                     type="button"
                     onClick={() => togglePage(expandedPage.page_number)}
                     className={cn(
-                      "w-full rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+                      "w-full rounded-lg border px-4 py-3 text-sm font-medium transition-colors",
                       selectedSet.has(expandedPage.page_number)
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                        ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "border-border/70 bg-secondary text-secondary-foreground hover:bg-secondary/80 dark:border-zinc-700/80 dark:bg-muted dark:text-foreground dark:hover:bg-muted/80",
                     )}
                   >
                     {selectedSet.has(expandedPage.page_number)
