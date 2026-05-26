@@ -529,8 +529,25 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
           </Button>
         )}
         
-        {step === 1 && (
-          <CardContent className="text-center pt-10 sm:pt-12 px-4 sm:px-6">
+        {currentStep === "name" && (
+          <CardContent className="relative px-4 pt-10 text-center sm:px-6 sm:pt-12">
+            <div className="absolute left-1/2 -top-2 -translate-x-1/2 sm:left-auto sm:right-8 sm:top-0 sm:translate-x-0">
+              {!isProcessing && (
+                <div className="max-w-[240px] text-center sm:text-right">
+                  {loadingLimit ? (
+                    <div className="inline-flex items-center gap-2 text-[11px] text-muted-foreground sm:text-xs">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Carregando gerações...</span>
+                    </div>
+                  ) : limitInfo ? (
+                    <GenerationLimitAlert
+                      limitInfo={limitInfo}
+                      variant="inline"
+                    />
+                  ) : null}
+                </div>
+              )}
+            </div>
             <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-3 sm:mb-4">
               <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
             </div>
@@ -927,22 +944,6 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
 
           {!isProcessing && <WizardProgress/>}
           <Card className="relative overflow-hidden">{renderStepContent()}</Card>
-
-          {/* Alerta de Limite - Agora usando o Context */}
-          {!isProcessing && (
-            <>
-              {loadingLimit ? (
-                <div className="flex items-center justify-center p-3 sm:p-4 bg-muted/50 rounded-lg mt-4 sm:mt-6">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
-                  <span className="text-xs sm:text-sm text-muted-foreground">Carregando informações...</span>
-                </div>
-              ) : limitInfo && (
-                <div className="mt-4 sm:mt-6">
-                  <GenerationLimitAlert limitInfo={limitInfo} />
-                </div>
-              )}
-            </>
-          )}
       </div>
 
       {/* Dialog de Limite Atingido */}
