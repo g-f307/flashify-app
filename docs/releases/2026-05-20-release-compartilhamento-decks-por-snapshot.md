@@ -34,6 +34,7 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - fluxo de autenticação preservando `redirect` para links compartilhados
 - modal de compartilhamento com ações de compartilhar e `Copiar link`
 - documentação de planejamento funcional e técnico da feature
+- filtros avançados para `PDF` no fluxo de criação de decks, com seleção de páginas antes da geração
 
 ### 4.2. Fora de escopo
 
@@ -42,6 +43,7 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - compartilhamento via Instagram
 - coleta de estatísticas, feedback de respostas ou SRS dentro do modo compartilhado
 - visualização pública sem autenticação
+- filtros equivalentes para `DOCX`, `PPTX` ou imagens nesta release
 
 ## 5. Funcionalidades concluídas
 
@@ -120,6 +122,13 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - `Descrição esperada`: Revisar o tratamento de `token` inválido, expirado ou ausente para garantir mensagens e navegação coerentes em todos os fluxos.
 - `Criterio de entrada na release`: validação manual confirmar que não há lacunas relevantes de UX em estados de erro
 
+### 7.2. Filtros avancados de PDF no fluxo de criacao
+
+- `Nome`: Selecao de paginas para extracao parcial de PDF
+- `Status`: `Planejado`
+- `Descricao esperada`: Adicionar inspecao de PDF, passo condicional no wizard e suporte backend para processar apenas as paginas escolhidas pelo usuario no upload de arquivos PDF.
+- `Criterio de entrada na release`: contrato do backend definido, migration planejada, fluxo do wizard mapeado e escopo limitado exclusivamente a `PDF`
+
 ## 8. Correções e ajustes incluídos
 
 - migração do botão `Compartilhar` para junto do título do deck
@@ -132,6 +141,7 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - remoção de barras de ação duplicadas no estudo guiado com flashcards
 - padronização de botões azuis no quiz e verdes no estudo guiado
 - correção do fluxo de login com Google, preservando `redirect` para o link compartilhado
+- definição de escopo da futura seleção de páginas limitada a `PDF`, evitando ampliar a complexidade para `DOCX` e `PPTX`
 
 ## 9. Impacto técnico
 
@@ -141,18 +151,21 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - componentes novos: `share-deck-modal`, `import-shared-deck-button`, páginas `shared/[token]`, `shared/[token]/study`, `shared/[token]/quiz` e `shared/[token]/guided`
 - riscos principais: regressão visual em breakpoints menores, inconsistência entre modos de estudo e UX incompleta em estados de erro
 - cuidados de responsividade: manter visão geral acima dos cards no mobile, preservar legibilidade, evitar controles fora da viewport e respeitar claro/escuro
+- impacto planejado adicional: `creation-wizard` passará a ter passo condicional para `PDF`, exigindo cuidado para não quebrar o fluxo atual de `DOCX`, `PPTX` e imagens
 
 ### 9.2. Backend
 
 - serviços ou rotas afetadas: modelos de documentos, CRUD de compartilhamento, schemas públicos, router de documentos e analytics de compartilhamento
 - impactos de compatibilidade: nenhuma rota legada foi removida; a feature entra como capacidade adicional
 - observação funcional: a snapshot não copia progresso, sessões, relatórios ou estado SRS do remetente
+- impacto planejado adicional: `documents.py`, `tasks.py` e `text_extractor.py` deverão receber suporte a inspeção e extração parcial de `PDF`
 
 ### 9.3. Banco de dados
 
 - migrations envolvidas: `back/alembic/versions/20260520_0011_add_shared_deck_snapshots.py`
 - impacto esperado: criação da persistência de snapshots compartilhadas com payload serializado do deck
 - cuidados de rollback: rollback deve considerar perda dos registros de snapshots compartilhadas criadas após o deploy
+- migration planejada adicional: novos campos no `Document` para persistir o filtro de páginas aplicado ao `PDF`
 
 ### 9.4. Dependências
 
@@ -181,6 +194,10 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - [ ] validar visual do modal de compartilhar em desktop e mobile
 - [ ] validar a ordem mobile do hub compartilhado e o comportamento em modo escuro
 - [ ] validar token inválido, deck sem quiz, deck sem guided study e deck sem flashcards
+- [ ] validar upload de `PDF` com seleção simples de páginas, como `1,2,3`
+- [ ] validar upload de `PDF` com intervalo de páginas, como `1-5`
+- [ ] validar rejeição de filtro inválido ou página fora do total do documento
+- [ ] validar que `DOCX`, `PPTX` e imagens mantêm o fluxo atual sem passo extra
 
 ## 11. Deploy
 
@@ -223,6 +240,7 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 ## 15. Evidências e referências
 
 - documento funcional: [plano_implementacao_flashify.md](/home/gf307/Documentos/ifam/dra_gps/flashify-app/plano_implementacao_flashify.md:1)
+- plano técnico da fase 6: [docs/plano_fase_6_filtros_avancados_pdf.md](/home/gf307/Documentos/ifam/dra_gps/flashify-app/docs/plano_fase_6_filtros_avancados_pdf.md:1)
 - template de release: [docs/releases/_template-release.md](/home/gf307/Documentos/ifam/dra_gps/flashify-app/docs/releases/_template-release.md:1)
 - arquivos principais do backend:
   - [models.py](/home/gf307/Documentos/ifam/dra_gps/flashify-app/back/app/models.py:1)
@@ -247,3 +265,8 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - abertura da release em construção para compartilhamento de decks por snapshot
 - consolidação do escopo de backend, frontend, UX, importação e autenticação
 - registro dos itens já entregues e do checklist pendente para fechamento
+
+### 2026-05-25
+
+- adição do planejamento da fase 6 de filtros avançados de `PDF` ao escopo da release em aberto
+- inclusão de referência ao plano técnico detalhado da funcionalidade
