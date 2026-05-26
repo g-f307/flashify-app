@@ -11,9 +11,13 @@
 
 ## 2. Visão geral
 
-Esta release introduz o compartilhamento de decks por snapshot congelada, permitindo que um usuário publique o estado atual de um deck e compartilhe esse material com outras pessoas sem expor o deck vivo da própria biblioteca. O destinatário acessa uma experiência de leitura do deck compartilhado, pode explorar flashcards, quiz e estudo guiado em fluxos individuais e, se desejar, importar uma cópia independente para sua própria biblioteca.
+Esta release em construção tem como frente principal o compartilhamento de decks por snapshot congelada, permitindo que um usuário publique o estado atual de um deck e compartilhe esse material com outras pessoas sem expor o deck vivo da própria biblioteca. O destinatário acessa uma experiência de leitura do deck compartilhado, pode explorar flashcards, quiz e estudo guiado em fluxos individuais e, se desejar, importar uma cópia independente para sua própria biblioteca.
+
+Em paralelo, a release também passou a concentrar uma segunda frente independente, voltada ao fluxo de criação de decks e à qualidade do estudo, incluindo filtros avançados para `PDF`, refinamento da geração de flashcards e pequenos polimentos de UI. Essa frente não depende do compartilhamento por snapshot e não deve ser interpretada como subfuncionalidade dele.
 
 ## 3. Objetivo
+
+### 3.1. Objetivo principal da release
 
 - permitir compartilhamento seguro de decks sem acoplar o link ao deck vivo do remetente
 - preservar o estado do deck no momento do clique em `Compartilhar`
@@ -21,9 +25,17 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - permitir importação para a biblioteca do destinatário sem afetar o deck do remetente
 - manter a feature preparada para crescimento futuro do deck, incluindo estudo guiado e outras expansões
 
+### 3.2. Frente paralela também incluída nesta release
+
+- permitir seleção de páginas de `PDF` antes da geração de conteúdo
+- melhorar a qualidade dos flashcards para revisão rápida e memorização
+- aplicar correções visuais pontuais em fluxos de criação e estudo
+
 ## 4. Escopo da release
 
 ### 4.1. Entradas confirmadas
+
+#### 4.1.1. Frente principal: compartilhamento por snapshot
 
 - backend para criação, leitura e importação de snapshots compartilhadas
 - migration de banco para persistência de snapshots compartilhadas
@@ -34,7 +46,12 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - fluxo de autenticação preservando `redirect` para links compartilhados
 - modal de compartilhamento com ações de compartilhar e `Copiar link`
 - documentação de planejamento funcional e técnico da feature
+
+#### 4.1.2. Frente paralela: criação e qualidade de estudo
+
 - filtros avançados para `PDF` no fluxo de criação de decks, com seleção de páginas antes da geração
+- refinamento da geração de flashcards para respostas mais curtas e objetivas
+- ajustes visuais pontuais no `/create` e no relatório final de estudo
 
 ### 4.2. Fora de escopo
 
@@ -103,15 +120,15 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - `Impacto no usuário`: O fluxo de compartilhar e retornar ao deck compartilhado após cadastro/login ficou mais fluido e previsível.
 - `Impacto técnico`: O frontend ajustou o `AuthContext`, formulários, páginas de auth e botão de login social para manter o destino original.
 
-### 5.8. Filtros avançados de PDF no fluxo de criação
+### 5.8. Frente paralela: filtros avançados de PDF no fluxo de criação
 
 - `Nome`: Seleção de páginas para extração parcial de PDF
 - `Status`: `Concluída`
-- `Descrição`: Foi implementado um fluxo completo de inspeção de `PDF`, com endpoint dedicado, parser de seleção de páginas, persistência do filtro no `Document`, extração parcial no backend e passo condicional no wizard para escolha das páginas antes da geração.
+- `Descrição`: Em uma frente paralela ao compartilhamento, foi implementado um fluxo completo de inspeção de `PDF`, com endpoint dedicado, parser de seleção de páginas, persistência do filtro no `Document`, extração parcial no backend e passo condicional no wizard para escolha das páginas antes da geração.
 - `Impacto no usuário`: O usuário pode limitar a geração de flashcards e quiz apenas às páginas relevantes do arquivo, evitando ruído e melhorando a qualidade do material gerado.
 - `Impacto técnico`: O sistema agora suporta inspeção prévia de `PDF`, validação de intervalos como `1,2,5-8`, processamento assíncrono respeitando o recorte escolhido e contratos de API específicos para esse fluxo.
 
-### 5.9. Pré-visualização visual de páginas de PDF
+### 5.9. Frente paralela: pré-visualização visual de páginas de PDF
 
 - `Nome`: Preview visual e seleção manual de páginas
 - `Status`: `Concluída`
@@ -119,7 +136,7 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - `Impacto no usuário`: A escolha das páginas deixou de depender apenas do número da página, aproximando a experiência de um preview de impressão e dando mais confiança antes da geração.
 - `Impacto técnico`: O frontend ganhou um componente dedicado para visualização e seleção de páginas, com estados de carregamento, inspeção ampliada e comportamento responsivo para desktop e mobile.
 
-### 5.10. Refino na concisão dos flashcards gerados
+### 5.10. Frente paralela: refino na concisão dos flashcards gerados
 
 - `Nome`: Respostas mais curtas e cards mais objetivos
 - `Status`: `Concluída`
@@ -127,7 +144,7 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - `Impacto no usuário`: Os flashcards ficaram mais alinhados com revisão rápida e memorização, reduzindo respostas excessivamente longas e complexas.
 - `Impacto técnico`: O backend passou a aplicar limites de concisão por dificuldade e filtros adicionais de qualidade na etapa de normalização dos flashcards.
 
-### 5.11. Ajustes visuais complementares no estudo e criação
+### 5.11. Frente paralela: ajustes visuais complementares no estudo e criação
 
 - `Nome`: Polimentos de UI no relatório e no cabeçalho da criação
 - `Status`: `Concluída`
@@ -156,6 +173,8 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 
 ## 8. Correções e ajustes incluídos
 
+### 8.1. Frente principal: compartilhamento por snapshot
+
 - migração do botão `Compartilhar` para junto do título do deck
 - simplificação do modal de compartilhamento, removendo foco em `gerar link` e mantendo ações de share + `Copiar link`
 - inclusão de ícones oficiais de `WhatsApp`, `Facebook` e `X` no modal
@@ -166,6 +185,9 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 - remoção de barras de ação duplicadas no estudo guiado com flashcards
 - padronização de botões azuis no quiz e verdes no estudo guiado
 - correção do fluxo de login com Google, preservando `redirect` para o link compartilhado
+
+### 8.2. Frente paralela: criação e qualidade de estudo
+
 - definição e implementação do escopo da seleção de páginas limitada a `PDF`, evitando ampliar a complexidade para `DOCX` e `PPTX`
 - criação de endpoint de inspeção de `PDF` com metadados e previews de páginas
 - inclusão de etapa condicional no wizard para seleção manual e textual de páginas do `PDF`
@@ -178,8 +200,9 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 
 ### 9.1. Frontend
 
-- componentes afetados: página do deck individual, layout autenticado, auth forms, contexto de autenticação, cliente de API, estilos globais, modal de share, nova árvore de rotas `shared/[token]`, `creation-wizard`, indicador de gerações e componente de seleção visual de páginas de `PDF`
+- componentes afetados na frente principal: página do deck individual, layout autenticado, auth forms, contexto de autenticação, cliente de API, estilos globais, modal de share e nova árvore de rotas `shared/[token]`
 - componentes novos: `share-deck-modal`, `import-shared-deck-button`, páginas `shared/[token]`, `shared/[token]/study`, `shared/[token]/quiz` e `shared/[token]/guided`
+- componentes afetados na frente paralela: `creation-wizard`, indicador de gerações, relatório final de estudo e componente de seleção visual de páginas de `PDF`
 - componentes novos adicionais: `pdf-page-picker`
 - riscos principais: regressão visual em breakpoints menores, inconsistência entre modos de estudo, UX incompleta em estados de erro e comportamento visual do picker de `PDF` em diferentes viewports
 - cuidados de responsividade: manter visão geral acima dos cards no mobile, preservar legibilidade, evitar controles fora da viewport e respeitar claro/escuro
@@ -187,15 +210,17 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 
 ### 9.2. Backend
 
-- serviços ou rotas afetadas: modelos de documentos, CRUD de compartilhamento, schemas públicos, router de documentos, analytics de compartilhamento, extração de texto, task assíncrona de processamento e parser de seleção de páginas de `PDF`
+- serviços ou rotas afetadas na frente principal: modelos de documentos, CRUD de compartilhamento, schemas públicos, router de documentos e analytics de compartilhamento
+- serviços ou rotas afetadas na frente paralela: extração de texto, task assíncrona de processamento, parser de seleção de páginas de `PDF`, geração de flashcards e trechos adicionais do router de documentos
 - impactos de compatibilidade: nenhuma rota legada foi removida; a feature entra como capacidade adicional
 - observação funcional: a snapshot não copia progresso, sessões, relatórios ou estado SRS do remetente
 - impacto implementado adicional: `documents.py`, `tasks.py` e `text_extractor.py` agora suportam inspeção e extração parcial de `PDF`
 
 ### 9.3. Banco de dados
 
-- migrations envolvidas: `back/alembic/versions/20260520_0011_add_shared_deck_snapshots.py` e `back/alembic/versions/20260525_0012_add_document_page_selection.py`
-- impacto esperado: criação da persistência de snapshots compartilhadas com payload serializado do deck e persistência do filtro bruto de páginas aplicado ao `PDF`
+- migrations envolvidas na frente principal: `back/alembic/versions/20260520_0011_add_shared_deck_snapshots.py`
+- migrations envolvidas na frente paralela: `back/alembic/versions/20260525_0012_add_document_page_selection.py`
+- impacto esperado: criação da persistência de snapshots compartilhadas com payload serializado do deck e, em frente independente, persistência do filtro bruto de páginas aplicado ao `PDF`
 - cuidados de rollback: rollback deve considerar perda dos registros de snapshots compartilhadas criadas após o deploy
 
 ### 9.4. Dependências
@@ -245,19 +270,27 @@ Esta release introduz o compartilhamento de decks por snapshot congelada, permit
 
 ### 11.2. Passos de deploy
 
+#### 11.2.1. Frente principal: compartilhamento por snapshot
+
 1. aplicar a migration de snapshots compartilhadas no banco
-2. aplicar a migration de persistência de filtro de páginas em `Document`
-3. subir o backend com os novos endpoints de share, leitura, importação e inspeção de `PDF`
-4. rebuildar o frontend com o modal de share, as novas rotas `shared/[token]` e o picker visual de `PDF`
-5. criar um deck real, compartilhar, abrir o link e testar importação para a biblioteca
-6. validar upload de `PDF` com seleção de páginas, preview visual e geração parcial de conteúdo
-7. validar os modos `study`, `quiz` e `guided` do deck compartilhado em desktop e mobile
+2. subir o backend com os novos endpoints de share, leitura e importação
+3. rebuildar o frontend com o modal de share e as novas rotas `shared/[token]`
+4. criar um deck real, compartilhar, abrir o link e testar importação para a biblioteca
+5. validar os modos `study`, `quiz` e `guided` do deck compartilhado em desktop e mobile
+
+#### 11.2.2. Frente paralela: criação e qualidade de estudo
+
+1. aplicar a migration de persistência de filtro de páginas em `Document`
+2. subir o backend com o endpoint de inspeção de `PDF` e o processamento parcial por páginas
+3. rebuildar o frontend com o picker visual de `PDF` e os ajustes do wizard
+4. validar upload de `PDF` com seleção de páginas, preview visual e geração parcial de conteúdo
+5. validar a nova qualidade dos flashcards gerados e os polimentos visuais associados
 
 ## 12. Rollback
 
-- `Aplicação`: reverter commits do backend e frontend relacionados à feature de compartilhamento
-- `Banco de dados`: reverter a migration de snapshots compartilhadas se não houver necessidade de preservar links já criados
-- `Risco do rollback`: médio, porque qualquer rollback de banco invalida snapshots geradas e links distribuídos
+- `Aplicação`: preferir rollback por frente de trabalho, revertendo separadamente os commits de compartilhamento por snapshot ou os commits da frente de criação e `PDF`
+- `Banco de dados`: reverter a migration de snapshots compartilhadas e a migration de filtro de páginas apenas se o rollback realmente precisar desfazer essas frentes
+- `Risco do rollback`: médio, porque qualquer rollback de banco pode invalidar snapshots geradas ou remover persistência de filtros aplicados a `PDF`
 
 ## 13. Riscos e pontos de atenção
 
