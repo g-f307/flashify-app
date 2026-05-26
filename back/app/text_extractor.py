@@ -6,18 +6,58 @@ from docx import Document as DocxDocument
 from google.cloud import vision
 from pptx import Presentation
 
+PDF_PREVIEW_MAX_CHARS = 240
 
-def extract_text_from_pdf(file_path: str) -> str:
+
+def get_pdf_page_count(file_path: str) -> int:
+    """Retorna o total de paginas de um PDF."""
+    with pdfplumber.open(file_path) as pdf:
+        return len(pdf.pages)
+
+
+def extract_text_from_pdf(file_path: str, pages: list[int] | None = None) -> str:
     """Extrai texto de um arquivo PDF."""
     extracted_pages: list[str] = []
 
     with pdfplumber.open(file_path) as pdf:
-        for page in pdf.pages:
+        target_pages = pdf.pages
+        if pages is not None:
+            target_pages = [pdf.pages[page_number - 1] for page_number in pages]
+
+        for page in target_pages:
             page_text = page.extract_text() or ""
             if page_text.strip():
                 extracted_pages.append(page_text)
 
     return "\n\n".join(extracted_pages)
+
+
+def get_pdf_page_previews(
+    file_path: str,
+    max_chars: int = PDF_PREVIEW_MAX_CHARS,
+) -> list[dict[str, str | int | bool]]:
+    """Retorna uma amostra curta de texto por pagina para orientar a selecao."""
+    previews: list[dict[str, str | int | bool]] = []
+
+    with pdfplumber.open(file_path) as pdf:
+        for page_number, page in enumerate(pdf.pages, start=1):
+            page_text = (page.extract_text() or "").strip()
+            normalized_text = " ".join(page_text.split())
+            has_text = bool(normalized_text)
+
+            preview_text = normalized_text[:max_chars].rstrip()
+            if len(normalized_text) > max_chars:
+                preview_text = f"{preview_text}..."
+
+            previews.append(
+                {
+                    "page_number": page_number,
+                    "preview_text": preview_text,
+                    "has_text": has_text,
+                }
+            )
+
+    return previews
 
 
 def extract_text_from_image(file_path: str) -> str:
@@ -66,12 +106,12 @@ def extract_text_from_pptx(file_path: str) -> str:
     return "\n\n".join(slides_content)
 
 
-def extract_text_from_file(file_path: str) -> str:
+def extract_text_from_file(file_path: str, pdf_pages: list[int] | None = None) -> str:
     """Despacha a extracao de texto com base na extensao do arquivo."""
     suffix = Path(file_path).suffix.lower()
 
     if suffix == ".pdf":
-        return extract_text_from_pdf(file_path)
+        return extract_text_from_pdf(file_path, pages=pdf_pages)
     if suffix in {".png", ".jpg", ".jpeg"}:
         return extract_text_from_image(file_path)
     if suffix == ".docx":

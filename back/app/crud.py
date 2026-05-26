@@ -147,6 +147,7 @@ def create_document_for_user(
     folder_id: Optional[int] = None,
     generates_flashcards: bool = True,
     generates_quizzes: bool = False,
+    page_selection_raw: Optional[str] = None,
 ) -> models.Document:
     db_document = models.Document(
         user_id=user_id, 
@@ -155,6 +156,7 @@ def create_document_for_user(
         folder_id=folder_id,
         generates_flashcards=generates_flashcards,
         generates_quizzes=generates_quizzes,
+        page_selection_raw=page_selection_raw,
         status=models.DocumentStatus.PROCESSING,
         current_step="iniciando processamento"
     )

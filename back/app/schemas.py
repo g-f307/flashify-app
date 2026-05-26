@@ -109,6 +109,7 @@ class DocumentDetail(BaseModel):
     status: DocumentStatus
     file_path: str
     title: Optional[str] = None
+    page_selection_raw: Optional[str] = None
     extracted_text: Optional[str] = None
     quiz: Optional[Quiz] = None
     generates_flashcards: bool 
@@ -140,6 +141,18 @@ class DocumentUpdateFolder(BaseModel):
 
 class FolderReadWithDocuments(FolderRead):
     documents: List[DocumentCardData] = []
+
+
+class PdfPagePreview(BaseModel):
+    page_number: int
+    preview_text: str
+    has_text: bool
+
+
+class PdfInspectResponse(BaseModel):
+    file_name: str
+    total_pages: int
+    pages: List[PdfPagePreview]
 
 # --- Schemas de Flashcard ---
 class FlashcardUpdate(BaseModel):

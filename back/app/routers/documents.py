@@ -2,6 +2,7 @@
 
 import shutil
 import os
+import tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import re
@@ -13,8 +14,10 @@ from typing_extensions import Annotated
 from .. import crud, models, security, schemas
 from ..analytics import mark_user_first_deck_created, track_product_event
 from ..database import get_session
+from ..pdf_page_selection import PageSelectionError, parse_page_selection
 from ..security import get_current_user
 from ..tasks import process_document 
+from ..text_extractor import get_pdf_page_count, get_pdf_page_previews
 from ..ai_generator import (
     generate_flashcards_from_text,
     generate_guided_study_topics,
@@ -96,6 +99,19 @@ def _is_allowed_upload(file: UploadFile) -> bool:
     if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
         return False
     return not content_type or content_type in ALLOWED_UPLOAD_MIME_TYPES
+
+
+def _validate_pdf_page_selection_for_file(
+    file_path_on_disk: Path,
+    page_selection_raw: Optional[str],
+) -> Optional[str]:
+    normalized_selection = (page_selection_raw or "").strip() or None
+    if normalized_selection is None:
+        return None
+
+    total_pages = get_pdf_page_count(str(file_path_on_disk))
+    parse_page_selection(normalized_selection, total_pages=total_pages)
+    return normalized_selection
 
 
 def _truncate_topic_title(text: str, fallback: str) -> str:
@@ -451,6 +467,7 @@ def _build_document_detail_response(db_document: models.Document) -> schemas.Doc
         status=db_document.status,
         file_path=db_document.file_path,
         title=db_document.title,
+        page_selection_raw=db_document.page_selection_raw,
         extracted_text=db_document.extracted_text,
         quiz=db_document.quiz,
         total_flashcards=len(db_document.flashcards or []),
@@ -505,6 +522,7 @@ def upload_document(
     num_flashcards: int = Form(10),
     difficulty: str = Form("Médio"),
     num_questions: int = Form(5),
+    page_selection: Optional[str] = Form(default=None),
 ):
     required_generations = 2 if content_type == "both" else 1
 
@@ -542,6 +560,23 @@ def upload_document(
     with file_path_on_disk.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    normalized_page_selection = None
+    try:
+        if original_suffix == ".pdf":
+            normalized_page_selection = _validate_pdf_page_selection_for_file(
+                file_path_on_disk,
+                page_selection,
+            )
+        elif page_selection and page_selection.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="O filtro de paginas esta disponivel apenas para arquivos PDF.",
+            )
+    except PageSelectionError as exc:
+        if file_path_on_disk.exists():
+            file_path_on_disk.unlink()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     db_document = crud.create_document_for_user(
         session,
         user_id=current_user.id,
@@ -549,7 +584,8 @@ def upload_document(
         title=title,
         folder_id=folder_id,
         generates_flashcards=generates_flashcards,
-        generates_quizzes=generates_quizzes
+        generates_quizzes=generates_quizzes,
+        page_selection_raw=normalized_page_selection,
     )
     mark_user_first_deck_created(session, current_user, occurred_at=db_document.created_at)
     track_product_event(
@@ -575,6 +611,42 @@ def upload_document(
     )
 
     return db_document
+
+
+@router.post("/pdf/inspect", response_model=schemas.PdfInspectResponse)
+def inspect_pdf(
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+):
+    if not _is_allowed_upload(file) or Path(file.filename or "").suffix.lower() != ".pdf":
+        raise HTTPException(
+            status_code=400,
+            detail="A inspecao de paginas esta disponivel apenas para arquivos PDF.",
+        )
+
+    temp_path: Optional[Path] = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".pdf",
+            dir=UPLOAD_DIRECTORY,
+        ) as temp_file:
+            shutil.copyfileobj(file.file, temp_file)
+            temp_path = Path(temp_file.name)
+
+        total_pages = get_pdf_page_count(str(temp_path))
+        return schemas.PdfInspectResponse(
+            file_name=file.filename or "documento.pdf",
+            total_pages=total_pages,
+            pages=[
+                schemas.PdfPagePreview.model_validate(page_preview)
+                for page_preview in get_pdf_page_previews(str(temp_path))
+            ],
+        )
+    finally:
+        if temp_path and temp_path.exists():
+            temp_path.unlink()
 
 @router.post("/text", response_model=models.Document, status_code=status.HTTP_202_ACCEPTED)
 def create_document_from_text(

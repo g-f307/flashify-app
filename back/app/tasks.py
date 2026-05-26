@@ -7,7 +7,8 @@ from .worker import celery_app
 from .database import engine
 from . import crud, models, schemas
 from .analytics import track_product_event
-from .text_extractor import extract_text_from_file
+from .pdf_page_selection import PageSelectionError, parse_page_selection
+from .text_extractor import extract_text_from_file, get_pdf_page_count
 from .ai_generator import generate_flashcards_from_text, generate_quiz_from_text
 from .email_service import email_service
 from datetime import datetime, timedelta, timezone
@@ -56,11 +57,27 @@ def process_document(
                 print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
                 
                 file_path = Path(db_document.file_path)
-                
-                extracted_text = extract_text_from_file(str(file_path))
+                pdf_pages = None
+
+                if file_path.suffix.lower() == ".pdf":
+                    try:
+                        total_pages = get_pdf_page_count(str(file_path))
+                        pdf_pages = parse_page_selection(
+                            db_document.page_selection_raw,
+                            total_pages=total_pages,
+                        )
+                    except PageSelectionError as exc:
+                        raise ValueError(str(exc)) from exc
+
+                extracted_text = extract_text_from_file(
+                    str(file_path),
+                    pdf_pages=pdf_pages,
+                )
 
                 if not extracted_text or not extracted_text.strip():
-                    raise ValueError("Nenhum texto pôde ser extraído do ficheiro.")
+                    raise ValueError(
+                        "Nenhum texto pôde ser extraído do ficheiro ou das páginas selecionadas."
+                    )
                 
                 db_document.extracted_text = extracted_text
                 session.add(db_document)
