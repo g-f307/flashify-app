@@ -249,6 +249,19 @@ def _extract_response_text(response: Any) -> str:
     return "\n".join(text_parts).strip()
 
 
+def _log_raw_ai_response(label: str, response_text: str, *, max_chars: int = 1800) -> None:
+    normalized = (response_text or "").strip()
+    if not normalized:
+        print(f"🧾 {label}: resposta vazia.")
+        return
+
+    snippet = normalized[:max_chars]
+    if len(normalized) > max_chars:
+        snippet = f"{snippet}..."
+
+    print(f"🧾 {label} ({len(normalized)} chars): {snippet}")
+
+
 def _normalize_flashcards(
     raw_flashcards: Any,
     requested_count: int,
@@ -729,7 +742,16 @@ Foque em {difficulty_instruction}."""
         )
         elapsed = time.time() - start
         print(f"⏱️ Tempo de resposta Gemini: {elapsed:.2f}s")
-        data = _parse_jsonish_object(response.text)
+        response_text = _extract_response_text(response)
+        if not response_text:
+            print("❌ Erro: resposta vazia retornada pelo Gemini na geração de flashcards.")
+            raise ValueError("Resposta vazia retornada pela IA.")
+
+        try:
+            data = _parse_jsonish_object(response_text)
+        except json.JSONDecodeError:
+            _log_raw_ai_response("Resposta bruta do Gemini para flashcards", response_text)
+            raise
         if "flashcards" in data and isinstance(data["flashcards"], list):
             normalized_flashcards = _normalize_flashcards(
                 data["flashcards"],
