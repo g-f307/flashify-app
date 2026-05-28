@@ -71,10 +71,10 @@ def _count_words(text: str) -> int:
 
 def _get_flashcard_length_limits(difficulty: str) -> tuple[int, int]:
     if difficulty == "Fácil":
-        return 18, 28
+        return 20, 32
     if difficulty == "Difícil":
-        return 22, 45
-    return 20, 35
+        return 28, 55
+    return 24, 42
 
 
 def _is_flashcard_concise(
@@ -86,8 +86,8 @@ def _is_flashcard_concise(
 ) -> bool:
     max_front_words, max_back_words = _get_flashcard_length_limits(difficulty)
     if relaxed:
-        max_front_words += 6
-        max_back_words += 14
+        max_front_words += 8
+        max_back_words += 20
 
     front_words = _count_words(front)
     back_words = _count_words(back)
@@ -99,7 +99,7 @@ def _is_flashcard_concise(
         return False
 
     # Evita cards que parecem uma mini-aula com listas longas demais.
-    if back.count("<li>") > (4 if relaxed else 3):
+    if back.count("<li>") > (5 if relaxed else 4):
         return False
 
     return True
@@ -486,6 +486,10 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "",
             "REGRAS CRÍTICAS PARA FLASHCARDS EFICIENTES:",
             "",
+            f"📦 META DE ENTREGA: produza exatamente {num_flashcards} flashcards VÁLIDOS, distintos e utilizáveis.",
+            "✓ Sua prioridade operacional é atingir a quantidade pedida sem repetir ideias.",
+            "✓ Se houver tensão entre elegância e cobertura, priorize cobertura correta e objetiva.",
+            "",
             f"🎯 NÍVEL DE DIFICULDADE: {difficulty.upper()}",
             f"   Foco: {difficulty_config['foco']}",
             f"   Perguntas: {difficulty_config['pergunta']}",
@@ -526,6 +530,9 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "✓ Inclua exemplos numéricos quando relevante",
             "✓ Para áreas como matemática, física, química e engenharia, escreva a notação técnica correta",
             "✓ Varie os tipos de perguntas (conceito, cálculo, comparação, exemplo)",
+            "✓ Cada flashcard deve cobrir um ponto DIFERENTE do conteúdo",
+            "✓ Não repita o mesmo conceito com outra redação",
+            "✓ Se o conteúdo parecer homogêneo, explore definições, aplicações, comparações, exemplos, erros comuns e interpretações",
             "✓ Se uma ideia exigir resposta longa, DIVIDA em 2 ou mais flashcards menores",
             "",
             "📌 FORMATO JSON:",
@@ -590,6 +597,10 @@ Foque em {difficulty_instruction}."""
             "",
             "REGRAS CRÍTICAS PARA FLASHCARDS EFICIENTES:",
             "",
+            f"📦 META DE ENTREGA: produza exatamente {num_flashcards} flashcards VÁLIDOS, distintos e utilizáveis.",
+            "✓ Sua prioridade operacional é atingir a quantidade pedida sem repetir ideias.",
+            "✓ Se houver tensão entre elegância e cobertura, priorize cobertura correta e objetiva.",
+            "",
             f"🎯 NÍVEL DE DIFICULDADE: {difficulty.upper()}",
             f"   Foco: {difficulty_config['foco']}",
             f"   Perguntas: {difficulty_config['pergunta']}",
@@ -631,6 +642,9 @@ Foque em {difficulty_instruction}."""
             "✓ Inclua cálculos específicos quando o texto tiver dados numéricos",
             "✓ Para disciplinas técnicas, mantenha símbolos, subscritos/sobrescritos em notação LaTeX",
             "✓ Varie os tipos de perguntas (conceito, cálculo, comparação, exemplo)",
+            "✓ Cada flashcard deve cobrir um ponto DIFERENTE do texto",
+            "✓ Não repita o mesmo conceito com outra redação",
+            "✓ Se um trecho for muito parecido com outro, avance para aplicações, consequências, comparações, exemplos ou erros comuns",
             "✓ Se uma ideia exigir resposta longa, DIVIDA em 2 ou mais flashcards menores",
             "",
             "📌 FORMATO JSON:",
@@ -693,6 +707,8 @@ Foque em {difficulty_instruction}."""
                 json.dumps(existing_fronts[:30], ensure_ascii=False),
                 "",
                 "Gere SOMENTE flashcards novos que complementem os já listados acima.",
+                "Entregue exatamente a quantidade restante pedida nesta chamada.",
+                "Se o conteúdo principal já foi coberto, avance para exemplos, aplicações, comparações, interpretações e erros comuns.",
             ])
 
         if relaxed_mode:
@@ -702,6 +718,7 @@ Foque em {difficulty_instruction}."""
                 "- Você está gerando apenas os cards restantes de um conjunto maior.",
                 "- Priorize cobrir lacunas do conteúdo ainda não exploradas.",
                 "- Mantenha objetividade, mas aceite respostas levemente mais completas se isso evitar descarte por insuficiência.",
+                "- Não devolva menos itens por excesso de perfeccionismo: complete a cobertura com precisão prática.",
             ])
 
         print(f"Enviando texto para o Gemini. Qtd: {num_flashcards}, Dificuldade: {difficulty}")

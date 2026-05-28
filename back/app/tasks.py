@@ -186,7 +186,33 @@ def process_document(
         except Exception as e:
             session.rollback()
             error_message = f"Erro: {str(e)}"
-            if self.request.retries >= self.max_retries:
+            will_retry = not isinstance(e, ValueError) and self.request.retries < self.max_retries
+
+            if not will_retry:
+                final_reason = (
+                    final_error := (
+                        f"Falha final após {self.request.retries + 1} tentativa(s). {error_message}"
+                        if isinstance(e, ValueError)
+                        else f"Falha final após {self.max_retries + 1} tentativas. {error_message}"
+                    )
+                )
+                db_document.status = models.DocumentStatus.FAILED
+                db_document.current_step = final_reason
+                session.add(db_document)
+                session.commit()
+                track_product_event(
+                    session,
+                    "deck_processing_failed",
+                    user_id=db_document.user_id,
+                    document_id=db_document.id,
+                    properties={
+                        "content_type": content_type,
+                        "error": str(e),
+                        "retries": self.request.retries,
+                    },
+                )
+                print(f"[TASK] Tarefa para doc {document_id} FALHOU: {traceback.format_exc()}")
+            elif self.request.retries >= self.max_retries:
                 final_error = f"Falha final após {self.max_retries + 1} tentativas. {error_message}"
                 db_document.status = models.DocumentStatus.FAILED
                 db_document.current_step = final_error
