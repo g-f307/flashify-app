@@ -1,5 +1,6 @@
 # app/text_extractor.py
 from pathlib import Path
+import re
 
 import pdfplumber
 from docx import Document as DocxDocument
@@ -15,6 +16,53 @@ def get_pdf_page_count(file_path: str) -> int:
         return len(pdf.pages)
 
 
+def _normalize_pdf_text(text: str) -> str:
+    normalized = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    normalized = re.sub(r"[ \t]+", " ", normalized)
+    normalized = re.sub(r"(\w)-\n(\w)", r"\1\2", normalized)
+    normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+    return normalized.strip()
+
+
+def _extract_pdf_page_text(page: pdfplumber.page.Page) -> str:
+    words = page.extract_words(
+        use_text_flow=True,
+        keep_blank_chars=False,
+        extra_attrs=["top", "x0"],
+    )
+
+    if words:
+        grouped_lines: list[tuple[float, list[tuple[float, str]]]] = []
+        line_tolerance = 3.0
+
+        for word in words:
+            text = str(word.get("text", "")).strip()
+            if not text:
+                continue
+
+            top = float(word.get("top", 0.0))
+            x0 = float(word.get("x0", 0.0))
+
+            if grouped_lines and abs(grouped_lines[-1][0] - top) <= line_tolerance:
+                grouped_lines[-1][1].append((x0, text))
+            else:
+                grouped_lines.append((top, [(x0, text)]))
+
+        rendered_lines: list[str] = []
+        for _, line_words in grouped_lines:
+            ordered_words = [text for _, text in sorted(line_words, key=lambda item: item[0])]
+            rendered_line = " ".join(ordered_words).strip()
+            if rendered_line:
+                rendered_lines.append(rendered_line)
+
+        extracted = "\n".join(rendered_lines).strip()
+        if extracted:
+            return _normalize_pdf_text(extracted)
+
+    fallback_text = page.extract_text() or ""
+    return _normalize_pdf_text(fallback_text)
+
+
 def extract_text_from_pdf(file_path: str, pages: list[int] | None = None) -> str:
     """Extrai texto de um arquivo PDF."""
     extracted_pages: list[str] = []
@@ -25,7 +73,7 @@ def extract_text_from_pdf(file_path: str, pages: list[int] | None = None) -> str
             target_pages = [pdf.pages[page_number - 1] for page_number in pages]
 
         for page in target_pages:
-            page_text = page.extract_text() or ""
+            page_text = _extract_pdf_page_text(page)
             if page_text.strip():
                 extracted_pages.append(page_text)
 
@@ -41,7 +89,7 @@ def get_pdf_page_previews(
 
     with pdfplumber.open(file_path) as pdf:
         for page_number, page in enumerate(pdf.pages, start=1):
-            page_text = (page.extract_text() or "").strip()
+            page_text = _extract_pdf_page_text(page)
             normalized_text = " ".join(page_text.split())
             has_text = bool(normalized_text)
 
