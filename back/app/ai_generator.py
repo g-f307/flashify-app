@@ -77,8 +77,17 @@ def _get_flashcard_length_limits(difficulty: str) -> tuple[int, int]:
     return 20, 35
 
 
-def _is_flashcard_concise(front: str, back: str, difficulty: str) -> bool:
+def _is_flashcard_concise(
+    front: str,
+    back: str,
+    difficulty: str,
+    *,
+    relaxed: bool = False,
+) -> bool:
     max_front_words, max_back_words = _get_flashcard_length_limits(difficulty)
+    if relaxed:
+        max_front_words += 6
+        max_back_words += 14
 
     front_words = _count_words(front)
     back_words = _count_words(back)
@@ -90,7 +99,7 @@ def _is_flashcard_concise(front: str, back: str, difficulty: str) -> bool:
         return False
 
     # Evita cards que parecem uma mini-aula com listas longas demais.
-    if back.count("<li>") > 3:
+    if back.count("<li>") > (4 if relaxed else 3):
         return False
 
     return True
@@ -244,12 +253,15 @@ def _normalize_flashcards(
     raw_flashcards: Any,
     requested_count: int,
     difficulty: str,
+    *,
+    relaxed: bool = False,
+    existing_fronts: Optional[set[str]] = None,
 ) -> List[Dict[str, Any]]:
     if not isinstance(raw_flashcards, list):
         return []
 
     normalized: List[Dict[str, Any]] = []
-    seen_fronts: set[str] = set()
+    seen_fronts: set[str] = set(existing_fronts or set())
 
     for item in raw_flashcards:
         if not isinstance(item, dict):
@@ -262,7 +274,7 @@ def _normalize_flashcards(
         if not front or not back:
             continue
 
-        if not _is_flashcard_concise(front, back, difficulty):
+        if not _is_flashcard_concise(front, back, difficulty, relaxed=relaxed):
             continue
 
         dedupe_key = front.casefold()
@@ -282,6 +294,22 @@ def _normalize_flashcards(
             break
 
     return normalized
+
+
+def _merge_flashcard_batches(
+    base_flashcards: List[Dict[str, Any]],
+    incoming_flashcards: List[Dict[str, Any]],
+    requested_count: int,
+    difficulty: str,
+    *,
+    relaxed: bool = False,
+) -> List[Dict[str, Any]]:
+    return _normalize_flashcards(
+        base_flashcards + incoming_flashcards,
+        requested_count,
+        difficulty,
+        relaxed=relaxed,
+    )
 
 
 def _normalize_quiz_questions(raw_questions: Any, requested_count: int) -> List[Dict[str, Any]]:
@@ -411,6 +439,8 @@ def generate_flashcards_from_text(
     num_flashcards: int = 10,
     difficulty: str = "Médio",
     _attempt: int = 0,
+    _allow_completion: bool = True,
+    _existing_fronts: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Gera flashcards com formatação rica, foco pedagógico e compatibilidade com conteúdo técnico.
@@ -443,6 +473,8 @@ def generate_flashcards_from_text(
     }
     difficulty_config = difficulty_map.get(difficulty, difficulty_map["Médio"])
     difficulty_instruction = f"{difficulty_config['foco']} - {difficulty_config['pergunta']}"
+    existing_fronts = [front.strip() for front in (_existing_fronts or []) if front and front.strip()]
+    relaxed_mode = _attempt > 0
 
     # Prompt dinâmico otimizado
     if len(text.strip()) < 200:
@@ -654,6 +686,24 @@ Foque em {difficulty_instruction}."""
         ]
 
     try:
+        if existing_fronts:
+            prompt_parts.extend([
+                "",
+                "FLASHCARDS JÁ GERADOS (NÃO REPETIR NEM PARAFRASEAR):",
+                json.dumps(existing_fronts[:30], ensure_ascii=False),
+                "",
+                "Gere SOMENTE flashcards novos que complementem os já listados acima.",
+            ])
+
+        if relaxed_mode:
+            prompt_parts.extend([
+                "",
+                "AJUSTE DE COMPLEMENTO:",
+                "- Você está gerando apenas os cards restantes de um conjunto maior.",
+                "- Priorize cobrir lacunas do conteúdo ainda não exploradas.",
+                "- Mantenha objetividade, mas aceite respostas levemente mais completas se isso evitar descarte por insuficiência.",
+            ])
+
         print(f"Enviando texto para o Gemini. Qtd: {num_flashcards}, Dificuldade: {difficulty}")
         start = time.time()
         response = model.generate_content(
@@ -668,23 +718,40 @@ Foque em {difficulty_instruction}."""
                 data["flashcards"],
                 num_flashcards,
                 difficulty,
+                relaxed=relaxed_mode,
+                existing_fronts=set(front.casefold() for front in existing_fronts),
             )
-            if len(normalized_flashcards) < num_flashcards and _attempt < 1:
-                missing_count = num_flashcards - len(normalized_flashcards)
-                print(f"⚠️ Gemini retornou {len(normalized_flashcards)}/{num_flashcards} flashcards válidos. Tentando completar {missing_count}.")
-                supplemental_flashcards = generate_flashcards_from_text(
-                    text=text,
-                    num_flashcards=missing_count,
-                    difficulty=difficulty,
-                    _attempt=_attempt + 1,
-                )
-                normalized_flashcards = _normalize_flashcards(
-                    normalized_flashcards + supplemental_flashcards,
-                    num_flashcards,
-                    difficulty,
-                )
+            if len(normalized_flashcards) < num_flashcards and _allow_completion:
+                max_completion_attempts = 3
+                completion_attempt = 0
 
-            print(f"✅ Flashcards gerados com sucesso pelo Gemini ({len(normalized_flashcards)}/{num_flashcards}).")
+                while len(normalized_flashcards) < num_flashcards and completion_attempt < max_completion_attempts:
+                    missing_count = num_flashcards - len(normalized_flashcards)
+                    print(
+                        f"⚠️ Gemini retornou {len(normalized_flashcards)}/{num_flashcards} flashcards válidos. "
+                        f"Tentando completar {missing_count}. (passo complementar {completion_attempt + 1}/{max_completion_attempts})"
+                    )
+                    supplemental_flashcards = generate_flashcards_from_text(
+                        text=text,
+                        num_flashcards=missing_count,
+                        difficulty=difficulty,
+                        _attempt=_attempt + completion_attempt + 1,
+                        _allow_completion=False,
+                        _existing_fronts=[card["front"] for card in normalized_flashcards],
+                    )
+                    normalized_flashcards = _merge_flashcard_batches(
+                        normalized_flashcards,
+                        supplemental_flashcards,
+                        num_flashcards,
+                        difficulty,
+                        relaxed=True,
+                    )
+                    completion_attempt += 1
+
+            if len(normalized_flashcards) == num_flashcards:
+                print(f"✅ Flashcards gerados com sucesso pelo Gemini ({len(normalized_flashcards)}/{num_flashcards}).")
+            else:
+                print(f"⚠️ Geração parcial de flashcards ({len(normalized_flashcards)}/{num_flashcards}).")
             return normalized_flashcards
         else:
             print("❌ Erro: resposta da IA não continha a estrutura esperada ('flashcards').")

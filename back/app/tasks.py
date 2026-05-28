@@ -17,6 +17,7 @@ import asyncio
 @celery_app.task(
     bind=True,
     autoretry_for=(Exception,),
+    dont_autoretry_for=(ValueError,),
     max_retries=3,
     default_retry_delay=60
 )
