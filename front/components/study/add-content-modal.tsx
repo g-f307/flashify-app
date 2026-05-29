@@ -1,7 +1,7 @@
 // front/components/study/add-content-modal.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +28,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface AddContentModalProps {
   isOpen: boolean;
@@ -82,7 +83,8 @@ const STATUS_THEME = {
   flashcards: {
     panel: "from-[#facc15]/12",
     value: "text-[#e0a800]",
-    progress: "from-[#facc15] to-[#f59e0b]",
+    progressTrack: "bg-[#facc15]/18",
+    progressIndicator: "bg-gradient-to-r from-[#facc15] to-[#f59e0b]",
     accentBg: "bg-[#facc15]/10",
     accentText: "text-[#e0a800]",
     accentIcon: "text-[#e0a800]",
@@ -92,7 +94,8 @@ const STATUS_THEME = {
   questions: {
     panel: "from-[#6BDEF3]/10",
     value: "text-[#6BDEF3]",
-    progress: "from-[#6BDEF3] to-[#6BDEF3]/80",
+    progressTrack: "bg-[#48cfea]/18",
+    progressIndicator: "bg-gradient-to-r from-[#48cfea] to-[#1ea8dc]",
     accentBg: "bg-[#48cfea]/10",
     accentText: "text-[#48cfea]",
     accentIcon: "text-[#48cfea]",
@@ -115,6 +118,9 @@ export function AddContentModal({
   const [error, setError] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState("");
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const availableSlots = maxLimit - currentCount;
   const isOverLimit = quantity > availableSlots || quantity < 1;
@@ -144,50 +150,84 @@ export function AddContentModal({
     (opt) => opt.value === difficulty
   );
 
+  const clearProgressInterval = () => {
+    if (!progressIntervalRef.current) return;
+    clearInterval(progressIntervalRef.current);
+    progressIntervalRef.current = null;
+  };
+
+  const clearPendingTimeouts = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = null;
+    }
+  };
+
+  const resetTransientState = () => {
+    clearProgressInterval();
+    clearPendingTimeouts();
+    setError(null);
+    setQuantity(5);
+    setDifficulty("Média");
+    setLoadingProgress(0);
+    setCurrentLoadingMessage("");
+    setIsLoading(false);
+  };
+
+  const updateLoadingMessage = (progress: number, messages: string[]) => {
+    const boundedProgress = Math.max(0, Math.min(progress, 99.999));
+    const nextIndex = Math.min(
+      Math.floor((boundedProgress / 100) * messages.length),
+      messages.length - 1
+    );
+    setCurrentLoadingMessage(messages[nextIndex] ?? messages[0] ?? "");
+  };
+
+  useEffect(() => {
+    return () => {
+      clearProgressInterval();
+      clearPendingTimeouts();
+    };
+  }, []);
+
   const handleConfirm = async () => {
-    if (isOverLimit) return;
+    if (isOverLimit || isLoading) return;
 
     setError(null);
     setIsLoading(true);
     setLoadingProgress(0);
 
     const messages = LOADING_MESSAGES[contentType];
-    let messageIndex = 0;
-    setCurrentLoadingMessage(messages[0]);
+    setCurrentLoadingMessage(messages[0] ?? "");
+    clearProgressInterval();
 
-    const progressInterval = setInterval(() => {
+    progressIntervalRef.current = setInterval(() => {
       setLoadingProgress((prev) => {
         if (prev >= 95) return prev;
-        return prev + Math.random() * 15;
+        const next = Math.min(95, prev + Math.random() * 15);
+        updateLoadingMessage(next, messages);
+        return next;
       });
-
-      const newMessageIndex = Math.min(
-        Math.floor((loadingProgress / 100) * messages.length),
-        messages.length - 1
-      );
-
-      if (newMessageIndex !== messageIndex && messages[newMessageIndex]) {
-        messageIndex = newMessageIndex;
-        setCurrentLoadingMessage(messages[newMessageIndex]);
-      }
     }, 800);
 
     try {
       await onConfirm(quantity, difficulty);
+      clearProgressInterval();
       setLoadingProgress(100);
-      clearInterval(progressInterval);
+      setCurrentLoadingMessage(messages[messages.length - 1] ?? "");
 
-      setTimeout(() => {
+      closeTimeoutRef.current = setTimeout(() => {
         onClose();
-        setTimeout(() => {
-          setQuantity(5);
-          setDifficulty("Média");
-          setLoadingProgress(0);
-          setCurrentLoadingMessage("");
+        resetTimeoutRef.current = setTimeout(() => {
+          resetTransientState();
         }, 300);
       }, 500);
     } catch (err: any) {
-      clearInterval(progressInterval);
+      clearProgressInterval();
       
       // 🆕 TRATAMENTO ESPECIAL PARA ERRO 429
       if (err.message === "LIMIT_EXCEEDED" && err.limitInfo) {
@@ -201,18 +241,13 @@ export function AddContentModal({
       
       setLoadingProgress(0);
       setCurrentLoadingMessage("");
-    } finally {
       setIsLoading(false);
     }
   };
 
   const handleClose = () => {
     if (!isLoading) {
-      setError(null);
-      setQuantity(5);
-      setDifficulty("Média");
-      setLoadingProgress(0);
-      setCurrentLoadingMessage("");
+      resetTransientState();
       onClose();
     }
   };
@@ -273,7 +308,11 @@ export function AddContentModal({
                 </div>
 
                 <div className="w-full space-y-2">
-                  <Progress value={loadingProgress} className="h-2" />
+                  <Progress
+                    value={loadingProgress}
+                    className={cn("h-2", statusTheme.progressTrack)}
+                    indicatorClassName={statusTheme.progressIndicator}
+                  />
                   <p className="text-xs text-center text-muted-foreground">
                     {Math.round(loadingProgress)}% concluído
                   </p>
@@ -310,7 +349,7 @@ export function AddContentModal({
                       initial={{ width: 0 }}
                       animate={{ width: `${(currentCount / maxLimit) * 100}%` }}
                       transition={{ duration: 0.5, ease: "easeOut" }}
-                      className={`h-full bg-gradient-to-r ${statusTheme.progress}`}
+                      className={`h-full ${statusTheme.progressIndicator}`}
                     />
                   </div>
 

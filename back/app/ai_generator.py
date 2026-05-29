@@ -2,6 +2,7 @@
 import os
 import ast
 import json
+import re
 import time
 from typing import List, Dict, Any, Optional
 import google.generativeai as genai
@@ -25,6 +26,59 @@ DEFAULT_SAFETY_SETTINGS = [
 ]
 
 _MODEL_CACHE: dict[tuple[str, str], genai.GenerativeModel] = {}
+_LANGUAGE_INFERENCE_PATTERNS: dict[str, tuple[str, ...]] = {
+    "en": (
+        r"\bem ingl[eê]s\b",
+        r"\bingl[eê]s\b",
+        r"\bin english\b",
+        r"\benglish\b",
+    ),
+    "es": (
+        r"\bem espanhol\b",
+        r"\bespanhol\b",
+        r"\ben espa[nñ]ol\b",
+        r"\bespa[nñ]ol\b",
+    ),
+    "fr": (
+        r"\bem franc[eê]s\b",
+        r"\bfranc[eê]s\b",
+        r"\ben fran[cç]ais\b",
+        r"\bfran[cç]ais\b",
+    ),
+    "de": (
+        r"\bem alem[aã]o\b",
+        r"\balem[aã]o\b",
+        r"\bin german\b",
+        r"\bgerman\b",
+        r"\bdeutsch\b",
+    ),
+    "it": (
+        r"\bem italiano\b",
+        r"\bitaliano\b",
+        r"\bin italian\b",
+        r"\bitalian\b",
+    ),
+}
+_IRRELEVANT_HEADING_RE = re.compile(
+    r"^(?:sum[aá]rio|índice|indice|contents|table of contents|pref[aá]cio|preface|"
+    r"agradecimentos|acknowledg?ments?|apresenta[cç][aã]o|presentation|sobre o autor|about the author|"
+    r"cr[eé]ditos|credits|copyright|refer[eê]ncias|references?|bibliografia|gloss[aá]rio|glossary)$",
+    re.IGNORECASE,
+)
+_LOW_VALUE_INTRO_HEADING_RE = re.compile(
+    r"^(?:introdu[cç][aã]o|introduction|nota introdut[oó]ria)$",
+    re.IGNORECASE,
+)
+_TOC_LINE_RE = re.compile(
+    r"(?:\.{2,}|[_·]{2,}|\s{3,})\s*\d{1,4}$|"
+    r"^(?:cap[íi]tulo|chapter|se[cç][aã]o|section|unidade|unit|parte|part)\b.*\d{1,4}$",
+    re.IGNORECASE,
+)
+_PAGE_NUMBER_RE = re.compile(r"^(?:p[aá]g(?:ina)?\.?\s*)?\d{1,4}$", re.IGNORECASE)
+_EDITORIAL_NOISE_RE = re.compile(
+    r"(?:isbn(?:-1[03])?\s*:?\s*[\d-]+|todos os direitos reservados|all rights reserved|copyright\s+\d{4})",
+    re.IGNORECASE,
+)
 
 
 def _get_model(
@@ -69,7 +123,162 @@ def _count_words(text: str) -> int:
     return len([token for token in (text or "").replace("\n", " ").split(" ") if token.strip()])
 
 
+def _normalize_difficulty_label(difficulty: str) -> str:
+    normalized = (difficulty or "").strip()
+    if normalized == "Média":
+        return "Médio"
+    return normalized or "Médio"
+
+
+def _normalize_study_language(study_language: Optional[str]) -> Optional[str]:
+    normalized = (study_language or "").strip() or None
+    if normalized is None or normalized.lower() == "auto":
+        return None
+    return normalized
+
+
+def _get_study_language_label(study_language: Optional[str]) -> Optional[str]:
+    normalized = _normalize_study_language(study_language)
+    if normalized is None:
+        return None
+
+    return {
+        "pt-BR": "portugues brasileiro",
+        "en": "ingles",
+        "es": "espanhol",
+        "fr": "frances",
+        "de": "alemao",
+        "it": "italiano",
+    }.get(normalized, normalized)
+
+
+def _infer_study_language_from_text(text: str) -> Optional[str]:
+    snippet = " ".join((text or "").split()).strip().lower()
+    if not snippet or len(snippet) > 600:
+        return None
+
+    for language_code, patterns in _LANGUAGE_INFERENCE_PATTERNS.items():
+        for pattern in patterns:
+            if re.search(pattern, snippet, flags=re.IGNORECASE):
+                return language_code
+
+    return None
+
+
+def _resolve_effective_study_language(
+    text: str,
+    study_language: Optional[str],
+) -> Optional[str]:
+    explicit_language = _normalize_study_language(study_language)
+    if explicit_language is not None:
+        return explicit_language
+    return _infer_study_language_from_text(text)
+
+
+def _is_foreign_language_study_mode(study_language: Optional[str]) -> bool:
+    normalized = _normalize_study_language(study_language)
+    return normalized is not None and normalized != "pt-BR"
+
+
+def _normalize_heading_candidate(text: str) -> str:
+    collapsed = " ".join((text or "").split()).strip().lower()
+    collapsed = re.sub(r"^[\W_]+|[\W_]+$", "", collapsed)
+    return collapsed
+
+
+def _is_probably_noise_line(line: str) -> bool:
+    stripped = " ".join((line or "").split()).strip()
+    if not stripped:
+        return False
+
+    if _PAGE_NUMBER_RE.fullmatch(stripped):
+        return True
+
+    if _EDITORIAL_NOISE_RE.search(stripped):
+        return True
+
+    return False
+
+
+def _is_probably_toc_block(lines: List[str]) -> bool:
+    if len(lines) < 3:
+        return False
+
+    toc_lines = sum(1 for line in lines if _TOC_LINE_RE.search(line.strip()))
+    return toc_lines >= max(2, len(lines) // 2)
+
+
+def _should_skip_block(block: str, block_index: int, total_blocks: int) -> bool:
+    lines = [line.strip() for line in block.splitlines() if line.strip()]
+    if not lines:
+        return True
+
+    heading = _normalize_heading_candidate(lines[0])
+    if _IRRELEVANT_HEADING_RE.fullmatch(heading):
+        return True
+
+    if _is_probably_toc_block(lines):
+        return True
+
+    if (
+        _LOW_VALUE_INTRO_HEADING_RE.fullmatch(heading)
+        and total_blocks >= 4
+        and block_index <= max(1, total_blocks // 5)
+        and _count_words(block) <= 220
+    ):
+        return True
+
+    return False
+
+
+def _prepare_generation_source_text(text: str) -> str:
+    normalized = _normalize_rich_text(text)
+    if not normalized:
+        return ""
+
+    cleaned_lines: List[str] = []
+    previous_blank = False
+
+    for raw_line in normalized.splitlines():
+        stripped = " ".join(raw_line.split()).strip()
+        if not stripped:
+            if cleaned_lines and not previous_blank:
+                cleaned_lines.append("")
+            previous_blank = True
+            continue
+
+        if _is_probably_noise_line(stripped):
+            continue
+
+        cleaned_lines.append(stripped)
+        previous_blank = False
+
+    cleaned_text = "\n".join(cleaned_lines).strip()
+    if not cleaned_text:
+        return normalized
+
+    blocks = [block.strip() for block in re.split(r"\n{2,}", cleaned_text) if block.strip()]
+    if not blocks:
+        return cleaned_text
+
+    filtered_blocks = [
+        block
+        for index, block in enumerate(blocks)
+        if not _should_skip_block(block, index, len(blocks))
+    ]
+
+    filtered_text = "\n\n".join(filtered_blocks).strip()
+    if not filtered_text:
+        return cleaned_text
+
+    if _count_words(filtered_text) < max(40, _count_words(cleaned_text) // 5):
+        return cleaned_text
+
+    return filtered_text
+
+
 def _get_flashcard_length_limits(difficulty: str) -> tuple[int, int]:
+    difficulty = _normalize_difficulty_label(difficulty)
     if difficulty == "Fácil":
         return 20, 32
     if difficulty == "Difícil":
@@ -124,6 +333,65 @@ def _compact_question_payload(questions: List[Dict[str, Any]], limit: int) -> Li
         }
         for item in questions[:limit]
     ]
+
+
+def _build_content_relevance_rules() -> List[str]:
+    return [
+        "🎯 RELEVÂNCIA PEDAGÓGICA:",
+        "✓ Ignore sumários, índices, prefácios, agradecimentos, créditos, referências e metadados editoriais.",
+        "✓ Não desperdice flashcards ou perguntas com organização do livro, títulos de capítulos ou paginação.",
+        "✓ Se houver uma introdução genérica e pouco densa, priorize os conceitos substantivos e ensináveis do conteúdo principal.",
+    ]
+
+
+def _build_flashcard_language_rules(
+    study_language: Optional[str] = None,
+    *,
+    foreign_language_study_mode: bool = False,
+) -> List[str]:
+    rules = [
+        "🌐 IDIOMA E TERMINOLOGIA:",
+        "✓ Preserve termos técnicos, notação e nomenclatura centrais do conteúdo quando eles forem importantes para o estudo.",
+        "✓ Não traduza automaticamente vocabulário, expressões ou termos-chave se isso descaracterizar o conceito estudado.",
+        "✓ Fora desses termos, use linguagem pedagógica natural e objetiva, sem forçar a resposta inteira para outro idioma.",
+    ]
+
+    study_language_label = _get_study_language_label(study_language)
+    if study_language_label and foreign_language_study_mode:
+        rules.extend([
+            f"✓ O idioma de estudo definido para este deck e {study_language_label}.",
+            "✓ As perguntas podem continuar em portugues quando isso soar mais natural ao usuario.",
+            f"✓ Mantenha em {study_language_label} apenas os termos, expressoes, frases-modelo e exemplos que sao o objeto do estudo.",
+            "✓ Explicacoes curtas, contexto e apoio pedagogico podem permanecer em portugues.",
+            "✓ So escreva a resposta inteira no idioma-alvo quando o proprio card estiver cobrando producao direta nesse idioma.",
+        ])
+
+    return rules
+
+
+def _build_quiz_language_rules(
+    study_language: Optional[str] = None,
+    *,
+    foreign_language_study_mode: bool = False,
+) -> List[str]:
+    rules = [
+        "🌐 IDIOMA E TERMINOLOGIA:",
+        "✓ Preserve termos técnicos, notação e nomenclatura centrais do conteúdo nas alternativas e explicações quando eles forem importantes para o estudo.",
+        "✓ Não traduza automaticamente vocabulário, expressões ou termos-chave se isso descaracterizar o conceito estudado.",
+        "✓ Fora desses termos, use linguagem pedagógica natural e objetiva, sem forçar o quiz inteiro para outro idioma.",
+    ]
+
+    study_language_label = _get_study_language_label(study_language)
+    if study_language_label and foreign_language_study_mode:
+        rules.extend([
+            f"✓ O idioma de estudo definido para este deck e {study_language_label}.",
+            "✓ O enunciado pode continuar em portugues quando isso soar mais natural ao usuario.",
+            f"✓ Mantenha em {study_language_label} apenas os termos, expressoes, frases-modelo, respostas corretas e distratores que sao o objeto do estudo.",
+            "✓ Explicacoes e justificativas podem permanecer em portugues, preservando o termo estudado no idioma-alvo.",
+            "✓ So use alternativas inteiramente no idioma-alvo quando a propria questao estiver avaliando producao ou compreensao direta nesse idioma.",
+        ])
+
+    return rules
 
 
 def _build_guided_study_prompt_parts(
@@ -451,6 +719,7 @@ def generate_flashcards_from_text(
     text: str,
     num_flashcards: int = 10,
     difficulty: str = "Médio",
+    study_language: Optional[str] = None,
     _attempt: int = 0,
     _allow_completion: bool = True,
     _existing_fronts: Optional[List[str]] = None,
@@ -458,10 +727,14 @@ def generate_flashcards_from_text(
     """
     Gera flashcards com formatação rica, foco pedagógico e compatibilidade com conteúdo técnico.
     """
-    if not text or text.isspace():
+    source_text = _prepare_generation_source_text(text)
+    if not source_text or source_text.isspace():
         print("Texto de entrada está vazio. Pulando a geração de flashcards.")
         return []
 
+    difficulty = _normalize_difficulty_label(difficulty)
+    effective_study_language = _resolve_effective_study_language(text, study_language)
+    foreign_language_study_mode = _is_foreign_language_study_mode(effective_study_language)
     model = _get_model(temperature=0.7, max_output_tokens=8192)
     
     difficulty_map = {
@@ -490,8 +763,8 @@ def generate_flashcards_from_text(
     relaxed_mode = _attempt > 0
 
     # Prompt dinâmico otimizado
-    if len(text.strip()) < 200:
-        instruction = f"""Você é um especialista em criar flashcards educacionais EFICIENTES sobre '{text}'.
+    if len(source_text.strip()) < 200:
+        instruction = f"""Você é um especialista em criar flashcards educacionais EFICIENTES sobre '{source_text}'.
 Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {difficulty_instruction}."""
         
         prompt_parts = [
@@ -538,6 +811,8 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "✓ Evite parágrafos longos e explicações em tom de aula",
             "",
             "📌 QUALIDADE DO CONTEÚDO:",
+            *_build_content_relevance_rules(),
+            "",
             "✓ Perguntas que façam o usuário PENSAR (não decorar)",
             "✓ Balanceie teoria e aplicação prática",
             "✓ Inclua exemplos numéricos quando relevante",
@@ -547,6 +822,11 @@ Crie {num_flashcards} flashcards de dificuldade {difficulty}, focando em {diffic
             "✓ Não repita o mesmo conceito com outra redação",
             "✓ Se o conteúdo parecer homogêneo, explore definições, aplicações, comparações, exemplos, erros comuns e interpretações",
             "✓ Se uma ideia exigir resposta longa, DIVIDA em 2 ou mais flashcards menores",
+            "",
+            *_build_flashcard_language_rules(
+                effective_study_language,
+                foreign_language_study_mode=foreign_language_study_mode,
+            ),
             "",
             "📌 FORMATO JSON:",
             "✓ Saída APENAS em JSON puro (sem markdown ```json)",
@@ -606,7 +886,7 @@ Foque em {difficulty_instruction}."""
             instruction,
             "",
             "TEXTO PARA ANÁLISE:",
-            text[:15000],
+            source_text[:15000],
             "",
             "REGRAS CRÍTICAS PARA FLASHCARDS EFICIENTES:",
             "",
@@ -649,6 +929,8 @@ Foque em {difficulty_instruction}."""
             "✓ Evite parágrafos longos e explicações em tom de aula",
             "",
             "📌 QUALIDADE DO CONTEÚDO:",
+            *_build_content_relevance_rules(),
+            "",
             "✓ Extraia os conceitos MAIS IMPORTANTES do texto",
             "✓ Perguntas que façam o usuário PENSAR (não decorar)",
             "✓ Balanceie teoria e aplicação prática",
@@ -659,6 +941,11 @@ Foque em {difficulty_instruction}."""
             "✓ Não repita o mesmo conceito com outra redação",
             "✓ Se um trecho for muito parecido com outro, avance para aplicações, consequências, comparações, exemplos ou erros comuns",
             "✓ Se uma ideia exigir resposta longa, DIVIDA em 2 ou mais flashcards menores",
+            "",
+            *_build_flashcard_language_rules(
+                effective_study_language,
+                foreign_language_study_mode=foreign_language_study_mode,
+            ),
             "",
             "📌 FORMATO JSON:",
             "✓ Saída APENAS em JSON puro (sem markdown ```json)",
@@ -774,6 +1061,7 @@ Foque em {difficulty_instruction}."""
                         text=text,
                         num_flashcards=missing_count,
                         difficulty=difficulty,
+                        study_language=effective_study_language,
                         _attempt=_attempt + completion_attempt + 1,
                         _allow_completion=False,
                         _existing_fronts=[card["front"] for card in normalized_flashcards],
@@ -803,15 +1091,20 @@ def generate_quiz_from_text(
     text: str,
     num_questions: int = 5,
     difficulty: str = "Médio",
+    study_language: Optional[str] = None,
     _attempt: int = 0,
 ) -> Optional[Dict[str, Any]]:
     """
     Gera quizzes otimizados com alternativas equilibradas e não previsíveis.
     """
-    if not text or text.isspace():
+    source_text = _prepare_generation_source_text(text)
+    if not source_text or source_text.isspace():
         print("Texto de entrada está vazio. Pulando a geração de quiz.")
         return None
         
+    difficulty = _normalize_difficulty_label(difficulty)
+    effective_study_language = _resolve_effective_study_language(text, study_language)
+    foreign_language_study_mode = _is_foreign_language_study_mode(effective_study_language)
     model = _get_model(temperature=0.8, max_output_tokens=8192)
     
     difficulty_map = {
@@ -838,8 +1131,8 @@ def generate_quiz_from_text(
     difficulty_instruction = f"{difficulty_config['foco']} - {difficulty_config['pergunta']}"
 
     # Prompt dinâmico otimizado
-    if len(text.strip()) < 200:
-        instruction = f"""Você é um especialista em criar quizzes educacionais EFICIENTES sobre '{text}'.
+    if len(source_text.strip()) < 200:
+        instruction = f"""Você é um especialista em criar quizzes educacionais EFICIENTES sobre '{source_text}'.
 Crie um quiz com {num_questions} perguntas de dificuldade {difficulty}, focando em {difficulty_instruction}."""
         
         prompt_parts = [
@@ -874,6 +1167,13 @@ Crie um quiz com {num_questions} perguntas de dificuldade {difficulty}, focando 
             "✓ Explicações BREVES (máximo 2-3 linhas)",
             "✓ Justifique POR QUE a resposta está correta",
             "✓ Para incorretas: explique o erro de forma concisa",
+            "",
+            *_build_content_relevance_rules(),
+            "",
+            *_build_quiz_language_rules(
+                effective_study_language,
+                foreign_language_study_mode=foreign_language_study_mode,
+            ),
             "",
             "📌 FORMATO JSON:",
             "✓ Saída APENAS em JSON puro (sem markdown ```json)",
@@ -936,7 +1236,7 @@ Foque em {difficulty_instruction}."""
             instruction,
             "",
             "TEXTO PARA ANÁLISE:",
-            text[:15000],
+            source_text[:15000],
             "",
             "REGRAS CRÍTICAS PARA QUIZZES EFICIENTES E NÃO PREVISÍVEIS:",
             "",
@@ -967,6 +1267,13 @@ Foque em {difficulty_instruction}."""
             "✓ Explicações BREVES (máximo 2-3 linhas)",
             "✓ Referencie o texto quando possível: 'Segundo o texto...'",
             "✓ Para incorretas: explique o erro de forma concisa",
+            "",
+            *_build_content_relevance_rules(),
+            "",
+            *_build_quiz_language_rules(
+                effective_study_language,
+                foreign_language_study_mode=foreign_language_study_mode,
+            ),
             "",
             "📌 FORMATO JSON:",
             "✓ Saída APENAS em JSON puro (sem markdown ```json)",
@@ -1041,6 +1348,7 @@ Foque em {difficulty_instruction}."""
                     text=text,
                     num_questions=missing_count,
                     difficulty=difficulty,
+                    study_language=effective_study_language,
                     _attempt=_attempt + 1,
                 )
                 supplemental_questions = supplemental_quiz.get("questions", []) if supplemental_quiz else []
