@@ -47,6 +47,7 @@ def to_card_data(db: Session, doc: models.Document) -> schemas.DocumentCardData:
         id=doc.id,
         file_path=doc.file_path,
         title=doc.title,
+        study_language=doc.study_language,
         status=doc.status,
         created_at=doc.created_at,
         total_flashcards=total_flashcards,

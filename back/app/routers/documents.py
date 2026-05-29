@@ -51,6 +51,15 @@ ALLOWED_UPLOAD_EXTENSIONS = {
     ".pptx",
 }
 
+SUPPORTED_STUDY_LANGUAGES = {
+    "pt-BR",
+    "en",
+    "es",
+    "fr",
+    "de",
+    "it",
+}
+
 class AddFlashcardsRequest(BaseModel):
     num_flashcards: int = Field(ge=1, le=20)
     difficulty: str = "Médio"
@@ -62,6 +71,7 @@ class AddQuestionsRequest(BaseModel):
 class TextInput(BaseModel):
     text: str
     title: str
+    study_language: Optional[str] = None
     folder_id: Optional[int] = None
     generate_flashcards: bool = True
     generate_quizzes: bool = False
@@ -119,6 +129,47 @@ def _truncate_topic_title(text: str, fallback: str) -> str:
     if not cleaned:
         return fallback
     return cleaned if len(cleaned) <= 48 else f"{cleaned[:45].rstrip()}..."
+
+
+def _normalize_study_language(study_language: Optional[str]) -> Optional[str]:
+    normalized = (study_language or "").strip() or None
+    if normalized is None or normalized.lower() == "auto":
+        return None
+
+    if normalized not in SUPPORTED_STUDY_LANGUAGES:
+        raise HTTPException(
+            status_code=400,
+            detail="Idioma de estudo inválido.",
+        )
+
+    return normalized
+
+
+def _enforce_generation_limit(
+    session: Session,
+    current_user: models.User,
+    *,
+    required_generations: int = 1,
+) -> None:
+    can_generate, _ = crud.can_user_generate_deck(
+        session,
+        current_user,
+        required_generations=required_generations,
+    )
+
+    if can_generate:
+        return
+
+    generation_info = crud.get_user_generation_info(session, current_user)
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail={
+            "message": "Limite diário de gerações atingido",
+            "limit": generation_info["limit"],
+            "used": generation_info["used"],
+            "hours_until_reset": generation_info["hours_until_reset"],
+        },
+    )
 
 
 def _normalize_rich_text(text: str) -> str:
@@ -467,6 +518,7 @@ def _build_document_detail_response(db_document: models.Document) -> schemas.Doc
         status=db_document.status,
         file_path=db_document.file_path,
         title=db_document.title,
+        study_language=db_document.study_language,
         page_selection_raw=db_document.page_selection_raw,
         extracted_text=db_document.extracted_text,
         quiz=db_document.quiz,
@@ -494,6 +546,7 @@ def _build_shared_deck_response(shared_deck: models.SharedDeck) -> schemas.Share
     return schemas.SharedDeckRead(
         title=shared_deck.title,
         file_path=shared_deck.file_path,
+        study_language=shared_deck.study_language,
         generates_flashcards=shared_deck.generates_flashcards,
         generates_quizzes=shared_deck.generates_quizzes,
         srs_enabled=shared_deck.srs_enabled,
@@ -515,6 +568,7 @@ def upload_document(
     session: Session = Depends(get_session),
     file: UploadFile = File(...),
     title: str = Form(...),
+    study_language: Optional[str] = Form(default=None),
     folder_id: Optional[int] = Form(default=None),
     generates_flashcards: bool = Form(True),
     generates_quizzes: bool = Form(False),
@@ -526,24 +580,11 @@ def upload_document(
 ):
     required_generations = 2 if content_type == "both" else 1
 
-    # 🆕 VERIFICAR LIMITE ANTES DE PROCESSAR
-    can_generate, remaining = crud.can_user_generate_deck(
+    _enforce_generation_limit(
         session,
         current_user,
         required_generations=required_generations,
     )
-    
-    if not can_generate:
-        generation_info = crud.get_user_generation_info(session, current_user)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={
-                "message": "Limite diário de gerações atingido",
-                "limit": generation_info["limit"],
-                "used": generation_info["used"],
-                "hours_until_reset": generation_info["hours_until_reset"]
-            }
-        )
     
     if not _is_allowed_upload(file):
         raise HTTPException(
@@ -561,6 +602,7 @@ def upload_document(
         shutil.copyfileobj(file.file, buffer)
 
     normalized_page_selection = None
+    normalized_study_language = _normalize_study_language(study_language)
     try:
         if original_suffix == ".pdf":
             normalized_page_selection = _validate_pdf_page_selection_for_file(
@@ -582,6 +624,7 @@ def upload_document(
         user_id=current_user.id,
         file_path=str(file_path_on_disk),
         title=title,
+        study_language=normalized_study_language,
         folder_id=folder_id,
         generates_flashcards=generates_flashcards,
         generates_quizzes=generates_quizzes,
@@ -656,33 +699,23 @@ def create_document_from_text(
 ):
     required_generations = 2 if text_input.content_type == "both" else 1
 
-    # 🆕 VERIFICAR LIMITE ANTES DE PROCESSAR
-    can_generate, remaining = crud.can_user_generate_deck(
+    _enforce_generation_limit(
         session,
         current_user,
         required_generations=required_generations,
     )
     
-    if not can_generate:
-        generation_info = crud.get_user_generation_info(session, current_user)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={
-                "message": "Limite diário de gerações atingido",
-                "limit": generation_info["limit"],
-                "used": generation_info["used"],
-                "hours_until_reset": generation_info["hours_until_reset"]
-            }
-        )
-    
     if not text_input.text.strip():
         raise HTTPException(status_code=400, detail="Texto não pode estar vazio")
+
+    normalized_study_language = _normalize_study_language(text_input.study_language)
     
     db_document = crud.create_document_for_user(
         session,
         user_id=current_user.id,
         file_path=text_input.title,
         title=text_input.title,
+        study_language=normalized_study_language,
         folder_id=text_input.folder_id,
         generates_flashcards=text_input.generate_flashcards,
         generates_quizzes=text_input.generate_quizzes
@@ -768,6 +801,7 @@ def get_user_documents(
             id=doc.id,
             file_path=doc.file_path,
             title=doc.title,
+            study_language=doc.study_language,
             status=doc.status,
             created_at=doc.created_at,
             total_flashcards=total_flashcards,
@@ -1333,7 +1367,7 @@ def generate_quiz_for_existing_document(
     """
     Gera um quiz para um documento existente, com alternativas embaralhadas.
     """
-    # Verificações de limite omitidas para brevidade...
+    _enforce_generation_limit(session, current_user)
     
     db_document = crud.get_document(session, document_id)
     if not db_document or db_document.user_id != current_user.id:
@@ -1351,7 +1385,8 @@ def generate_quiz_for_existing_document(
     quiz_data_dict = generate_quiz_from_text(
         text=db_document.extracted_text,
         num_questions=num_questions,
-        difficulty=difficulty
+        difficulty=difficulty,
+        study_language=db_document.study_language,
     )
 
     if not quiz_data_dict:
@@ -1377,20 +1412,7 @@ def generate_flashcards_for_existing_document(
     current_user: CurrentUser,
     session: Session = Depends(get_session),
 ):
-    # 🆕 VERIFICAR LIMITE ANTES DE GERAR
-    can_generate, remaining = crud.can_user_generate_deck(session, current_user)
-    
-    if not can_generate:
-        generation_info = crud.get_user_generation_info(session, current_user)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={
-                "message": "Limite diário de gerações atingido",
-                "limit": generation_info["limit"],
-                "used": generation_info["used"],
-                "hours_until_reset": generation_info["hours_until_reset"]
-            }
-        )
+    _enforce_generation_limit(session, current_user)
     
     db_document = crud.get_document(session, document_id)
     if not db_document or db_document.user_id != current_user.id:
@@ -1408,7 +1430,8 @@ def generate_flashcards_for_existing_document(
     flashcards_data = generate_flashcards_from_text(
         text=db_document.extracted_text,
         num_flashcards=num_flashcards,
-        difficulty=difficulty
+        difficulty=difficulty,
+        study_language=db_document.study_language,
     )
 
     if not flashcards_data:
@@ -1433,20 +1456,7 @@ def add_more_flashcards(
     current_user: CurrentUser,
     session: Session = Depends(get_session),
 ):
-    # 🆕 VERIFICAR LIMITE ANTES DE ADICIONAR
-    can_generate, remaining = crud.can_user_generate_deck(session, current_user)
-    
-    if not can_generate:
-        generation_info = crud.get_user_generation_info(session, current_user)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={
-                "message": "Limite diário de gerações atingido",
-                "limit": generation_info["limit"],
-                "used": generation_info["used"],
-                "hours_until_reset": generation_info["hours_until_reset"]
-            }
-        )
+    _enforce_generation_limit(session, current_user)
     
     db_document = crud.get_document(session, document_id)
     if not db_document or db_document.user_id != current_user.id:
@@ -1496,7 +1506,8 @@ Agora, com base no MESMO CONTEÚDO ORIGINAL abaixo, gere {requested_count} NOVOS
         new_flashcards_data = generate_flashcards_from_text(
             text=enhanced_text,
             num_flashcards=requested_count,
-            difficulty=request.difficulty
+            difficulty=request.difficulty,
+            study_language=db_document.study_language,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao gerar novos flashcards: {str(e)}")
@@ -1527,7 +1538,7 @@ def add_more_questions(
     """
     Adiciona mais perguntas a um quiz existente, com alternativas embaralhadas.
     """
-    # Verificações de limite omitidas para brevidade...
+    _enforce_generation_limit(session, current_user)
     
     db_document = crud.get_document(session, document_id)
     if not db_document or db_document.user_id != current_user.id:
@@ -1583,7 +1594,8 @@ Agora, com base no MESMO CONTEÚDO ORIGINAL abaixo, gere {requested_count} NOVAS
         new_quiz_data = generate_quiz_from_text(
             text=enhanced_text,
             num_questions=requested_count,
-            difficulty=request.difficulty
+            difficulty=request.difficulty,
+            study_language=db_document.study_language,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao gerar novas perguntas: {str(e)}")

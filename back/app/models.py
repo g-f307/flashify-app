@@ -126,6 +126,7 @@ class Document(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     file_path: str
     title: Optional[str] = Field(default=None)
+    study_language: Optional[str] = Field(default=None)
     page_selection_raw: Optional[str] = Field(default=None)
     status: DocumentStatus = Field(default=DocumentStatus.PROCESSING)
     generates_flashcards: bool = Field(default=True)
@@ -183,6 +184,7 @@ class SharedDeck(SQLModel, table=True):
     owner_user_id: int = Field(foreign_key="user.id", index=True)
     title: str
     file_path: Optional[str] = Field(default=None)
+    study_language: Optional[str] = Field(default=None)
     extracted_text: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     generates_flashcards: bool = Field(default=True)
     generates_quizzes: bool = Field(default=False)

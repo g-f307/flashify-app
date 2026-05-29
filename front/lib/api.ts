@@ -333,6 +333,7 @@ export interface Document {
   id: number;
   file_path: string;
   title?: string | null;
+  study_language?: string | null;
   page_selection_raw?: string | null;
   status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   generates_flashcards: boolean;
@@ -646,6 +647,7 @@ export interface SharedGuidedStudy {
 export interface SharedDeckRead {
   title: string;
   file_path: string;
+  study_language?: string | null;
   generates_flashcards: boolean;
   generates_quizzes: boolean;
   srs_enabled: boolean;
@@ -669,6 +671,7 @@ export interface PdfInspectResponse {
 type UploadDocumentParams = {
   file: File;
   title: string;
+  study_language?: string;
   folderId?: number;
   generates_flashcards: boolean;
   generates_quizzes: boolean;
@@ -682,6 +685,7 @@ type UploadDocumentParams = {
 type CreateFromTextParams = {
   text: string;
   title: string;
+  study_language?: string;
   folderId?: number;
   generates_flashcards: boolean;
   generates_quizzes: boolean;
@@ -943,6 +947,9 @@ class ApiClient {
     const formData = new FormData();
     formData.append("file", params.file);
     formData.append("title", params.title);
+    if (params.study_language) {
+      formData.append("study_language", params.study_language);
+    }
     if (params.folderId) {
       formData.append("folder_id", String(params.folderId));
     }
@@ -981,6 +988,7 @@ class ApiClient {
       body: JSON.stringify({
         text: params.text,
         title: params.title,
+        study_language: params.study_language,
         folder_id: params.folderId,
         generate_flashcards: params.generates_flashcards,
         generate_quizzes: params.generates_quizzes,

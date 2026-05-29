@@ -95,7 +95,10 @@ def process_document(
                 print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
                 
                 flashcards_data = generate_flashcards_from_text(
-                    text=extracted_text, num_flashcards=num_flashcards, difficulty=difficulty
+                    text=extracted_text,
+                    num_flashcards=num_flashcards,
+                    difficulty=difficulty,
+                    study_language=db_document.study_language,
                 )
                 if len(flashcards_data or []) != num_flashcards:
                     raise ValueError(
@@ -119,7 +122,10 @@ def process_document(
                 print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
                 
                 quiz_data_dict = generate_quiz_from_text(
-                    text=extracted_text, num_questions=num_questions, difficulty=difficulty
+                    text=extracted_text,
+                    num_questions=num_questions,
+                    difficulty=difficulty,
+                    study_language=db_document.study_language,
                 )
                 actual_questions = len(quiz_data_dict.get("questions", [])) if quiz_data_dict else 0
                 if actual_questions != num_questions:

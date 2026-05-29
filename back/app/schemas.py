@@ -109,6 +109,7 @@ class DocumentDetail(BaseModel):
     status: DocumentStatus
     file_path: str
     title: Optional[str] = None
+    study_language: Optional[str] = None
     page_selection_raw: Optional[str] = None
     extracted_text: Optional[str] = None
     quiz: Optional[Quiz] = None
@@ -126,6 +127,7 @@ class DocumentCardData(SQLModel):
     id: int
     file_path: str
     title: Optional[str] = None
+    study_language: Optional[str] = None
     status: DocumentStatus
     created_at: datetime
     total_flashcards: int
@@ -283,6 +285,7 @@ class SharedGuidedStudyRead(BaseModel):
 class SharedDeckRead(BaseModel):
     title: str
     file_path: Optional[str] = None
+    study_language: Optional[str] = None
     generates_flashcards: bool
     generates_quizzes: bool
     srs_enabled: bool

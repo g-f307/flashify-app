@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PdfPagePicker } from "@/components/upload/pdf-page-picker";
 import { cn } from "@/lib/utils";
 import ContentLoader from "@/components/content-loader";
@@ -47,7 +48,46 @@ type WizardData = {
   num_flashcards: number;
   difficulty: string;
   num_questions: number;
+  study_language: string;
 };
+
+const STUDY_LANGUAGE_OPTIONS = [
+  {
+    value: "auto",
+    label: "Detectar pelo material",
+    description: "Mantém o idioma predominante do conteúdo enviado.",
+  },
+  {
+    value: "pt-BR",
+    label: "Português",
+    description: "Gera respostas, alternativas e explicações em português.",
+  },
+  {
+    value: "en",
+    label: "Inglês",
+    description: "Ideal para estudo de vocabulário e estruturas em inglês.",
+  },
+  {
+    value: "es",
+    label: "Espanhol",
+    description: "Mantém o conteúdo pedagógico em espanhol.",
+  },
+  {
+    value: "fr",
+    label: "Francês",
+    description: "Mantém respostas e explicações em francês.",
+  },
+  {
+    value: "de",
+    label: "Alemão",
+    description: "Mantém respostas e explicações em alemão.",
+  },
+  {
+    value: "it",
+    label: "Italiano",
+    description: "Mantém respostas e explicações em italiano.",
+  },
+] as const;
 
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -203,6 +243,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     num_flashcards: 10,
     difficulty: "Médio",
     num_questions: 5,
+    study_language: "auto",
   });
 
   const requestedGeneratesFlashcards =
@@ -380,6 +421,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
       
       const baseParams = {
         title: data.name,
+        study_language: data.study_language === "auto" ? undefined : data.study_language,
         folderId: folderId,
         num_flashcards: data.num_flashcards,
         difficulty: data.difficulty,
@@ -904,6 +946,31 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                         <span>Difícil</span>
                       </ToggleGroupItem>
                   </ToggleGroup>
+                </div>
+
+                <div className="space-y-2.5 sm:space-y-3">
+                  <Label className="text-sm sm:text-base font-semibold">Idioma de estudo</Label>
+                  <Select
+                    value={data.study_language}
+                    onValueChange={(value) => setData({ ...data, study_language: value })}
+                  >
+                    <SelectTrigger className="h-11 text-left">
+                      <SelectValue placeholder="Selecione o idioma do conteúdo gerado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STUDY_LANGUAGE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    {STUDY_LANGUAGE_OPTIONS.find((option) => option.value === data.study_language)?.description}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Isso afeta apenas respostas, alternativas, explicações e terminologia do deck. A interface do Flashify continua igual.
+                  </p>
                 </div>
 
                 <Button 
