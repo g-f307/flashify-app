@@ -1,12 +1,15 @@
 'use client'
 
+import { useEffect, useRef } from "react";
 import DOMPurify from "dompurify";
+import renderMathInElement from "katex/contrib/auto-render";
 import Markdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { Badge } from '@/components/ui/badge'
+import { normalizeFormulaLikeText } from "@/lib/rich-text";
 import { Code, FileText, Layers, BookOpen, GitCompare } from 'lucide-react'
 
 interface EnhancedFlashcardRendererProps {
@@ -22,6 +25,7 @@ const ALLOWED_TAGS = [
   "blockquote",
   "br",
   "code",
+  "del",
   "div",
   "em",
   "h1",
@@ -55,10 +59,26 @@ export function EnhancedFlashcardRenderer({
   isAnswer = false,
   className,
 }: EnhancedFlashcardRendererProps) {
-  const sanitizedContent = DOMPurify.sanitize(content || "", {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const normalizedContent = normalizeFormulaLikeText(content || "");
+  const sanitizedContent = DOMPurify.sanitize(normalizedContent, {
     ALLOWED_TAGS,
     ALLOWED_ATTR: ["href", "target", "rel", "class"],
   });
+
+  useEffect(() => {
+    if (!contentRef.current) return;
+
+    renderMathInElement(contentRef.current, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "\\[", right: "\\]", display: true },
+        { left: "\\(", right: "\\)", display: false },
+      ],
+      ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+      throwOnError: false,
+    });
+  }, [sanitizedContent]);
 
   const getTypeIcon = () => {
     switch (type) {
@@ -115,7 +135,10 @@ export function EnhancedFlashcardRenderer({
           </Badge>
         </div>
 
-        <div className={`flashcard-rich-content min-h-0 overflow-auto ${isAnswer ? "text-left" : "text-center md:text-left"} ${className ?? ""}`}>
+        <div
+          ref={contentRef}
+          className={`flashcard-rich-content min-h-0 overflow-auto text-center ${isAnswer ? "flashcard-answer-content" : "flashcard-front-content"} ${className ?? ""}`}
+        >
           <Markdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeRaw, rehypeKatex]}

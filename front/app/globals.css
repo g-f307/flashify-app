@@ -277,10 +277,16 @@
 .flashcard-rich-content {
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
+  text-align: center;
   overflow-wrap: anywhere;
   word-break: break-word;
   scrollbar-gutter: stable;
+}
+
+.flashcard-rich-content > * {
+  width: min(100%, 40rem);
 }
 
 .flashcard-rich-content > :first-child {
@@ -296,21 +302,38 @@
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 0.35rem;
+  text-align: center;
 }
 
 .flashcard-rich-content .katex {
   font-size: clamp(1rem, 0.92rem + 0.32vw, 1.15rem);
 }
 
+.flashcard-rich-content ul,
+.flashcard-rich-content ol {
+  display: inline-block;
+  max-width: 100%;
+  text-align: left;
+}
+
 .flashcard-rich-content pre,
 .flashcard-rich-content table {
   max-width: 100%;
+  width: 100%;
+  text-align: left;
 }
 
 .flashcard-rich-content p,
 .flashcard-rich-content li,
 .flashcard-rich-content blockquote {
   overflow-wrap: anywhere;
+}
+
+.flashcard-rich-content .math-operator {
+  display: inline-block;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .flashcard-rich-editor:empty::before {
