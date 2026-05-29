@@ -357,6 +357,7 @@ def _build_flashcard_language_rules(
     ]
 
     study_language_label = _get_study_language_label(study_language)
+    normalized_study_language = _normalize_study_language(study_language)
     if study_language_label and foreign_language_study_mode:
         rules.extend([
             f"✓ O idioma de estudo definido para este deck e {study_language_label}.",
@@ -364,6 +365,12 @@ def _build_flashcard_language_rules(
             f"✓ Mantenha em {study_language_label} apenas os termos, expressoes, frases-modelo e exemplos que sao o objeto do estudo.",
             "✓ Explicacoes curtas, contexto e apoio pedagogico podem permanecer em portugues.",
             "✓ So escreva a resposta inteira no idioma-alvo quando o proprio card estiver cobrando producao direta nesse idioma.",
+        ])
+    elif normalized_study_language == "pt-BR":
+        rules.extend([
+            "✓ O idioma-base do deck e portugues brasileiro.",
+            "✓ Escreva perguntas, respostas e explicacoes em portugues sempre que isso nao prejudicar o objeto do estudo.",
+            "✓ Preserve apenas os termos, exemplos e expressoes estrangeiras que precisem permanecer no idioma original para fazer sentido pedagogico.",
         ])
 
     return rules
@@ -382,6 +389,7 @@ def _build_quiz_language_rules(
     ]
 
     study_language_label = _get_study_language_label(study_language)
+    normalized_study_language = _normalize_study_language(study_language)
     if study_language_label and foreign_language_study_mode:
         rules.extend([
             f"✓ O idioma de estudo definido para este deck e {study_language_label}.",
@@ -389,6 +397,12 @@ def _build_quiz_language_rules(
             f"✓ Mantenha em {study_language_label} apenas os termos, expressoes, frases-modelo, respostas corretas e distratores que sao o objeto do estudo.",
             "✓ Explicacoes e justificativas podem permanecer em portugues, preservando o termo estudado no idioma-alvo.",
             "✓ So use alternativas inteiramente no idioma-alvo quando a propria questao estiver avaliando producao ou compreensao direta nesse idioma.",
+        ])
+    elif normalized_study_language == "pt-BR":
+        rules.extend([
+            "✓ O idioma-base do deck e portugues brasileiro.",
+            "✓ Escreva enunciados, alternativas e explicacoes em portugues sempre que isso nao prejudicar o objeto do estudo.",
+            "✓ Preserve apenas os termos, exemplos e expressoes estrangeiras que precisem permanecer no idioma original para fazer sentido pedagogico.",
         ])
 
     return rules
@@ -639,6 +653,12 @@ def _normalize_quiz_questions(raw_questions: Any, requested_count: int) -> List[
                 }
             )
 
+        if correct_count == 1 and len(normalized_answers) > 5:
+            correct_answer = next((answer for answer in normalized_answers if answer["is_correct"]), None)
+            incorrect_answers = [answer for answer in normalized_answers if not answer["is_correct"]]
+            if correct_answer and len(incorrect_answers) >= 4:
+                normalized_answers = [correct_answer, *incorrect_answers[:4]]
+
         if len(normalized_answers) != 5 or correct_count != 1:
             continue
 
@@ -654,6 +674,62 @@ def _normalize_quiz_questions(raw_questions: Any, requested_count: int) -> List[
             break
 
     return normalized
+
+
+def _repair_quiz_response(
+    raw_response_text: str,
+    *,
+    num_questions: int,
+    study_language: Optional[str],
+    foreign_language_study_mode: bool,
+) -> Optional[Dict[str, Any]]:
+    if not raw_response_text.strip():
+        return None
+
+    repair_model = _get_model(
+        temperature=0.2,
+        max_output_tokens=8192,
+        response_mime_type="application/json",
+    )
+
+    prompt_parts = [
+        "Você é um especialista em reparar saídas de quiz geradas por IA.",
+        "Reescreva a resposta abaixo em JSON VÁLIDO e no formato EXATO esperado pelo sistema.",
+        f"Entregue exatamente {num_questions} perguntas.",
+        "Cada pergunta deve ter exatamente 5 alternativas.",
+        "Cada pergunta deve ter exatamente 1 alternativa com is_correct=true.",
+        "Mantenha o conteúdo pedagógico original sempre que possível, apenas corrigindo estrutura, consistência e quantidade.",
+        "Se faltar alguma pergunta ou alternativa, complete de forma coerente com o tema já presente na resposta.",
+        "",
+        *_build_quiz_language_rules(
+            study_language,
+            foreign_language_study_mode=foreign_language_study_mode,
+        ),
+        "",
+        "FORMATO OBRIGATÓRIO:",
+        '{"title":"...","questions":[{"text":"...","answers":[{"text":"...","is_correct":true,"explanation":"..."},{"text":"...","is_correct":false,"explanation":"..."}]}]}',
+        "",
+        "RESPOSTA A REPARAR:",
+        raw_response_text[:12000],
+    ]
+
+    try:
+        response = repair_model.generate_content(
+            prompt_parts,
+            request_options={"timeout": 60.0},
+        )
+        repaired_text = _extract_response_text(response)
+        if not repaired_text:
+            return None
+
+        _log_raw_ai_response("Resposta reparada do Gemini para quiz", repaired_text)
+        data = _parse_jsonish_object(repaired_text)
+        if "title" in data and "questions" in data and isinstance(data["questions"], list):
+            return data
+    except Exception as exc:
+        print(f"⚠️ Falha ao tentar reparar estrutura do quiz: {type(exc).__name__} - {exc}")
+
+    return None
 
 # --- Função existente (permanece igual) ---
 def chat_about_flashcard(
@@ -1338,9 +1414,44 @@ Foque em {difficulty_instruction}."""
         )
         elapsed = time.time() - start
         print(f"⏱️ Tempo de resposta Gemini (Quiz): {elapsed:.2f}s")
-        data = _parse_jsonish_object(response.text)
+        response_text = _extract_response_text(response)
+        if not response_text:
+            print("❌ Erro: resposta vazia retornada pelo Gemini na geração de quiz.")
+            return None
+
+        try:
+            data = _parse_jsonish_object(response_text)
+        except json.JSONDecodeError:
+            _log_raw_ai_response("Resposta bruta do Gemini para quiz", response_text)
+            repaired_data = _repair_quiz_response(
+                response_text,
+                num_questions=num_questions,
+                study_language=effective_study_language,
+                foreign_language_study_mode=foreign_language_study_mode,
+            )
+            if not repaired_data:
+                raise
+            data = repaired_data
+
         if "title" in data and "questions" in data and isinstance(data["questions"], list):
             normalized_questions = _normalize_quiz_questions(data["questions"], num_questions)
+            if len(normalized_questions) < num_questions:
+                _log_raw_ai_response("Resposta estruturalmente incompleta do Gemini para quiz", response_text)
+                repaired_data = _repair_quiz_response(
+                    response_text,
+                    num_questions=num_questions,
+                    study_language=effective_study_language,
+                    foreign_language_study_mode=foreign_language_study_mode,
+                )
+                if repaired_data:
+                    repaired_questions = _normalize_quiz_questions(
+                        repaired_data.get("questions", []),
+                        num_questions,
+                    )
+                    if len(repaired_questions) > len(normalized_questions):
+                        normalized_questions = repaired_questions
+                        data = repaired_data
+
             if len(normalized_questions) < num_questions and _attempt < 1:
                 missing_count = num_questions - len(normalized_questions)
                 print(f"⚠️ Gemini retornou {len(normalized_questions)}/{num_questions} perguntas válidas. Tentando completar {missing_count}.")
@@ -1364,6 +1475,7 @@ Foque em {difficulty_instruction}."""
             }
         else:
             print("❌ Erro: resposta da IA não continha a estrutura esperada ('title', 'questions').")
+            _log_raw_ai_response("Resposta bruta inesperada do Gemini para quiz", response_text)
             raise ValueError("Resposta da IA malformada.")
     except Exception as e:
         print(f"🚨 Erro ao gerar quiz: {type(e).__name__} - {e}")

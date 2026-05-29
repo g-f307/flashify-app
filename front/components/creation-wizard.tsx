@@ -948,31 +948,6 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                   </ToggleGroup>
                 </div>
 
-                <div className="space-y-2.5 sm:space-y-3">
-                  <Label className="text-sm sm:text-base font-semibold">Idioma de estudo</Label>
-                  <Select
-                    value={data.study_language}
-                    onValueChange={(value) => setData({ ...data, study_language: value })}
-                  >
-                    <SelectTrigger className="h-11 text-left">
-                      <SelectValue placeholder="Selecione o idioma do conteúdo gerado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STUDY_LANGUAGE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    {STUDY_LANGUAGE_OPTIONS.find((option) => option.value === data.study_language)?.description}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Isso afeta apenas respostas, alternativas, explicações e terminologia do deck. A interface do Flashify continua igual.
-                  </p>
-                </div>
-
                 <Button 
                   onClick={handleSubmit} 
                   className="w-full !mt-6 sm:!mt-8 h-11 sm:h-12 text-sm sm:text-base font-semibold" 
