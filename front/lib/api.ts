@@ -570,6 +570,17 @@ export interface GenerationLimitInfo {
   remaining: number;
   limit: number;
   hours_until_reset: number;
+  bonus_generations: number;
+  feedback_reward_available: boolean;
+  feedback_reward_claimed: boolean;
+}
+
+export type StudyFeedbackSessionType = "flashcards" | "quiz" | "guided";
+
+export interface StudyFeedbackSubmitResponse {
+  reward_applied: boolean;
+  reward_amount: number;
+  generation_limit: GenerationLimitInfo;
 }
 
 // 🆕 NOVO TIPO PARA ERRO DE LIMITE
@@ -1342,6 +1353,36 @@ class ApiClient {
 
   async getGenerationLimitStatus(): Promise<GenerationLimitInfo> {
     return this.request<GenerationLimitInfo>('/documents/generation-limit');
+  }
+
+  async registerStudyFeedbackPromptView(
+    sessionType: StudyFeedbackSessionType,
+    documentId?: number
+  ): Promise<GenerationLimitInfo> {
+    return this.request<GenerationLimitInfo>("/study-feedback/prompt-view", {
+      method: "POST",
+      body: JSON.stringify({
+        session_type: sessionType,
+        document_id: documentId,
+      }),
+    });
+  }
+
+  async submitStudyFeedback(
+    sessionType: StudyFeedbackSessionType,
+    rating: number,
+    feedback?: string,
+    documentId?: number
+  ): Promise<StudyFeedbackSubmitResponse> {
+    return this.request<StudyFeedbackSubmitResponse>("/study-feedback", {
+      method: "POST",
+      body: JSON.stringify({
+        session_type: sessionType,
+        document_id: documentId,
+        rating,
+        feedback,
+      }),
+    });
   }
 
   // ---------------------------------------------------------------------------

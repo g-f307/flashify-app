@@ -751,7 +751,7 @@ def create_document_from_text(
     return db_document
 
 # 🆕 NOVO ENDPOINT PARA VERIFICAR STATUS DO LIMITE
-@router.get("/generation-limit", response_model=dict)
+@router.get("/generation-limit", response_model=schemas.GenerationLimitInfo)
 def get_generation_limit_status(
     current_user: CurrentUser,
     session: Session = Depends(get_session),

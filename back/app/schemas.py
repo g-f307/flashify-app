@@ -2,7 +2,7 @@
 
 from sqlmodel import SQLModel
 from .models import DocumentStatus, AuthProvider
-from typing import List, Optional
+from typing import List, Optional, Literal
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -301,6 +301,16 @@ class ShareLinkResponse(BaseModel):
     token: str
 
 
+class GenerationLimitInfo(BaseModel):
+    used: int
+    remaining: int
+    limit: int
+    hours_until_reset: int
+    bonus_generations: int = 0
+    feedback_reward_available: bool = False
+    feedback_reward_claimed: bool = False
+
+
 class GuidedStudyProgressRead(BaseModel):
     document_id: int
     completed_step_ids: List[str]
@@ -317,3 +327,24 @@ class GuidedStudyProgressRead(BaseModel):
 class GuidedStudyProgressUpdate(BaseModel):
     completed_step_ids: List[str]
     is_completed: bool = False
+
+
+StudyFeedbackSessionType = Literal["flashcards", "quiz", "guided"]
+
+
+class StudyFeedbackPromptViewRequest(BaseModel):
+    session_type: StudyFeedbackSessionType
+    document_id: Optional[int] = Field(default=None, ge=1)
+
+
+class StudyFeedbackSubmitRequest(BaseModel):
+    session_type: StudyFeedbackSessionType
+    document_id: Optional[int] = Field(default=None, ge=1)
+    rating: int = Field(ge=1, le=5)
+    feedback: Optional[str] = Field(default=None, max_length=240)
+
+
+class StudyFeedbackSubmitResponse(BaseModel):
+    reward_applied: bool
+    reward_amount: int = 0
+    generation_limit: GenerationLimitInfo

@@ -8,6 +8,8 @@ from sqlalchemy.orm import selectinload
 import random
 
 DAILY_GENERATION_LIMIT = 10
+FEEDBACK_GENERATION_BONUS = 3
+FEEDBACK_REWARD_CLAIM_WINDOW = timedelta(minutes=30)
 
 FLASHCARD_TYPE_ALIASES = {
     "application": models.FlashcardType.EXAMPLE,
@@ -705,6 +707,24 @@ def get_quiz_attempts_for_user(session: Session, user_id: int) -> list[models.Qu
     )
     return session.exec(statement).all()
 
+
+def get_effective_generation_limit(user: models.User) -> int:
+    return DAILY_GENERATION_LIMIT + max(0, user.daily_bonus_generation_count)
+
+
+def is_feedback_reward_available(user: models.User) -> bool:
+    return user.feedback_reward_offer_shown_at is None and user.feedback_reward_granted_at is None
+
+
+def can_claim_feedback_reward(user: models.User) -> bool:
+    if user.feedback_reward_granted_at is not None:
+        return False
+
+    if user.feedback_reward_offer_shown_at is None:
+        return True
+
+    return (datetime.now(timezone.utc) - user.feedback_reward_offer_shown_at) <= FEEDBACK_REWARD_CLAIM_WINDOW
+
 def check_and_reset_daily_limit(session: Session, user: models.User) -> None:
     """
     Verifica se precisa resetar o contador diário do usuário.
@@ -716,6 +736,7 @@ def check_and_reset_daily_limit(session: Session, user: models.User) -> None:
     if user.last_generation_reset is None:
         user.last_generation_reset = now
         user.daily_generation_count = 0
+        user.daily_bonus_generation_count = 0
         session.add(user)
         session.commit()
         return
@@ -725,12 +746,14 @@ def check_and_reset_daily_limit(session: Session, user: models.User) -> None:
     if time_since_reset >= timedelta(hours=24):
         user.last_generation_reset = now
         user.daily_generation_count = 0
+        user.daily_bonus_generation_count = 0
         session.add(user)
         session.commit()
         return
 
-    if user.daily_generation_count > DAILY_GENERATION_LIMIT:
-        user.daily_generation_count = DAILY_GENERATION_LIMIT
+    effective_limit = get_effective_generation_limit(user)
+    if user.daily_generation_count > effective_limit:
+        user.daily_generation_count = effective_limit
         session.add(user)
         session.commit()
 
@@ -748,9 +771,10 @@ def can_user_generate_deck(
     
     # Atualiza o usuário após possível reset
     session.refresh(user)
-    
-    can_generate = (user.daily_generation_count + required_generations) <= DAILY_GENERATION_LIMIT
-    remaining = max(0, DAILY_GENERATION_LIMIT - user.daily_generation_count)
+
+    effective_limit = get_effective_generation_limit(user)
+    can_generate = (user.daily_generation_count + required_generations) <= effective_limit
+    remaining = max(0, effective_limit - user.daily_generation_count)
     
     return can_generate, remaining
 
@@ -763,12 +787,46 @@ def increment_user_generation_count(session: Session, user_id: int, amount: int 
     if user and amount > 0:
         check_and_reset_daily_limit(session, user)
         session.refresh(user)
+        effective_limit = get_effective_generation_limit(user)
         user.daily_generation_count = min(
-            DAILY_GENERATION_LIMIT,
+            effective_limit,
             user.daily_generation_count + amount,
         )
         session.add(user)
         session.commit()
+
+
+def mark_feedback_reward_offer_shown(session: Session, user: models.User) -> bool:
+    check_and_reset_daily_limit(session, user)
+    session.refresh(user)
+    if not is_feedback_reward_available(user):
+        return False
+
+    user.feedback_reward_offer_shown_at = datetime.now(timezone.utc)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return True
+
+
+def grant_feedback_generation_bonus(
+    session: Session,
+    user: models.User,
+    amount: int = FEEDBACK_GENERATION_BONUS,
+) -> bool:
+    check_and_reset_daily_limit(session, user)
+    session.refresh(user)
+    if amount <= 0 or not can_claim_feedback_reward(user):
+        return False
+
+    now = datetime.now(timezone.utc)
+    user.feedback_reward_offer_shown_at = user.feedback_reward_offer_shown_at or now
+    user.feedback_reward_granted_at = now
+    user.daily_bonus_generation_count = max(0, user.daily_bonus_generation_count) + amount
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return True
 
 def get_user_generation_info(session: Session, user: models.User) -> dict:
     """
@@ -776,8 +834,9 @@ def get_user_generation_info(session: Session, user: models.User) -> dict:
     """
     check_and_reset_daily_limit(session, user)
     session.refresh(user)
-    
-    remaining = max(0, DAILY_GENERATION_LIMIT - user.daily_generation_count)
+
+    effective_limit = get_effective_generation_limit(user)
+    remaining = max(0, effective_limit - user.daily_generation_count)
     
     # Calcula quanto tempo falta para o reset
     if user.last_generation_reset:
@@ -790,8 +849,11 @@ def get_user_generation_info(session: Session, user: models.User) -> dict:
     return {
         "used": user.daily_generation_count,
         "remaining": remaining,
-        "limit": DAILY_GENERATION_LIMIT,
-        "hours_until_reset": hours_until_reset
+        "limit": effective_limit,
+        "hours_until_reset": hours_until_reset,
+        "bonus_generations": max(0, user.daily_bonus_generation_count),
+        "feedback_reward_available": is_feedback_reward_available(user),
+        "feedback_reward_claimed": user.feedback_reward_granted_at is not None,
     }
 
 def shuffle_quiz_answers(quiz_data: dict) -> dict:

@@ -93,7 +93,19 @@ class User(SQLModel, table=True):
         sa_column=Column(Integer, server_default="0", nullable=False),
         default=0
     )
+    daily_bonus_generation_count: int = Field(
+        sa_column=Column(Integer, server_default="0", nullable=False),
+        default=0
+    )
     last_generation_reset: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
+    feedback_reward_offer_shown_at: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        default=None
+    )
+    feedback_reward_granted_at: Optional[datetime] = Field(
         sa_column=Column(DateTime(timezone=True), nullable=True),
         default=None
     )

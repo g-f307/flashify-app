@@ -11,6 +11,7 @@ from .routers import progress
 from .routers import quizzes
 from .routers import stats
 from .routers import analytics
+from .routers import study_feedback
 
 frontend_url = os.getenv("FRONTEND_URL", "http://flashify.cloud")
 
@@ -44,6 +45,7 @@ app.include_router(progress.router)
 app.include_router(quizzes.router)
 app.include_router(stats.router)
 app.include_router(analytics.router)
+app.include_router(study_feedback.router)
 
 @app.get("/")
 def read_root():

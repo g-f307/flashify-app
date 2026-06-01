@@ -11,6 +11,7 @@ interface GenerationLimitContextType {
   loading: boolean;
   refreshLimitInfo: () => Promise<void>;
   incrementUsage: (amount?: number) => void;
+  replaceLimitInfo: (info: GenerationLimitInfo) => void;
 }
 
 const GenerationLimitContext = createContext<GenerationLimitContextType | undefined>(undefined);
@@ -62,8 +63,13 @@ export function GenerationLimitProvider({ children }: { children: ReactNode }) {
     }
   }, [limitInfo]);
 
+  const replaceLimitInfo = useCallback((info: GenerationLimitInfo) => {
+    setLimitInfo(info);
+    setLoading(false);
+  }, []);
+
   return (
-    <GenerationLimitContext.Provider value={{ limitInfo, loading, refreshLimitInfo, incrementUsage }}>
+    <GenerationLimitContext.Provider value={{ limitInfo, loading, refreshLimitInfo, incrementUsage, replaceLimitInfo }}>
       {children}
     </GenerationLimitContext.Provider>
   );
