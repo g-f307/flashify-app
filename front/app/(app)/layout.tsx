@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle"; 
 import Image from "next/image";
 import { apiClient } from "@/lib/api";
+import { StudySessionFeedbackModal } from "@/components/feedback/study-session-feedback-modal";
 import {
   Plus,
   Settings,
@@ -23,6 +24,7 @@ import {
   ChevronDown,
   ChevronUp,
   HelpCircle,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -218,6 +220,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   
   const { limitInfo } = useGenerationLimit();
 
@@ -289,6 +292,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-full w-full bg-background overflow-hidden">
+      <StudySessionFeedbackModal
+        open={isInviteModalOpen}
+        onOpenChange={setIsInviteModalOpen}
+        autoOpen={false}
+        initialStage="share"
+      />
+
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -341,6 +351,31 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             })}
           </ul>
         </nav>
+
+        <div className="px-4 pb-3">
+          <button
+            type="button"
+            onClick={() => {
+              setIsInviteModalOpen(true);
+              setSidebarOpen(false);
+            }}
+            className="w-full rounded-2xl border border-[#facc15]/25 bg-gradient-to-r from-[#facc15]/12 via-transparent to-[#6BDEF3]/10 px-3 py-3 text-left shadow-[0_18px_30px_-28px_rgba(107,222,243,0.65)] transition-all duration-200 hover:border-[#facc15]/40 hover:from-[#facc15]/18 hover:to-[#6BDEF3]/14 dark:border-[#facc15]/16 dark:from-[#facc15]/10 dark:to-[#6BDEF3]/10"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#facc15] to-[#6BDEF3] text-black shadow-sm">
+                <Share2 className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  Indique o Flashify
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                  Compartilhe com amigos em um clique.
+                </p>
+              </div>
+            </div>
+          </button>
+        </div>
 
         <GenerationLimitBar limitInfo={limitInfo} />
 
