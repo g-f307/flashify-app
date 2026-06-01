@@ -15,6 +15,8 @@ Esta release em construção tem como frente principal o compartilhamento de dec
 
 Em paralelo, a release também passou a concentrar uma segunda frente independente, voltada ao fluxo de criação de decks e à qualidade do estudo, incluindo filtros avançados para `PDF`, refinamento da geração de flashcards e pequenos polimentos de UI. Essa frente não depende do compartilhamento por snapshot e não deve ser interpretada como subfuncionalidade dele.
 
+Também foi incorporada uma terceira frente independente, focada em retenção e crescimento orgânico no pós-estudo, com coleta contextual de feedback ao final de sessões, recompensa única de gerações extras para a primeira resposta válida e reaproveitamento do modal de indicação para compartilhamento do Flashify com amigos.
+
 ## 3. Objetivo
 
 ### 3.1. Objetivo principal da release
@@ -30,6 +32,13 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 - permitir seleção de páginas de `PDF` antes da geração de conteúdo
 - melhorar a qualidade dos flashcards para revisão rápida e memorização
 - aplicar correções visuais pontuais em fluxos de criação e estudo
+
+### 3.3. Terceira frente paralela também incluída nesta release
+
+- coletar feedback contextual ao final de `flashcards`, `quiz` e `estudo guiado`
+- conceder recompensa única de `+3 gerações` apenas após envio efetivo do feedback
+- transformar o pós-feedback em fluxo de agradecimento e indicação do produto
+- reaproveitar o modal de indicação como atalho persistente na parte inferior da sidebar
 
 ## 4. Escopo da release
 
@@ -53,6 +62,15 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 - refinamento da geração de flashcards para respostas mais curtas e objetivas
 - ajustes visuais pontuais no `/create` e no relatório final de estudo
 
+#### 4.1.3. Terceira frente paralela: feedback pós-sessão e indicação
+
+- persistência de oferta e resgate único da recompensa de feedback por usuário
+- ampliação do contrato de gerações para refletir bônus temporário no ciclo diário
+- modal responsivo de feedback ao final de `flashcards`, `quiz` e `guided`
+- etapa de agradecimento com atualização imediata da barra de gerações
+- modal de indicação reaproveitável, com compartilhamento por link e redes sociais
+- atalho utilitário para indicação na faixa inferior da sidebar, acima de `Gerações`
+
 ### 4.2. Fora de escopo
 
 - compartilhamento do deck vivo com atualização em tempo real
@@ -61,6 +79,7 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 - coleta de estatísticas, feedback de respostas ou SRS dentro do modo compartilhado
 - visualização pública sem autenticação
 - filtros equivalentes para `DOCX`, `PPTX` ou imagens nesta release
+- programa recorrente de recompensas por feedback ou indicação além da primeira bonificação
 
 ## 5. Funcionalidades concluídas
 
@@ -152,6 +171,22 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 - `Impacto no usuário`: A interface ficou mais coerente visualmente e com menor ruído, especialmente na etapa inicial de criação de decks.
 - `Impacto técnico`: Houve refinamento pontual de componentes de UI sem alterar contratos de API nem comportamento de negócio.
 
+### 5.12. Terceira frente paralela: recompensa única por feedback de estudo
+
+- `Nome`: Persistência de feedback pós-sessão com bônus único de gerações
+- `Status`: `Concluída`
+- `Descrição`: Foi criado um fluxo autenticado para registrar a exibição da oferta de feedback, receber a nota/comentário do usuário e liberar `+3 gerações` uma única vez por usuário, apenas após envio efetivo do feedback.
+- `Impacto no usuário`: O usuário recebe um incentivo claro para responder ao feedback no fim do estudo e vê a barra de gerações ser atualizada imediatamente quando a recompensa é aplicada.
+- `Impacto técnico`: O backend ganhou novos campos em `User`, migration dedicada, rota `study-feedback`, extensão do contrato de limite de gerações e controle explícito de oferta mostrada, bônus concedido e janela de resgate.
+
+### 5.13. Terceira frente paralela: modal contextual de feedback e indicação
+
+- `Nome`: Experiência pós-estudo com feedback, agradecimento e convite para compartilhar
+- `Status`: `Concluída`
+- `Descrição`: Os relatórios finais de `flashcards`, `quiz` e `estudo guiado` passaram a abrir um modal com avaliação por emojis e slider, campo condicional de melhoria para notas `ok` ou menores, etapa de agradecimento com confetes e etapa de indicação reaproveitável também acessível pela sidebar.
+- `Impacto no usuário`: O pós-estudo ficou mais orientado, com recompensa visível, mensagem de agradecimento consistente e acesso simples ao convite para compartilhar o Flashify com amigos.
+- `Impacto técnico`: O frontend ganhou um componente compartilhado para feedback/indicação, integração com a barra de gerações em tempo real, asset dedicado do presente e abertura controlada tanto por fim de sessão quanto por atalho manual na sidebar.
+
 ## 6. Itens em andamento
 
 ### 6.1. Validação final da rota compartilhada
@@ -196,6 +231,15 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 - refinamento da geração de flashcards para respostas mais curtas, mais objetivas e com foco em memorização rápida
 - correção do tom do anel de progresso no relatório de estudo, substituindo o azul residual por amarelo suave
 
+### 8.3. Terceira frente paralela: feedback e indicação
+
+- exibição automática do modal de feedback ao final de `flashcards`, `quiz` e `guided`, respeitando claro/escuro e responsividade
+- campo “o que podemos melhorar?” condicionado a notas `3` ou menores
+- atualização imediata da barra de gerações após concessão do bônus de feedback
+- substituição da animação customizada do presente por `presente.png` e reaproveitamento do confete temporário do quiz
+- refinamento do modal de indicação com ícone de compartilhamento mais fiel ao mockup e visual utilitário reutilizável
+- inclusão do atalho “Indique o Flashify” na área inferior da sidebar, acima de `Gerações`, sem tratá-lo como navegação primária
+
 ## 9. Impacto técnico
 
 ### 9.1. Frontend
@@ -203,30 +247,34 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 - componentes afetados na frente principal: página do deck individual, layout autenticado, auth forms, contexto de autenticação, cliente de API, estilos globais, modal de share e nova árvore de rotas `shared/[token]`
 - componentes novos: `share-deck-modal`, `import-shared-deck-button`, páginas `shared/[token]`, `shared/[token]/study`, `shared/[token]/quiz` e `shared/[token]/guided`
 - componentes afetados na frente paralela: `creation-wizard`, indicador de gerações, relatório final de estudo e componente de seleção visual de páginas de `PDF`
+- componentes afetados na terceira frente paralela: layout autenticado, contexto de gerações, cliente de API, relatórios finais de estudo, sidebar e integração com o endpoint `/api/support/experience`
 - componentes novos adicionais: `pdf-page-picker`
-- riscos principais: regressão visual em breakpoints menores, inconsistência entre modos de estudo, UX incompleta em estados de erro e comportamento visual do picker de `PDF` em diferentes viewports
+- componentes novos adicionais da terceira frente: `study-session-feedback-modal`
+- riscos principais: regressão visual em breakpoints menores, inconsistência entre modos de estudo, UX incompleta em estados de erro, comportamento visual do picker de `PDF` em diferentes viewports e abertura indevida do modal de feedback fora do contexto esperado
 - cuidados de responsividade: manter visão geral acima dos cards no mobile, preservar legibilidade, evitar controles fora da viewport e respeitar claro/escuro
-- impacto implementado adicional: `creation-wizard` passou a ter passo condicional para `PDF`, exigindo preservação do fluxo atual de `DOCX`, `PPTX` e imagens
+- impacto implementado adicional: `creation-wizard` passou a ter passo condicional para `PDF`, exigindo preservação do fluxo atual de `DOCX`, `PPTX` e imagens; além disso, a sidebar ganhou um CTA utilitário independente reaproveitando o modal de indicação
 
 ### 9.2. Backend
 
 - serviços ou rotas afetadas na frente principal: modelos de documentos, CRUD de compartilhamento, schemas públicos, router de documentos e analytics de compartilhamento
 - serviços ou rotas afetadas na frente paralela: extração de texto, task assíncrona de processamento, parser de seleção de páginas de `PDF`, geração de flashcards e trechos adicionais do router de documentos
+- serviços ou rotas afetadas na terceira frente paralela: `models.py`, `crud.py`, `schemas.py`, `main.py`, router `study_feedback.py` e endpoint de leitura de limite de gerações
 - impactos de compatibilidade: nenhuma rota legada foi removida; a feature entra como capacidade adicional
 - observação funcional: a snapshot não copia progresso, sessões, relatórios ou estado SRS do remetente
-- impacto implementado adicional: `documents.py`, `tasks.py` e `text_extractor.py` agora suportam inspeção e extração parcial de `PDF`
+- impacto implementado adicional: `documents.py`, `tasks.py` e `text_extractor.py` agora suportam inspeção e extração parcial de `PDF`; em paralelo, a API passou a responder metadados adicionais de bônus/estado do limite diário e a registrar eventos de feedback de estudo
 
 ### 9.3. Banco de dados
 
 - migrations envolvidas na frente principal: `back/alembic/versions/20260520_0011_add_shared_deck_snapshots.py`
 - migrations envolvidas na frente paralela: `back/alembic/versions/20260525_0012_add_document_page_selection.py`
-- impacto esperado: criação da persistência de snapshots compartilhadas com payload serializado do deck e, em frente independente, persistência do filtro bruto de páginas aplicado ao `PDF`
+- migrations envolvidas na terceira frente paralela: `back/alembic/versions/20260530_0014_add_feedback_reward_fields_to_user.py`
+- impacto esperado: criação da persistência de snapshots compartilhadas com payload serializado do deck, em frente independente persistência do filtro bruto de páginas aplicado ao `PDF` e, na terceira frente, persistência do estado de oferta/resgate da recompensa de feedback no usuário
 - cuidados de rollback: rollback deve considerar perda dos registros de snapshots compartilhadas criadas após o deploy
 
 ### 9.4. Dependências
 
 - novas dependências: visualização de `PDF` no frontend exigiu integração adicional para renderização de páginas no wizard
-- dependências alteradas: frontend passou a incluir suporte ao fluxo de preview visual de `PDF`; validar consistência entre `npm` e `pnpm` no ambiente de build
+- dependências alteradas: frontend passou a incluir suporte ao fluxo de preview visual de `PDF` e reaproveitamento de `react-confetti` no pós-feedback; validar consistência entre `npm` e `pnpm` no ambiente de build
 
 ## 10. QA e validação
 
@@ -258,6 +306,12 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 - [ ] validar que `DOCX`, `PPTX` e imagens mantêm o fluxo atual sem passo extra
 - [ ] validar que a linha de gerações na etapa inicial de criação não quebra em mais de uma linha no desktop
 - [ ] validar que novos flashcards gerados estão mais curtos e objetivos do que a versão anterior
+- [ ] validar abertura automática do modal de feedback ao finalizar `flashcards`, `quiz` e `estudo guiado`
+- [ ] validar que a recompensa de `+3 gerações` aparece uma única vez e só é concedida após envio do feedback
+- [ ] validar que o campo de melhoria aparece apenas para notas `ok` ou menores
+- [ ] validar atualização imediata da barra de gerações após feedback recompensado
+- [ ] validar o modal de indicação aberto tanto pelo pós-feedback quanto pelo atalho utilitário da sidebar
+- [ ] validar o CTA de indicação na parte inferior da sidebar, acima de `Gerações`, sem aparência de item de navegação primária
 
 ## 11. Deploy
 
@@ -265,8 +319,8 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 
 - [ ] migrations aplicadas
 - [ ] backend reiniciado com novas rotas
-- [ ] frontend rebuildado com as rotas compartilhadas e o picker visual de `PDF`
-- [ ] ambiente revisado com dados de teste para share/import e upload de `PDF`
+- [ ] frontend rebuildado com as rotas compartilhadas, o picker visual de `PDF` e o fluxo de feedback/indicação
+- [ ] ambiente revisado com dados de teste para share/import, upload de `PDF` e finalização de sessões de estudo
 
 ### 11.2. Passos de deploy
 
@@ -286,6 +340,14 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 4. validar upload de `PDF` com seleção de páginas, preview visual e geração parcial de conteúdo
 5. validar a nova qualidade dos flashcards gerados e os polimentos visuais associados
 
+#### 11.2.3. Terceira frente paralela: feedback pós-sessão e indicação
+
+1. aplicar a migration de campos de recompensa de feedback em `User`
+2. subir o backend com o router `study-feedback` e a ampliação do contrato de gerações
+3. rebuildar o frontend com o modal reutilizável de feedback/indicação e o atalho utilitário da sidebar
+4. finalizar sessões reais de `flashcards`, `quiz` e `guided` para validar abertura, recompensa única e atualização da barra
+5. validar o modal de indicação tanto pelo pós-feedback quanto pelo CTA da sidebar
+
 ## 12. Rollback
 
 - `Aplicação`: preferir rollback por frente de trabalho, revertendo separadamente os commits de compartilhamento por snapshot ou os commits da frente de criação e `PDF`
@@ -300,6 +362,8 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 - decks compartilhados sem `guided_study_cache` não exibem estudo guiado até que o destinatário importe e gere a própria cópia
 - o fluxo visual de seleção de páginas de `PDF` depende de validação manual cuidadosa em mobile e desktop para evitar desalinhamentos sutis
 - a integração de preview de `PDF` no frontend merece atenção em ambiente de build para garantir consistência entre gerenciadores de pacote e estratégia de carregamento do visualizador
+- a recompensa de feedback depende de validação manual para confirmar que não reaparece indevidamente após o primeiro resgate
+- o modal compartilhado entre pós-estudo e sidebar exige cuidado para não abrir na etapa errada nem herdar estado de sessão anterior
 
 ## 14. Critérios para fechamento da release
 
@@ -337,6 +401,7 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
   - [pdf-page-picker.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/upload/pdf-page-picker.tsx:1)
   - [generation-limit-alert.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/generation-limit-alert.tsx:1)
   - [performance-report.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/study/performance-report.tsx:1)
+  - [study-session-feedback-modal.tsx](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/components/feedback/study-session-feedback-modal.tsx:1)
   - [api.ts](/home/gf307/Documentos/ifam/dra_gps/flashify-app/front/lib/api.ts:1)
 
 ## 16. Histórico de atualização
@@ -351,3 +416,8 @@ Em paralelo, a release também passou a concentrar uma segunda frente independen
 
 - adição do planejamento da fase 6 de filtros avançados de `PDF` ao escopo da release em aberto
 - inclusão de referência ao plano técnico detalhado da funcionalidade
+
+### 2026-06-01
+
+- inclusão de uma terceira frente independente na release, voltada a feedback pós-sessão com recompensa única e indicação do Flashify
+- registro da persistência de bônus único de `+3 gerações`, do modal reutilizável de feedback/indicação e do atalho utilitário acima de `Gerações` na sidebar
