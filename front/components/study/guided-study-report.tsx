@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GuidedStudy } from "@/lib/api";
 import { formatStudyTime } from "@/lib/performance-utils";
+import { StudySessionFeedbackModal } from "@/components/feedback/study-session-feedback-modal";
 
 const GUIDED_GREEN = "#7FD9A0";
 const GUIDED_GREEN_DARK = "#4FA36E";
@@ -23,6 +24,7 @@ type GuidedQuestionResult = {
 };
 
 interface GuidedStudyReportProps {
+  documentId: number;
   guidedStudy: GuidedStudy;
   sessionStartedAt: Date;
   sessionCompletedAt: Date;
@@ -123,6 +125,7 @@ function GuidedScoreRing({
 }
 
 export function GuidedStudyReport({
+  documentId,
   guidedStudy,
   sessionStartedAt,
   sessionCompletedAt,
@@ -183,9 +186,14 @@ export function GuidedStudyReport({
   const retentionLabel = getRetentionLabel(stats.quizAccuracy);
 
   return (
-    <div className="min-h-screen bg-background px-4 py-4 md:px-5 md:py-4">
-      <div className="mx-auto max-w-4xl">
-        <Card className="overflow-hidden animate-in fade-in-50 duration-500 border border-border/70 bg-card/95 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#7FD9A0]/45 hover:shadow-[0_0_0_1px_rgba(127,217,160,0.18),0_22px_54px_-24px_rgba(127,217,160,0.48)] dark:border-zinc-800 dark:bg-[#23262f]/95 dark:hover:border-[#7FD9A0]/28 dark:hover:shadow-[0_0_0_1px_rgba(127,217,160,0.12),0_22px_54px_-24px_rgba(127,217,160,0.3)] md:p-5 lg:min-h-[calc(100vh-1.5rem)] lg:max-h-[calc(100vh-1.5rem)] lg:p-5">
+    <>
+      <StudySessionFeedbackModal
+        documentId={documentId}
+        sessionType="guided"
+      />
+      <div className="min-h-screen bg-background px-4 py-4 md:px-5 md:py-4">
+        <div className="mx-auto max-w-4xl">
+          <Card className="overflow-hidden animate-in fade-in-50 duration-500 border border-border/70 bg-card/95 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#7FD9A0]/45 hover:shadow-[0_0_0_1px_rgba(127,217,160,0.18),0_22px_54px_-24px_rgba(127,217,160,0.48)] dark:border-zinc-800 dark:bg-[#23262f]/95 dark:hover:border-[#7FD9A0]/28 dark:hover:shadow-[0_0_0_1px_rgba(127,217,160,0.12),0_22px_54px_-24px_rgba(127,217,160,0.3)] md:p-5 lg:min-h-[calc(100vh-1.5rem)] lg:max-h-[calc(100vh-1.5rem)] lg:p-5">
           <div className="mb-3 flex items-center justify-between lg:mb-2">
             <Button
               onClick={onBack}
@@ -371,8 +379,9 @@ export function GuidedStudyReport({
               </div>
             </motion.div>
           </div>
-        </Card>
+          </Card>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

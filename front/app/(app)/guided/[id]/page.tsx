@@ -226,6 +226,7 @@ export default function GuidedStudyPage() {
   if (isAllDone) {
     return (
       <GuidedStudyReport
+        documentId={documentId}
         guidedStudy={guidedStudy}
         sessionStartedAt={sessionStartedAt}
         sessionCompletedAt={sessionCompletedAt ?? new Date()}

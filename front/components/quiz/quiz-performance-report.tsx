@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { AddContentModal } from "@/components/study/add-content-modal";
 import { apiClient } from "@/lib/api";
 import { useGenerationLimit } from "@/contexts/generation-limit-context";
+import { StudySessionFeedbackModal } from "@/components/feedback/study-session-feedback-modal";
 import { toast } from "sonner";
 
 const QUIZ_BLUE = "#48cfea";
@@ -178,6 +179,10 @@ export function QuizPerformanceReport({
 
   return (
     <>
+      <StudySessionFeedbackModal
+        documentId={documentId}
+        sessionType="quiz"
+      />
       <div className="min-h-screen bg-background px-4 py-4 md:px-5 md:py-4">
         <div className="mx-auto max-w-4xl">
           <Card className="overflow-hidden animate-in fade-in-50 duration-500 border border-border/70 bg-card/95 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#48cfea]/45 hover:shadow-[0_0_0_1px_rgba(72,207,234,0.18),0_22px_54px_-24px_rgba(72,207,234,0.42)] dark:border-zinc-800 dark:bg-[#23262f]/95 dark:hover:border-[#48cfea]/28 dark:hover:shadow-[0_0_0_1px_rgba(72,207,234,0.12),0_22px_54px_-24px_rgba(72,207,234,0.3)] md:p-6 lg:min-h-[calc(100vh-2rem)] lg:max-h-[calc(100vh-2rem)] lg:p-6">

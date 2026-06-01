@@ -18,6 +18,7 @@ import { AddContentModal } from "./add-content-modal";
 import { apiClient } from "@/lib/api";
 import { toast } from "sonner";
 import { useGenerationLimit } from "@/contexts/generation-limit-context";
+import { StudySessionFeedbackModal } from "@/components/feedback/study-session-feedback-modal";
 import {
   PerformanceStats,
   getActionRecommendations,
@@ -162,6 +163,10 @@ export function PerformanceReportResponsive({
 
   return (
     <>
+      <StudySessionFeedbackModal
+        documentId={documentId}
+        sessionType="flashcards"
+      />
       <div className="min-h-screen overflow-x-hidden bg-background px-3 py-4 md:px-5 md:py-4">
         <div className="mx-auto w-full max-w-4xl min-w-0">
           <Card className="w-full min-w-0 overflow-hidden animate-in fade-in-50 duration-500 border border-border/70 bg-card/95 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#facc15]/45 hover:shadow-[0_0_0_1px_rgba(250,204,21,0.18),0_22px_54px_-24px_rgba(250,204,21,0.34)] dark:border-zinc-800 dark:bg-[#23262f]/95 dark:hover:border-[#facc15]/24 dark:hover:shadow-[0_0_0_1px_rgba(250,204,21,0.12),0_22px_54px_-24px_rgba(250,204,21,0.22)] md:p-6 lg:min-h-[calc(100vh-2rem)] lg:max-h-[calc(100vh-2rem)] lg:p-6">
