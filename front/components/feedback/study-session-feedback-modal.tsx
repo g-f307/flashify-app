@@ -34,21 +34,32 @@ import {
   apiClient,
   StudyFeedbackSessionType,
 } from "@/lib/api";
+import type { FlashinhoExpressionVariant } from "@/lib/flashinho-expression";
+import { FlashinhoExpression } from "@/components/ui/flashinho-expression";
 import { trackUserFeedback } from "@/lib/analytics-utils";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useSound } from "@/contexts/sound-context";
 
 const APP_SHARE_URL =
   process.env.NEXT_PUBLIC_APP_URL || "https://flashify.cloud";
 const FEEDBACK_MAX_LENGTH = 240;
 
 const FEEDBACK_OPTIONS = [
-  { value: 1, emoji: "😡", label: "Muito ruim" },
-  { value: 2, emoji: "😕", label: "Ruim" },
-  { value: 3, emoji: "😐", label: "Ok" },
-  { value: 4, emoji: "😊", label: "Boa" },
-  { value: 5, emoji: "😍", label: "Amei" },
+  { value: 1, mascotVariant: "muito_ruim" as FlashinhoExpressionVariant, label: "Muito ruim" },
+  { value: 2, mascotVariant: "ruim" as FlashinhoExpressionVariant, label: "Ruim" },
+  { value: 3, mascotVariant: "ok" as FlashinhoExpressionVariant, label: "Ok" },
+  { value: 4, mascotVariant: "boa" as FlashinhoExpressionVariant, label: "Boa" },
+  { value: 5, mascotVariant: "amei" as FlashinhoExpressionVariant, label: "Amei" },
 ] as const;
+
+const FEEDBACK_MASCOT_IMAGE_CLASS: Record<FlashinhoExpressionVariant, string> = {
+  muito_ruim: "object-bottom scale-[1.12] -translate-y-[4%]",
+  ruim: "object-bottom scale-[1.5] -translate-y-[7%]",
+  ok: "object-bottom scale-[1.3] translate-y-[4%]",
+  boa: "object-bottom scale-[1.2] translate-y-[4%]",
+  amei: "object-bottom scale-[1.36] -translate-y-[4%]",
+};
 
 function getShareUrl() {
   if (typeof window === "undefined") {
@@ -107,6 +118,7 @@ export function StudySessionFeedbackModal({
   initialStage = "feedback",
 }: StudySessionFeedbackModalProps) {
   const { limitInfo, loading, replaceLimitInfo } = useGenerationLimit();
+  const { playSound } = useSound();
   const [internalOpen, setInternalOpen] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
   const [rewardOfferVisible, setRewardOfferVisible] = useState(false);
@@ -249,6 +261,7 @@ export function StudySessionFeedbackModal({
       setRewardAmount(response.reward_amount);
       setShowConfetti(response.reward_applied);
       setStage("thanks");
+      playSound(response.reward_applied ? "reward" : "sessionComplete");
 
       trackUserFeedback(selectedRating, sessionType);
       void sendFeedbackToSupport({
@@ -338,7 +351,7 @@ export function StudySessionFeedbackModal({
               </div>
 
               <div className="mt-6">
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 gap-0.5 sm:gap-1">
                   {FEEDBACK_OPTIONS.map((option) => {
                     const selected = selectedRating === option.value;
                     return (
@@ -350,18 +363,22 @@ export function StudySessionFeedbackModal({
                           setSliderRating(option.value);
                         }}
                         className={cn(
-                          "flex flex-col items-center rounded-2xl px-1 py-2 transition-all duration-200",
+                          "flex min-h-[154px] flex-col items-center justify-start rounded-2xl px-1 py-2.5 transition-all duration-200 sm:min-h-[176px] sm:px-1.5 sm:py-4",
                           selected
                             ? "bg-[#facc15]/18 shadow-[0_14px_24px_-20px_rgba(250,204,21,0.9)] dark:bg-[#facc15]/12"
                             : "hover:bg-accent/60"
                         )}
                       >
-                        <span className="text-[2rem] leading-none sm:text-[2.25rem]">
-                          {option.emoji}
-                        </span>
+                        <FlashinhoExpression
+                          variant={option.mascotVariant}
+                          alt={`Flashinho representando ${option.label.toLowerCase()}`}
+                          className="mx-auto h-28 w-full max-w-[118px] sm:h-32 sm:max-w-[132px]"
+                          imageClassName={FEEDBACK_MASCOT_IMAGE_CLASS[option.mascotVariant]}
+                          sizes="(max-width: 640px) 118px, 132px"
+                        />
                         <span
                           className={cn(
-                            "mt-2 text-[11px] font-medium",
+                            "mt-2.5 text-[11px] font-medium leading-tight sm:text-xs",
                             selected ? "text-foreground" : "text-muted-foreground"
                           )}
                         >
@@ -509,8 +526,17 @@ export function StudySessionFeedbackModal({
               <div className="mt-2 space-y-2">
                 <h2 className="text-[1.7rem] font-semibold tracking-tight text-foreground">
                   Obrigado pelo seu feedback
-                  {rewardApplied ? " 💛" : ""}
                 </h2>
+                {rewardApplied ? (
+                  <div className="flex justify-center">
+                    <FlashinhoExpression
+                      variant="amei"
+                      alt="Flashinho celebrando sua recompensa"
+                      className="h-24 w-24 sm:h-32 sm:w-32"
+                      sizes="(max-width: 640px) 96px, 128px"
+                    />
+                  </div>
+                ) : null}
                 <p className="text-sm text-muted-foreground">
                   {rewardApplied
                     ? `Você ganhou +${rewardAmount} gerações e a barra já foi atualizada.`

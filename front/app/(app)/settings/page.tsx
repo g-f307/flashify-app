@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { KeyRound, LogOut, Palette } from "lucide-react";
+import { KeyRound, LogOut, Palette, Volume2 } from "lucide-react";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import {
   Dialog,
@@ -17,9 +17,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ThemeSelector } from "@/components/theme-selector";
+import { Switch } from "@/components/ui/switch";
+import { useSound } from "@/contexts/sound-context";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const { soundEnabled, setSoundEnabled } = useSound();
 
   const getInitials = (name: string | undefined) => {
     if (!name) return "?";
@@ -69,6 +72,35 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="flex justify-center">
             <ThemeSelector />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Volume2 className="h-5 w-5" />
+              Sons
+            </CardTitle>
+            <CardDescription>
+              Ative efeitos sutis para respostas, conclusão de estudos e navegação de cards.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-muted/20 px-4 py-3 dark:border-zinc-800">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  Efeitos sonoros
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Reproduz sons em flashcards, quizzes, estudo guiado e relatórios.
+                </p>
+              </div>
+              <Switch
+                checked={soundEnabled}
+                onCheckedChange={setSoundEnabled}
+                aria-label="Ativar efeitos sonoros"
+              />
+            </div>
           </CardContent>
         </Card>
 

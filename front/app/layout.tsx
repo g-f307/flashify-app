@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { LoadingProvider } from "@/components/providers/loading-provider";
 import { GenerationLimitProvider } from "@/contexts/generation-limit-context";
+import { SoundProvider } from "@/contexts/sound-context";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from "@/components/ui/sonner"; 
 import Analytics from "@/components/analytics/Analytics";
@@ -58,7 +59,9 @@ export default function RootLayout({
             <LoadingProvider>
               <AuthProvider>
                 <GenerationLimitProvider>
-                  {children}
+                  <SoundProvider>
+                    {children}
+                  </SoundProvider>
                 </GenerationLimitProvider>
                 <Toaster /> 
               </AuthProvider>

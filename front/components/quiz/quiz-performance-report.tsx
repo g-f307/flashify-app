@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { FlashinhoExpressionVariant } from "@/lib/flashinho-expression";
+import { FlashinhoExpression } from "@/components/ui/flashinho-expression";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -16,6 +18,7 @@ import { apiClient } from "@/lib/api";
 import { useGenerationLimit } from "@/contexts/generation-limit-context";
 import { StudySessionFeedbackModal } from "@/components/feedback/study-session-feedback-modal";
 import { toast } from "sonner";
+import { useSound } from "@/contexts/sound-context";
 
 const QUIZ_BLUE = "#48cfea";
 const QUIZ_BLUE_DARK = "#1498c3";
@@ -24,27 +27,27 @@ const MAX_QUESTIONS = 15;
 const getQuizMotivationalMessage = (score: number) => {
   if (score >= 90) {
     return {
-      emoji: "🏆",
+      mascotVariant: "amei" as FlashinhoExpressionVariant,
       title: "Desempenho excelente",
       subtitle: "Você fechou este quiz com muita segurança e ótima precisão.",
     };
   }
   if (score >= 70) {
     return {
-      emoji: "🌊",
+      mascotVariant: "boa" as FlashinhoExpressionVariant,
       title: "Muito bom resultado",
       subtitle: "A base está firme. Vale só lapidar alguns detalhes para subir ainda mais.",
     };
   }
   if (score >= 50) {
     return {
-      emoji: "📘",
+      mascotVariant: "ok" as FlashinhoExpressionVariant,
       title: "Aprendizado em progresso",
       subtitle: "Você já construiu uma boa parte do caminho. Mais uma passada deve ajudar bastante.",
     };
   }
   return {
-    emoji: "🧭",
+    mascotVariant: "ruim" as FlashinhoExpressionVariant,
     title: "Hora de reforçar o conteúdo",
     subtitle: "Uma nova tentativa pode ajudar a fixar os pontos que ainda ficaram frágeis.",
   };
@@ -135,6 +138,7 @@ export function QuizPerformanceReport({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const { refreshLimitInfo } = useGenerationLimit();
+  const { playSound } = useSound();
 
   const message = getQuizMotivationalMessage(score);
   const canAddMore = totalQuestions < MAX_QUESTIONS;
@@ -147,6 +151,10 @@ export function QuizPerformanceReport({
       answeredQuestions: totalQuestions,
     };
   }, [correctAnswersCount, score, totalQuestions]);
+
+  useEffect(() => {
+    playSound(score >= 80 ? "sessionCelebration" : "sessionComplete");
+  }, [playSound, score]);
 
   const handleAddQuestions = async (quantity: number, difficulty: string) => {
     setIsAdding(true);
@@ -215,8 +223,14 @@ export function QuizPerformanceReport({
                     <div className="absolute top-3 -left-2 h-2 w-2 rounded-full bg-cyan-200 opacity-80" />
                     <div className="absolute -top-1 left-4 h-2 w-2 rounded-full bg-[#48cfea] opacity-75" />
 
-                    <div className="relative z-10 rounded-2xl bg-[#48cfea] p-4 text-black shadow-lg">
-                      <span className="text-2xl">{message.emoji}</span>
+                    <div className="relative z-10 rounded-[1rem] bg-[#48cfea] p-1 text-black shadow-lg sm:p-1.5">
+                      <FlashinhoExpression
+                        variant={message.mascotVariant}
+                        alt={message.title}
+                        className="h-44 w-44 sm:h-52 sm:w-52"
+                        sizes="(max-width: 640px) 176px, 208px"
+                        priority
+                      />
                     </div>
 
                     <div className="absolute -bottom-2 right-1 h-3 w-3 rounded-full bg-sky-300 opacity-60" />

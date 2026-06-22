@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { FlashinhoExpression } from "@/components/ui/flashinho-expression";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -24,6 +25,7 @@ import {
   getActionRecommendations,
   getMotivationalMessage,
 } from "@/lib/performance-utils";
+import { useSound } from "@/contexts/sound-context";
 
 const FLASH_YELLOW = "#facc15";
 const FLASH_YELLOW_DARK = "#f59e0b";
@@ -118,6 +120,7 @@ export function PerformanceReportResponsive({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const { refreshLimitInfo } = useGenerationLimit();
+  const { playSound } = useSound();
 
   const message = getMotivationalMessage(stats.performanceLevel, stats.accuracyPercentage);
   const recommendations = getActionRecommendations(stats);
@@ -131,6 +134,12 @@ export function PerformanceReportResponsive({
       masteredCards: stats.correctCards,
     };
   }, [stats]);
+
+  useEffect(() => {
+    playSound(
+      stats.accuracyPercentage >= 80 ? "sessionCelebration" : "sessionComplete"
+    );
+  }, [playSound, stats.accuracyPercentage]);
 
   const handleAddFlashcards = async (quantity: number, difficulty: string) => {
     setIsAdding(true);
@@ -199,8 +208,14 @@ export function PerformanceReportResponsive({
                     <div className="absolute top-3 -left-2 h-2 w-2 rounded-full bg-yellow-200 opacity-80" />
                     <div className="absolute -top-1 left-4 h-2 w-2 rounded-full bg-[#f59e0b] opacity-75" />
 
-                    <div className="relative z-10 rounded-2xl bg-[#facc15] p-4 text-black shadow-lg">
-                      <span className="text-2xl">{message.emoji}</span>
+                    <div className="relative z-10 rounded-[1rem] bg-[#facc15] p-1 text-black shadow-lg sm:p-1.5">
+                      <FlashinhoExpression
+                        variant={message.mascotVariant}
+                        alt={message.title}
+                        className="h-44 w-44 sm:h-52 sm:w-52"
+                        sizes="(max-width: 640px) 176px, 208px"
+                        priority
+                      />
                     </div>
 
                     <div className="absolute -bottom-2 right-1 h-3 w-3 rounded-full bg-amber-300 opacity-60" />

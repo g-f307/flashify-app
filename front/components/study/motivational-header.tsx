@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from 'framer-motion';
+import { FlashinhoExpression } from "@/components/ui/flashinho-expression";
 import { MotivationalMessage } from '@/lib/performance-utils';
 
 interface MotivationalHeaderProps {
@@ -35,8 +36,13 @@ export function MotivationalHeader({ message, currentCard, totalCards }: Motivat
           <div className="absolute top-3 -left-2 w-2 h-2 bg-green-400 rounded-full opacity-70"></div>
           <div className="absolute -top-1 left-4 w-2 h-2 bg-yellow-400 rounded-full opacity-80"></div>
           
-          <div className="bg-orange-500 p-4 rounded-2xl shadow-lg relative z-10">
-            <span className="text-2xl">{message.emoji}</span>
+          <div className="bg-orange-500 p-1.5 rounded-[1rem] shadow-lg relative z-10">
+            <FlashinhoExpression
+              variant={message.mascotVariant}
+              alt={message.title}
+              className="h-40 w-40 sm:h-48 sm:w-48"
+              sizes="(max-width: 640px) 160px, 192px"
+            />
           </div>
           
           <div className="absolute -bottom-2 right-1 w-3 h-3 bg-pink-400 rounded-full opacity-60"></div>

@@ -1,5 +1,7 @@
 // lib/performance-utils.ts
 
+import type { FlashinhoExpressionVariant } from "./flashinho-expression";
+
 export interface StudySession {
   flashcardId: number;
   accuracy: number; // 0.0 = Errei, 0.5 = Quase, 1.0 = Acertei
@@ -18,7 +20,7 @@ export interface PerformanceStats {
 export interface MotivationalMessage {
   title: string;
   subtitle: string;
-  emoji: string;
+  mascotVariant: FlashinhoExpressionVariant;
 }
 
 /**
@@ -77,68 +79,68 @@ export function getMotivationalMessage(performanceLevel: PerformanceStats['perfo
       {
         title: "Excelente trabalho!",
         subtitle: "Você dominou este conteúdo. Continue assim!",
-        emoji: "🎉"
+        mascotVariant: "amei"
       },
       {
         title: "Perfeito!",
         subtitle: "Seu desempenho foi excepcional. Parabéns!",
-        emoji: "⭐"
+        mascotVariant: "amei"
       },
       {
         title: "Fantástico!",
         subtitle: "Você realmente entende este material muito bem.",
-        emoji: "🚀"
+        mascotVariant: "amei"
       }
     ],
     good: [
       {
         title: "Bom trabalho!",
         subtitle: "Experimente algumas questões para revisão no Aprender.",
-        emoji: "👏"
+        mascotVariant: "boa"
       },
       {
         title: "Muito bem!",
         subtitle: "Você está no caminho certo. Continue praticando!",
-        emoji: "💪"
+        mascotVariant: "boa"
       },
       {
         title: "Ótimo progresso!",
         subtitle: "Seu esforço está dando resultado. Parabéns!",
-        emoji: "📈"
+        mascotVariant: "boa"
       }
     ],
     average: [
       {
         title: "Bom começo!",
         subtitle: "Continue praticando para melhorar ainda mais.",
-        emoji: "📚"
+        mascotVariant: "ok"
       },
       {
         title: "No caminho certo!",
         subtitle: "Com mais prática você vai dominar este conteúdo.",
-        emoji: "🎯"
+        mascotVariant: "ok"
       },
       {
         title: "Progredindo bem!",
         subtitle: "Cada sessão de estudo te deixa mais próximo do sucesso.",
-        emoji: "⚡"
+        mascotVariant: "ok"
       }
     ],
     needs_improvement: [
       {
         title: "Continue tentando!",
         subtitle: "A prática leva à perfeição. Não desista!",
-        emoji: "💡"
+        mascotVariant: "ruim"
       },
       {
         title: "Você consegue!",
         subtitle: "Revise o material e tente novamente. Você vai melhorar!",
-        emoji: "🌱"
+        mascotVariant: "ruim"
       },
       {
         title: "Persistência é a chave!",
         subtitle: "Cada erro é uma oportunidade de aprender algo novo.",
-        emoji: "🔑"
+        mascotVariant: "ruim"
       }
     ]
   };

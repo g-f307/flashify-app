@@ -28,6 +28,7 @@ import { QuestionStage } from "@/components/quiz/question-stage";
 import { EditQuestionModal } from "@/components/quiz/edit-question-modal";
 import { ResumeStudyDialog } from "@/components/study/resume-study-dialog";
 import { quizProgressManager, QuizProgress } from "@/lib/quiz-progress";
+import { useSound } from "@/contexts/sound-context";
 
 type AnswerStatus = 'unanswered' | 'correct' | 'incorrect';
 type AnswerFeedback = CheckAnswerResponse;
@@ -38,6 +39,7 @@ export default function QuizPage() {
     const router = useRouter();
     const documentId = Number(params.id);
     const { showLoading, hideLoading } = useLoading();
+    const { playSound } = useSound();
 
     const searchParams = useSearchParams();
     const mode = searchParams?.get('mode');
@@ -181,6 +183,7 @@ export default function QuizPage() {
             if (result && typeof result.is_correct !== 'undefined') {
                 setFeedback(result);
                 setAnswerStatus(result.is_correct ? 'correct' : 'incorrect');
+                playSound(result.is_correct ? "answerCorrect" : "answerIncorrect");
                 if (result.is_correct) {
                     setCorrectAnswersCount(prev => prev + 1);
                 }

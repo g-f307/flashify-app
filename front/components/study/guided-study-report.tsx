@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import type { FlashinhoExpressionVariant } from "@/lib/flashinho-expression";
+import { FlashinhoExpression } from "@/components/ui/flashinho-expression";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -14,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { GuidedStudy } from "@/lib/api";
 import { formatStudyTime } from "@/lib/performance-utils";
 import { StudySessionFeedbackModal } from "@/components/feedback/study-session-feedback-modal";
+import { useSound } from "@/contexts/sound-context";
 
 const GUIDED_GREEN = "#7FD9A0";
 const GUIDED_GREEN_DARK = "#4FA36E";
@@ -36,27 +39,27 @@ interface GuidedStudyReportProps {
 function getGuidedMessage(healthScore: number) {
   if (healthScore >= 90) {
     return {
-      emoji: "🌟",
+      mascotVariant: "amei" as FlashinhoExpressionVariant,
       title: "Trilha muito bem consolidada",
       subtitle: "Você terminou com ótima segurança no conteúdo revisado.",
     };
   }
   if (healthScore >= 75) {
     return {
-      emoji: "📘",
+      mascotVariant: "boa" as FlashinhoExpressionVariant,
       title: "Boa construção de base",
       subtitle: "A trilha avançou bem. Vale só reforçar alguns pontos.",
     };
   }
   if (healthScore >= 60) {
     return {
-      emoji: "🌱",
+      mascotVariant: "ok" as FlashinhoExpressionVariant,
       title: "Aprendizado em evolução",
       subtitle: "Você percorreu a trilha inteira, mas ainda há espaço para fixar melhor os conceitos.",
     };
   }
   return {
-    emoji: "🧭",
+    mascotVariant: "ruim" as FlashinhoExpressionVariant,
     title: "Hora de reforçar a trilha",
     subtitle: "A cobertura foi boa, mas a retenção ainda pede uma nova passada.",
   };
@@ -133,6 +136,7 @@ export function GuidedStudyReport({
   onRestart,
   onBack,
 }: GuidedStudyReportProps) {
+  const { playSound } = useSound();
   const stats = useMemo(() => {
     const totalTopics = guidedStudy.summary.topics_count;
     const totalSteps = guidedStudy.summary.steps_count;
@@ -185,6 +189,10 @@ export function GuidedStudyReport({
   const studyTime = formatStudyTime(sessionStartedAt, sessionCompletedAt);
   const retentionLabel = getRetentionLabel(stats.quizAccuracy);
 
+  useEffect(() => {
+    playSound(stats.healthScore >= 85 ? "sessionCelebration" : "sessionComplete");
+  }, [playSound, stats.healthScore]);
+
   return (
     <>
       <StudySessionFeedbackModal
@@ -223,8 +231,14 @@ export function GuidedStudyReport({
                   <div className="absolute top-3 -left-2 h-2 w-2 rounded-full bg-emerald-200 opacity-70" />
                   <div className="absolute -top-1 left-4 h-2 w-2 rounded-full bg-[#7FD9A0] opacity-80" />
 
-                  <div className="relative z-10 rounded-2xl bg-[#7FD9A0] p-3 text-black shadow-lg">
-                    <span className="text-xl">{message.emoji}</span>
+                  <div className="relative z-10 rounded-[1rem] bg-[#7FD9A0] p-1 text-black shadow-lg sm:p-1.5">
+                    <FlashinhoExpression
+                      variant={message.mascotVariant}
+                      alt={message.title}
+                      className="h-44 w-44 sm:h-52 sm:w-52"
+                      sizes="(max-width: 640px) 176px, 208px"
+                      priority
+                    />
                   </div>
 
                   <div className="absolute -bottom-2 right-1 h-3 w-3 rounded-full bg-emerald-300 opacity-60" />

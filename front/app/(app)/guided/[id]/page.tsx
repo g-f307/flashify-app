@@ -40,6 +40,7 @@ import { QuestionStage } from "@/components/quiz/question-stage";
 import { GuidedStudyReport } from "@/components/study/guided-study-report";
 import { useGenerationLimit } from "@/contexts/generation-limit-context";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { useSound } from "@/contexts/sound-context";
 
 type FlattenedStep = {
   topic: GuidedStudyTopic;
@@ -58,6 +59,7 @@ export default function GuidedStudyPage() {
   const documentId = Number(params.id);
   const shouldRestart = searchParams?.get("restart") === "1";
   const { refreshLimitInfo } = useGenerationLimit();
+  const { playSound } = useSound();
 
   const [guidedStudy, setGuidedStudy] = useState<GuidedStudy | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +179,7 @@ export default function GuidedStudyPage() {
       setIsCheckingAnswer(true);
       const fb = await apiClient.checkQuizAnswer(currentStep.question_id, selectedAnswerId);
       setAnswerFeedback(fb);
+      playSound(fb.is_correct ? "answerCorrect" : "answerIncorrect");
       setQuestionResults((prev) => {
         const next = prev.filter((result) => result.questionId !== currentStep.question_id);
         next.push({

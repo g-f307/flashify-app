@@ -1,7 +1,7 @@
 // front/app/(app)/study/[id]/page.tsx
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { apiClient, Document, Flashcard } from '@/lib/api';
 import { FlashcardStudyFinal } from '@/components/study/flashcard-study';
@@ -21,9 +21,6 @@ export default function StudyPage() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const flipAudioRef = useRef<HTMLAudioElement | null>(null);
-  
   const fetchStudyData = async () => {
     if (!documentId) return;
 
@@ -111,9 +108,6 @@ export default function StudyPage() {
 
   return (
     <>
-      <audio ref={flipAudioRef} preload="auto">
-        <source src="/card-flip.mp3" type="audio/mpeg" />
-      </audio>
       {document && (
         <FlashcardStudyFinal
           document={document}
@@ -126,7 +120,6 @@ export default function StudyPage() {
               Voltar
             </Button>
           }
-          flipAudioRef={flipAudioRef}
           onContentAdded={handleContentAdded}
         />
       )}

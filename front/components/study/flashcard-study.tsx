@@ -32,6 +32,7 @@ import {
   StudyProgress, 
   StudyProgressUtils 
 } from "@/lib/study-progress";
+import { useSound } from "@/contexts/sound-context";
 
 interface FlashcardStudyFinalProps {
   document: Document;
@@ -39,7 +40,6 @@ interface FlashcardStudyFinalProps {
   isReviewMode?: boolean;
   onBack: () => void;
   backButton?: React.ReactNode;
-  flipAudioRef: React.RefObject<HTMLAudioElement>;
   onContentAdded?: () => void;
 }
 
@@ -49,9 +49,9 @@ export function FlashcardStudyFinal({
   isReviewMode = false,
   onBack, 
   backButton,
-  flipAudioRef,
   onContentAdded
 }: FlashcardStudyFinalProps) {
+  const { playSound } = useSound();
   const [flashcards, setFlashcards] = useState<Flashcard[]>(initialFlashcards);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -130,11 +130,12 @@ export function FlashcardStudyFinal({
   const handleFlip = () => {
     if (isLogging) return;
     setIsFlipped(!isFlipped);
-    flipAudioRef.current?.play().catch(e => console.error("Erro ao tocar áudio:", e));
+    playSound("flashcardFlip");
   };
 
   const goToNextCard = () => {
     setIsFlipped(false);
+    playSound("cardSlide");
     setTimeout(() => {
       if (currentCardIndex === flashcards.length - 1) {
         if (document.id === 0) {
@@ -153,6 +154,7 @@ export function FlashcardStudyFinal({
 
   const handlePrevCard = () => {
     setIsFlipped(false);
+    playSound("cardSlide", { volume: 0.18 });
     setTimeout(() => {
       setCurrentCardStartedAt(new Date().toISOString());
       setCurrentCardIndex((prev) => Math.max(0, prev - 1));
