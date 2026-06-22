@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Document, apiClient, LibraryData, Folder } from "@/lib/api";
 import { DocumentList } from "@/components/documents/document-list";
-import { Loader2, Plus, FolderPlus } from "lucide-react";
+import { Loader2, Plus, FolderPlus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { CreateFolderModal } from "@/components/documents/create-folder-modal";
@@ -21,14 +21,133 @@ import {
 } from "@/components/ui/pagination";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
+import { formatDocumentTitle } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 8;
+type DeckSortOption = "recent" | "oldest" | "name";
+
+function getPendingReviewsCount(document: Document) {
+  return (document.flashcards_pending || 0) + (document.questions_pending || 0);
+}
+
+function paginateDocuments(documents: Document[], page: number) {
+  return documents.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+}
+
+function SectionPagination({
+  currentPage,
+  totalPages,
+  onChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <Pagination className="mt-8">
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              onChange(Math.max(currentPage - 1, 1));
+            }}
+            className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+          />
+        </PaginationItem>
+        {Array.from({ length: totalPages }).map((_, index) => (
+          <PaginationItem key={index}>
+            <PaginationLink
+              href="#"
+              isActive={currentPage === index + 1}
+              onClick={(e) => {
+                e.preventDefault();
+                onChange(index + 1);
+              }}
+            >
+              {index + 1}
+            </PaginationLink>
+          </PaginationItem>
+        ))}
+        <PaginationItem>
+          <PaginationNext
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              onChange(Math.min(currentPage + 1, totalPages));
+            }}
+            className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  );
+}
+
+function DeckSection({
+  title,
+  count,
+  documents,
+  emptyTitle,
+  emptyDescription,
+  onNewUpload,
+  onUpdate,
+}: {
+  title: string;
+  count: number;
+  documents: Document[];
+  emptyTitle: string;
+  emptyDescription: string;
+  onNewUpload: () => void;
+  onUpdate: () => void;
+}) {
+  return (
+    <section>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-semibold tracking-tight text-foreground">
+            {title} <span className="text-muted-foreground">({count})</span>
+          </h3>
+        </div>
+      </div>
+
+      {documents.length > 0 ? (
+        <>
+          <DocumentList
+            documents={documents}
+            onNewUpload={onNewUpload}
+            onUpdate={onUpdate}
+          />
+        </>
+      ) : (
+        <Card className="rounded-2xl border border-dashed border-border/70 bg-card/70 px-5 py-8 text-center shadow-none dark:border-zinc-700/80 dark:bg-[#2a2e38]/70">
+          <p className="text-base font-semibold text-foreground">{emptyTitle}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{emptyDescription}</p>
+        </Card>
+      )}
+    </section>
+  );
+}
 
 export default function LibraryPage() {
   const router = useRouter();
   const [libraryData, setLibraryData] = useState<LibraryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<DeckSortOption>("recent");
   
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [folderToRename, setFolderToRename] = useState<Folder | null>(null);
@@ -53,6 +172,10 @@ export default function LibraryPage() {
   useEffect(() => {
     fetchLibraryData();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy, libraryData?.root_documents]);
 
   // A função handleDocumentSelect foi REMOVIDA
   const handleNewUpload = () => router.push("/create");
@@ -86,31 +209,110 @@ export default function LibraryPage() {
     }
   };
   
-  const rootDocuments = libraryData?.root_documents || [];
-  const totalPages = Math.ceil(rootDocuments.length / ITEMS_PER_PAGE);
-  const paginatedRootDocuments = rootDocuments.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+  const filteredRootDocuments = useMemo(() => {
+    const documents = libraryData?.root_documents || [];
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const searchedDocuments = normalizedSearch
+      ? documents.filter((document) => {
+          const displayName = formatDocumentTitle(document.file_path, document.title).toLowerCase();
+          const rawPath = document.file_path.toLowerCase();
+          return displayName.includes(normalizedSearch) || rawPath.includes(normalizedSearch);
+        })
+      : documents;
+
+    const sortedDocuments = [...searchedDocuments].sort((left, right) => {
+      if (sortBy === "name") {
+        return formatDocumentTitle(left.file_path, left.title).localeCompare(
+          formatDocumentTitle(right.file_path, right.title),
+          "pt-BR",
+          { sensitivity: "base" }
+        );
+      }
+
+      const leftTime = new Date(left.created_at).getTime();
+      const rightTime = new Date(right.created_at).getTime();
+
+      return sortBy === "oldest" ? leftTime - rightTime : rightTime - leftTime;
+    });
+
+    return sortedDocuments;
+  }, [libraryData?.root_documents, searchTerm, sortBy]);
+
+  const pendingDocuments = useMemo(
+    () => filteredRootDocuments.filter((document) => getPendingReviewsCount(document) > 0),
+    [filteredRootDocuments]
+  );
+
+  const regularDocuments = useMemo(
+    () => filteredRootDocuments.filter((document) => getPendingReviewsCount(document) === 0),
+    [filteredRootDocuments]
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filteredRootDocuments.length / ITEMS_PER_PAGE));
+  const paginatedDocuments = useMemo(
+    () => paginateDocuments(filteredRootDocuments, currentPage),
+    [filteredRootDocuments, currentPage]
+  );
+
+  const paginatedPendingDocuments = useMemo(
+    () => paginatedDocuments.filter((document) => getPendingReviewsCount(document) > 0),
+    [paginatedDocuments]
+  );
+
+  const paginatedRegularDocuments = useMemo(
+    () => paginatedDocuments.filter((document) => getPendingReviewsCount(document) === 0),
+    [paginatedDocuments]
   );
 
   return (
     <>
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Minha Biblioteca</h2>
+                <p className="text-muted-foreground mt-1">Organize os seus estudos em pastas e decks.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setIsCreateFolderModalOpen(true)} variant="outline">
+                  <FolderPlus className="w-4 h-4 mr-2" />
+                  Nova Pasta
+                </Button>
+                <Button onClick={handleNewUpload}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo Deck
+                </Button>
+              </div>
+          </div>
+
+          <div className="grid items-center gap-3 sm:grid-cols-[minmax(0,1fr)_220px] xl:max-w-[760px]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar deck..."
+                className="h-11 rounded-xl border border-black/10 bg-background pl-11 dark:border-white/10 dark:bg-[#1b1f28]"
+              />
+            </div>
+
             <div>
-              <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Minha Biblioteca</h2>
-              <p className="text-muted-foreground mt-1">Organize os seus estudos em pastas e decks.</p>
+              <Select value={sortBy} onValueChange={(value) => setSortBy(value as DeckSortOption)}>
+                <SelectTrigger
+                  aria-label="Ordenar decks"
+                  className="h-11 w-full rounded-xl border border-black/10 bg-background dark:border-white/10 dark:bg-[#1b1f28]"
+                >
+                  <SelectValue placeholder="Ordenar por" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Mais recentes</SelectItem>
+                  <SelectItem value="oldest">Mais antigas</SelectItem>
+                  <SelectItem value="name">Nome A-Z</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex items-center gap-2">
-              <Button onClick={() => setIsCreateFolderModalOpen(true)} variant="outline">
-                <FolderPlus className="w-4 h-4 mr-2" />
-                Nova Pasta
-              </Button>
-              <Button onClick={handleNewUpload}>
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Deck
-              </Button>
-            </div>
+          </div>
         </div>
 
         {loading ? (
@@ -136,28 +338,45 @@ export default function LibraryPage() {
             )}
 
             <section>
-              <h3 className="text-xl font-semibold tracking-tight mb-4">Decks na Biblioteca</h3>
-              <DocumentList
-                documents={paginatedRootDocuments}
-                onNewUpload={handleNewUpload}
-                onUpdate={fetchLibraryData}
-              />
-              {totalPages > 1 && (
-                <Pagination className="mt-8">
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.max(p - 1, 1)); }} className={currentPage === 1 ? "pointer-events-none opacity-50" : ""} />
-                    </PaginationItem>
-                    {[...Array(totalPages)].map((_, i) => (
-                      <PaginationItem key={i}>
-                        <PaginationLink href="#" isActive={currentPage === i + 1} onClick={(e) => { e.preventDefault(); setCurrentPage(i + 1); }}>{i + 1}</PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                      <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.min(p + 1, totalPages)); }} className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""} />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
+              {filteredRootDocuments.length === 0 ? (
+                <Card className="rounded-2xl border border-dashed border-border/70 bg-card/70 px-5 py-10 text-center shadow-none dark:border-zinc-700/80 dark:bg-[#2a2e38]/70">
+                  <p className="text-base font-semibold text-foreground">Nenhum deck encontrado</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Tente outro termo de busca ou altere a ordenação para localizar seus decks.
+                  </p>
+                </Card>
+              ) : (
+                <div className="space-y-10">
+                  {pendingDocuments.length > 0 ? (
+                    <DeckSection
+                      title="Revisões pendentes"
+                      count={pendingDocuments.length}
+                      documents={paginatedPendingDocuments}
+                      emptyTitle="Nenhum deck com revisão pendente nesta página"
+                      emptyDescription="Os decks com revisão pendente aparecem aqui quando fazem parte do recorte atual da paginação."
+                      onNewUpload={handleNewUpload}
+                      onUpdate={fetchLibraryData}
+                    />
+                  ) : null}
+
+                  {regularDocuments.length > 0 ? (
+                    <DeckSection
+                      title="Sem revisões pendentes"
+                      count={regularDocuments.length}
+                      documents={paginatedRegularDocuments}
+                      emptyTitle="Nenhum deck sem revisão pendente nesta página"
+                      emptyDescription="Os decks sem revisão pendente aparecem aqui quando fazem parte do recorte atual da paginação."
+                      onNewUpload={handleNewUpload}
+                      onUpdate={fetchLibraryData}
+                    />
+                  ) : null}
+
+                  <SectionPagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onChange={setCurrentPage}
+                  />
+                </div>
               )}
             </section>
           </div>
