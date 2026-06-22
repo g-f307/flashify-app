@@ -392,6 +392,124 @@ export interface ProgressStats {
   quiz_average_score: number;
 }
 
+export interface ProgressTrend {
+  direction: "up" | "down" | "stable" | "new";
+  value: number | null;
+  unit: "percent" | "percentage_points" | null;
+  label: string;
+}
+
+export interface ProgressMetric {
+  value: number | null;
+  trend: ProgressTrend;
+  series: Array<number | null>;
+}
+
+export interface GuidedProgressMetric extends ProgressMetric {
+  active_path_id: string | null;
+  active_path_name: string | null;
+  active_path_document_id: number | null;
+}
+
+export interface ProgressPeriod {
+  start: string;
+  end: string;
+  timezone: string;
+}
+
+export interface ProgressMotivation {
+  type: string;
+  title: string;
+  message: string;
+  illustration: string;
+}
+
+export interface ProgressDailyActivity {
+  date: string;
+  label: string;
+  flashcards: number;
+  quizInteractions: number;
+  guidedSteps: number;
+  total: number;
+}
+
+export interface ProgressInsight {
+  type: string;
+  text: string;
+}
+
+export interface ProgressRankingEntry {
+  rank: number;
+  display_name: string;
+  avatar_url: string | null;
+  points: number;
+  is_current_user: boolean;
+}
+
+export interface ProgressRanking {
+  entries: ProgressRankingEntry[];
+  current_user_rank: number | null;
+  updated_at: string;
+  total_participants: number;
+}
+
+export interface GuidedPathRecommendation {
+  document_id: number;
+  title: string;
+  progress: number;
+  progress_label: string;
+  action_url: string;
+  action_label: string;
+  step_label: string;
+}
+
+export interface QuizRecommendation {
+  document_id: number;
+  title: string;
+  question_count: number;
+  difficulty_label: string;
+  reason: string;
+  action_url: string;
+  action_label: string;
+}
+
+export interface ReviewRecommendation {
+  document_id: number | null;
+  title: string;
+  due_count: number;
+  subtitle: string;
+  action_url: string | null;
+  action_label: string;
+}
+
+export interface ProgressOverviewResponse {
+  period: ProgressPeriod;
+  motivation: ProgressMotivation;
+  summary: {
+    flashcards: ProgressMetric;
+    quizzes: ProgressMetric;
+    guided: GuidedProgressMetric;
+    performance: ProgressMetric;
+  };
+  activity: ProgressDailyActivity[];
+  insight: ProgressInsight;
+  ranking: ProgressRanking;
+  recommendations: {
+    guided_path: GuidedPathRecommendation | null;
+    quiz: QuizRecommendation | null;
+    review: ReviewRecommendation;
+  };
+}
+
+export interface ProgressRankingPageResponse {
+  entries: ProgressRankingEntry[];
+  current_user_rank: number | null;
+  updated_at: string;
+  total_participants: number;
+  limit: number;
+  offset: number;
+}
+
 export interface DashboardSummary {
   reviewed_decks_today: number;
   flashcards_reviewed_today: number;
@@ -1228,6 +1346,29 @@ class ApiClient {
   async getProgressStats(): Promise<ProgressStats> {
     const timezoneOffset = new Date().getTimezoneOffset();
     return this.request<ProgressStats>(`/progress/stats?utc_offset_minutes=${timezoneOffset}`);
+  }
+
+  async getProgressOverview(): Promise<ProgressOverviewResponse> {
+    const timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    return this.request<ProgressOverviewResponse>(
+      `/progress/overview?timezone_name=${encodeURIComponent(timezoneName)}`
+    );
+  }
+
+  async getProgressRanking(
+    limit = 50,
+    offset = 0,
+    signal?: AbortSignal
+  ): Promise<ProgressRankingPageResponse> {
+    const timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const params = new URLSearchParams({
+      timezone_name: timezoneName,
+      limit: String(limit),
+      offset: String(offset),
+    });
+    return this.request<ProgressRankingPageResponse>(`/progress/ranking?${params.toString()}`, {
+      signal,
+    });
   }
 
   async getDashboardSummary(): Promise<DashboardSummary> {

@@ -1248,6 +1248,10 @@ def save_guided_study_progress(
     db_session = session.exec(statement).first()
 
     now = datetime.now(timezone.utc)
+    previous_completed_steps = set((db_session.completed_step_ids or []) if db_session else [])
+    next_completed_steps = set(body.completed_step_ids or [])
+    newly_completed_steps = sorted(next_completed_steps - previous_completed_steps)
+    was_completed = bool(db_session and db_session.completed_at is not None)
 
     if db_session:
         db_session.completed_step_ids = body.completed_step_ids
@@ -1267,6 +1271,30 @@ def save_guided_study_progress(
         )
 
     session.add(db_session)
+
+    for step_id in newly_completed_steps:
+        track_product_event(
+            session,
+            "guided_step_completed",
+            user_id=current_user.id,
+            document_id=document_id,
+            properties={
+                "step_id": step_id,
+                "total_completed_steps": len(next_completed_steps),
+            },
+        )
+
+    if body.is_completed and not was_completed:
+        track_product_event(
+            session,
+            "guided_path_completed",
+            user_id=current_user.id,
+            document_id=document_id,
+            properties={
+                "completed_steps": len(next_completed_steps),
+            },
+        )
+
     session.commit()
     session.refresh(db_session)
 
