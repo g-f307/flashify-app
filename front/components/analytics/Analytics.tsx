@@ -42,7 +42,7 @@ function RouteTracker({ gaMeasurementId }: { gaMeasurementId: string | undefined
 
 const Analytics = () => {
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
-  const googleAdsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID
+  const googleAdsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID || "AW-18267058425"
   const clarityProjectId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID
 
   return (
