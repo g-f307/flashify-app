@@ -34,6 +34,31 @@ export const trackConversion = (conversionLabel: string, value?: number) => {
   }
 }
 
+/**
+ * Tracking de conversão do Google Ads com send_to completo.
+ */
+export const trackAdsConversion = (
+  sendTo: string,
+  value = 0,
+  currency = "BRL",
+  eventCallback?: () => void
+) => {
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", "conversion", {
+      send_to: sendTo,
+      value,
+      currency,
+      event_callback: eventCallback,
+    })
+    console.log("💰 Ads conversion tracked:", sendTo)
+    return
+  }
+
+  if (eventCallback) {
+    eventCallback()
+  }
+}
+
 // ==================== EVENTOS PRÉ-CONFIGURADOS ====================
 
 /**

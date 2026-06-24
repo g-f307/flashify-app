@@ -6,6 +6,7 @@ import { MessageSquare, Send, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { trackAdsConversion } from "@/lib/analytics-utils";
 import HeroWaveDivider from "./HeroWaveDivider";
 
 const ContactSection = () => {
@@ -37,8 +38,21 @@ Data: ${new Date().toLocaleString('pt-BR')}
     // Criar o link mailto
     const mailtoLink = `mailto:flashify.study@gmail.com?subject=Feedback do Flashify - ${formData.name}&body=${encodeURIComponent(emailBody)}`;
 
-    // Abrir o cliente de email
-    window.location.href = mailtoLink;
+    let mailtoOpened = false;
+    const openMailto = () => {
+      if (mailtoOpened) return;
+      mailtoOpened = true;
+      window.location.href = mailtoLink;
+    };
+
+    trackAdsConversion(
+      "AW-18267058425/M48pCJecw8QcEPnhtIZE",
+      1.0,
+      "BRL",
+      openMailto
+    );
+
+    setTimeout(openMailto, 1000);
 
     // Simular tempo de processamento
     setTimeout(() => {
