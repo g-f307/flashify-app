@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, s
 from sqlmodel import Session, select
 from typing_extensions import Annotated
 
-from .. import crud, models, security, schemas
+from .. import crud, guided_study, models, security, schemas
 from ..analytics import mark_user_first_deck_created, track_product_event
 from ..database import get_session
 from ..pdf_page_selection import PageSelectionError, parse_page_selection
@@ -1130,7 +1130,7 @@ def get_document_guided_study(
     if db_document.status != models.DocumentStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="O deck ainda não está pronto para iniciar o estudo guiado.")
 
-    requires_generation = _guided_study_requires_ai_generation(db_document)
+    requires_generation = guided_study.guided_study_requires_ai_generation(db_document)
 
     if requires_generation:
         can_generate, remaining = crud.can_user_generate_deck(session, current_user)
@@ -1147,7 +1147,7 @@ def get_document_guided_study(
                 }
             )
 
-    response = _build_guided_study_response(db_document, session)
+    response = guided_study.build_guided_study_response(db_document, session)
 
     if requires_generation and not response.summary.is_fallback:
         crud.increment_user_generation_count(session, current_user.id)
@@ -1224,7 +1224,7 @@ def restructure_guided_study(
 
     _clear_guided_study_cache(db_document, session)
     db_document = crud.get_document_with_details_for_update(session, document_id)
-    response = _build_guided_study_response(db_document, session)
+    response = guided_study.build_guided_study_response(db_document, session)
     if not response.summary.is_fallback:
         crud.increment_user_generation_count(session, current_user.id)
     return {"message": "Trilha reestruturada com sucesso."}

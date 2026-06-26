@@ -7,6 +7,7 @@ from .worker import celery_app
 from .database import engine
 from . import crud, models, schemas
 from .analytics import track_product_event
+from .guided_study import build_guided_study_response
 from .pdf_page_selection import PageSelectionError, parse_page_selection
 from .text_extractor import extract_text_from_file, get_pdf_page_count
 from .ai_generator import generate_flashcards_from_text, generate_quiz_from_text
@@ -165,6 +166,30 @@ def process_document(
                 )
                 success_parts.append("1 quiz")
 
+            guided_generated = False
+            if content_type == "both":
+                db_document = crud.get_document_with_details_for_update(session, document_id)
+                if not db_document:
+                    raise ValueError("Documento não encontrado ao gerar estudo guiado.")
+
+                db_document.current_step = "gerando estudo guiado"
+                session.add(db_document)
+                session.commit()
+                print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
+
+                build_guided_study_response(db_document, session)
+                guided_generated = True
+
+                db_document = crud.get_document(session=session, document_id=document_id)
+                if not db_document:
+                    raise ValueError("Documento não encontrado após salvar estudo guiado.")
+
+                db_document.current_step = "salvando estudo guiado"
+                session.add(db_document)
+                session.commit()
+                print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
+                success_parts.append("estudo guiado")
+
             db_document.status = models.DocumentStatus.COMPLETED
             db_document.current_step = "concluído"
             db_document.processing_progress = 100
@@ -179,6 +204,7 @@ def process_document(
                     "content_type": content_type,
                     "flashcards_created": len(flashcards_data or []),
                     "quiz_created": bool(quiz_data_dict),
+                    "guided_study_created": guided_generated,
                 },
             )
             
