@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Globe, Trophy, ExternalLink, Info, Loader2, Medal } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,10 +73,11 @@ export function ProgressRankingCard({ ranking }: ProgressRankingCardProps) {
   const [loading, setLoading] = useState(false);
   const [loadAttempted, setLoadAttempted] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const requestControllerRef = useRef<AbortController | null>(null);
   const hasCompletePreview = ranking.entries.length >= ranking.total_participants;
 
-  useEffect(() => {
-    if (!open || fullRanking || loading || loadAttempted) return;
+  const loadFullRanking = async () => {
+    if (fullRanking || loading || loadAttempted) return;
 
     if (hasCompletePreview) {
       setFullRanking({
@@ -91,50 +92,57 @@ export function ProgressRankingCard({ ranking }: ProgressRankingCardProps) {
       return;
     }
 
-    let cancelled = false;
+    requestControllerRef.current?.abort();
     const controller = new AbortController();
+    requestControllerRef.current = controller;
     const timeoutId = window.setTimeout(() => {
       controller.abort();
     }, 8000);
 
-    const load = async () => {
-      try {
-        setLoading(true);
-        setLoadError(null);
-        const data = await apiClient.getProgressRanking(50, 0, controller.signal);
-        if (!cancelled) setFullRanking(data);
-      } catch (error: any) {
-        if (!cancelled) {
-          setLoadError(
-            error?.name === "AbortError"
-              ? "O ranking completo demorou demais para responder. Exibindo a versão disponível."
-              : error?.message || "Não foi possível carregar o ranking completo agora."
-          );
-        }
-      } finally {
-        window.clearTimeout(timeoutId);
-        if (!cancelled) {
-          setLoading(false);
-          setLoadAttempted(true);
-        }
-      }
-    };
-
-    load();
-    return () => {
-      cancelled = true;
+    try {
+      setLoading(true);
+      setLoadError(null);
+      const data = await apiClient.getProgressRanking(50, 0, controller.signal);
+      if (requestControllerRef.current !== controller) return;
+      setFullRanking(data);
+    } catch (error: any) {
+      if (requestControllerRef.current !== controller) return;
+      setLoadError(
+        error?.name === "AbortError"
+          ? "O ranking completo demorou demais para responder. Exibindo a versão disponível."
+          : error?.message || "Não foi possível carregar o ranking completo agora."
+      );
+    } finally {
       window.clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [open, fullRanking, loading, loadAttempted, hasCompletePreview, ranking]);
+      if (requestControllerRef.current !== controller) return;
+      requestControllerRef.current = null;
+      setLoading(false);
+      setLoadAttempted(true);
+    }
+  };
 
   useEffect(() => {
-    if (!open) {
+    return () => {
+      requestControllerRef.current?.abort();
+      requestControllerRef.current = null;
+    };
+  }, []);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+
+    if (!nextOpen) {
+      requestControllerRef.current?.abort();
+      requestControllerRef.current = null;
+      setLoading(false);
       setLoadAttempted(false);
       setLoadError(null);
       setFullRanking(null);
+      return;
     }
-  }, [open]);
+
+    void loadFullRanking();
+  };
 
   return (
     <>
@@ -178,7 +186,7 @@ export function ProgressRankingCard({ ranking }: ProgressRankingCardProps) {
 
         <Button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => handleOpenChange(true)}
           className="mt-5 h-11 w-full rounded-2xl border border-[#fdbe0c]/15 bg-gradient-to-r from-[#fff3c8] to-[#ffefbe] text-[#2a3a52] hover:opacity-95 dark:border-[#fdbe0c]/10 dark:from-[#3e3521] dark:to-[#2f2918] dark:text-white"
           variant="ghost"
         >
@@ -192,7 +200,7 @@ export function ProgressRankingCard({ ranking }: ProgressRankingCardProps) {
         </div>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-h-[85vh] overflow-hidden rounded-[28px] border border-[#e7edf3] bg-white p-0 sm:max-w-[720px] dark:border-zinc-800 dark:bg-[#131923]">
           <DialogHeader className="border-b border-[#edf1f5] px-6 py-5 dark:border-zinc-800">
             <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-[#182738] dark:text-white">
