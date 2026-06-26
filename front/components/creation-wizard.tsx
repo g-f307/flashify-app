@@ -34,10 +34,12 @@ import {
   Sprout,
   Leaf,
   Trees,
+  Map,
+  CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
 
-type WizardStepId = "name" | "content" | "pdf-pages" | "customize";
+type WizardStepId = "name" | "content" | "pdf-pages" | "customize" | "review";
 
 type WizardData = {
   name: string;
@@ -101,6 +103,55 @@ const ACCEPTED_FILE_TYPES = [
 ];
 const ACCEPTED_FILE_TYPES_STRING = ".pdf, .jpg, .jpeg, .png, .docx, .pptx";
 const ACCEPTED_FILE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".docx", ".pptx"];
+
+const OUTPUT_THEMES = {
+  flashcards: {
+    badge: "bg-[#FACC15]/15 text-[#8a6400] dark:bg-[#FACC15]/12 dark:text-[#f2d772]",
+    border: "border-[#FACC15]/30 dark:border-[#FACC15]/20",
+    panel: "bg-[#FACC15]/7 dark:bg-[#FACC15]/6",
+    text: "text-foreground",
+    softText: "text-muted-foreground",
+  },
+  quiz: {
+    badge: "bg-[#48cfea]/15 text-[#0f7893] dark:bg-[#48cfea]/12 dark:text-[#88e7ff]",
+    border: "border-[#48cfea]/28 dark:border-[#48cfea]/20",
+    panel: "bg-[#48cfea]/7 dark:bg-[#48cfea]/6",
+    text: "text-foreground",
+    softText: "text-muted-foreground",
+  },
+  guided: {
+    badge: "bg-[#7FD9A0]/16 text-[#2d7d4c] dark:bg-[#7FD9A0]/12 dark:text-[#a7edc1]",
+    border: "border-[#7FD9A0]/28 dark:border-[#7FD9A0]/20",
+    panel: "bg-[#7FD9A0]/7 dark:bg-[#7FD9A0]/6",
+    text: "text-foreground",
+    softText: "text-muted-foreground",
+  },
+} as const;
+
+const CREATE_MODE_STYLES = {
+  flashcards: "data-[state=on]:border-[#FACC15] data-[state=on]:bg-[#FACC15] data-[state=on]:text-black font-semibold shadow-[0_4px_14px_-4px_rgba(250,204,21,0.5)] dark:data-[state=on]:border-[#FACC15] dark:data-[state=on]:bg-[#FACC15] dark:data-[state=on]:text-black",
+  quiz: "data-[state=on]:border-[#48cfea] data-[state=on]:bg-[#48cfea] data-[state=on]:text-black font-semibold shadow-[0_4px_14px_-4px_rgba(72,207,234,0.5)] dark:data-[state=on]:border-[#48cfea] dark:data-[state=on]:bg-[#48cfea] dark:data-[state=on]:text-black",
+  both: "data-[state=on]:border-[#7FD9A0] data-[state=on]:bg-[#7FD9A0] data-[state=on]:text-black font-semibold shadow-[0_4px_14px_-4px_rgba(127,217,160,0.5)] dark:data-[state=on]:border-[#7FD9A0] dark:data-[state=on]:bg-[#7FD9A0] dark:data-[state=on]:text-black",
+} as const;
+
+const CREATE_MODE_BASE_STYLES = {
+  flashcards: "border-gray-200 bg-transparent text-muted-foreground hover:bg-muted/30 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-white/5",
+  quiz: "border-gray-200 bg-transparent text-muted-foreground hover:bg-muted/30 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-white/5",
+  both: "border-gray-200 bg-transparent text-muted-foreground hover:bg-muted/30 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-white/5",
+} as const;
+
+const CONTENT_SLIDER_STYLES = {
+  flashcards:
+    "[&_[data-slot=slider-track]]:bg-[#FACC15]/18 dark:[&_[data-slot=slider-track]]:bg-[#FACC15]/14 [&_[data-slot=slider-range]]:bg-[#FACC15] [&_[data-slot=slider-thumb]]:border-[#FACC15] [&_[data-slot=slider-thumb]]:bg-background",
+  quiz:
+    "[&_[data-slot=slider-track]]:bg-[#48cfea]/18 dark:[&_[data-slot=slider-track]]:bg-[#48cfea]/14 [&_[data-slot=slider-range]]:bg-[#48cfea] [&_[data-slot=slider-thumb]]:border-[#48cfea] [&_[data-slot=slider-thumb]]:bg-background",
+} as const;
+
+const DIFFICULTY_STYLES = {
+  easy: "data-[state=on]:border-emerald-300 data-[state=on]:bg-emerald-500/10 data-[state=on]:text-foreground dark:data-[state=on]:border-emerald-500/35 dark:data-[state=on]:bg-emerald-500/8",
+  medium: "data-[state=on]:border-amber-300 data-[state=on]:bg-amber-500/10 data-[state=on]:text-foreground dark:data-[state=on]:border-amber-500/35 dark:data-[state=on]:bg-amber-500/8",
+  hard: "data-[state=on]:border-red-300 data-[state=on]:bg-red-500/10 data-[state=on]:text-foreground dark:data-[state=on]:border-red-500/35 dark:data-[state=on]:bg-red-500/8",
+} as const;
 
 interface CreationWizardProps {
   onCreationSuccess: () => void;
@@ -250,6 +301,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     data.contentType === "flashcards" || data.contentType === "both";
   const requestedGeneratesQuizzes =
     data.contentType === "quiz" || data.contentType === "both";
+  const requestedGeneratesGuided = data.contentType === "both";
   const requestedGenerationUnits = data.contentType === "both" ? 2 : 1;
   const isPdfUpload = data.inputType === "upload" && getFileExtension(data.file) === ".pdf";
   const totalPdfPages = pdfInspectInfo?.total_pages || 0;
@@ -260,8 +312,47 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
     { id: "content" as const, name: "Conteúdo", icon: FileText },
     ...(isPdfUpload ? [{ id: "pdf-pages" as const, name: "Páginas", icon: FileText }] : []),
     { id: "customize" as const, name: "Customizar", icon: Settings2 },
+    { id: "review" as const, name: "Revisar", icon: CheckCircle2 },
   ];
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep);
+  const sourceLabel =
+    data.inputType === "text"
+      ? "Texto colado"
+      : data.file
+        ? data.file.name
+        : "Arquivo enviado";
+  const pageSelectionLabel = !isPdfUpload
+    ? null
+    : useAllPdfPages
+      ? "Todas as páginas"
+      : `Páginas ${pageSelection.trim()}`;
+  const outputSummary = [
+    requestedGeneratesFlashcards
+      ? {
+          id: "flashcards",
+          title: "Flashcards",
+          description: `${data.num_flashcards} cards para revisão e memorização`,
+        }
+      : null,
+    requestedGeneratesQuizzes
+      ? {
+          id: "quiz",
+          title: "Quiz",
+          description: `${data.num_questions} perguntas com dificuldade ${data.difficulty.toLowerCase()}`,
+        }
+      : null,
+    requestedGeneratesGuided
+      ? {
+          id: "guided",
+          title: "Estudo guiado",
+          description: "Trilha montada automaticamente a partir de flashcards e quiz",
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    id: keyof typeof OUTPUT_THEMES;
+    title: string;
+    description: string;
+  }>;
 
   const resetPdfSelectionState = () => {
     setPdfInspectInfo(null);
@@ -315,6 +406,9 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         }
         if (data.contentType === 'quiz' || data.contentType === 'both') {
             createdItems.push('Quiz');
+        }
+        if (data.contentType === 'both') {
+            createdItems.push('Estudo guiado');
         }
         
         // 🎯 ATUALIZAR O LIMITE REAL APENAS QUANDO CONCLUIR COM SUCESSO
@@ -514,31 +608,42 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   };
 
   const WizardProgress = () => (
-    <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 p-3 sm:p-4 overflow-x-auto">
-        {steps.map((s, index) => (
+    <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-3 py-3 sm:py-4 px-2 overflow-x-auto">
+        {steps.map((s, index) => {
+          const isCompleted = index < currentStepIndex;
+          const isActive = s.id === currentStep;
+          return (
             <div key={s.id} className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                 <div className={cn(
-                  "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0",
-                  index < currentStepIndex ? "bg-primary text-primary-foreground" : 
-                  s.id === currentStep ? "bg-primary/20 border-2 border-primary text-primary" : 
-                  "bg-muted text-muted-foreground"
+                  "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0",
+                  isCompleted
+                    ? "bg-[#FACC15] text-black shadow-[0_4px_12px_-4px_rgba(250,204,21,0.5)]"
+                    : isActive
+                      ? "bg-[#FACC15]/15 border-[1.5px] border-[#FACC15]/60 text-[#FACC15] dark:bg-[#FACC15]/12 dark:border-[#FACC15]/40"
+                      : "bg-muted/60 text-muted-foreground/50 dark:bg-zinc-800/60"
                 )}>
-                    <s.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+                    ) : (
+                      <s.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    )}
                 </div>
                 <span className={cn(
-                  "font-medium text-xs sm:text-sm hidden sm:inline transition-colors whitespace-nowrap",
-                  s.id === currentStep ? "text-primary" : "text-muted-foreground"
+                  "font-medium text-xs sm:text-sm hidden sm:inline transition-colors duration-300 whitespace-nowrap",
+                  isCompleted ? "text-foreground" :
+                  isActive ? "text-foreground font-semibold" : "text-muted-foreground/60"
                 )}>
                   {s.name}
                 </span>
                 {index < steps.length - 1 && (
                   <div className={cn(
-                    "h-0.5 w-4 sm:w-8 md:w-12 transition-all flex-shrink-0",
-                    index < currentStepIndex ? "bg-primary" : "bg-muted"
+                    "h-[1.5px] w-4 sm:w-6 md:w-10 rounded-full transition-all duration-500 flex-shrink-0",
+                    isCompleted ? "bg-[#FACC15]/70" : "bg-border/50 dark:bg-zinc-700/50"
                   )}/>
                 )}
             </div>
-        ))}
+          );
+        })}
     </div>
   );
 
@@ -551,6 +656,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
               currentStepMessage={processingDocument?.current_step}
               generatesFlashcards={requestedGeneratesFlashcards}
               generatesQuizzes={requestedGeneratesQuizzes}
+              generatesGuided={requestedGeneratesGuided}
             />
           </CardContent>
         </div>
@@ -564,9 +670,9 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
             variant="ghost" 
             size="sm" 
             onClick={handleBack} 
-            className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 h-8 sm:h-9"
+            className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 h-8 sm:h-9 text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" /> 
+            <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> 
             <span className="text-xs sm:text-sm">Voltar</span>
           </Button>
         )}
@@ -590,11 +696,11 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                 </div>
               )}
             </div>
-            <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-3 sm:mb-4">
-              <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+            <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#FACC15]/10 mb-3 sm:mb-4 dark:bg-[#FACC15]/8">
+              <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-[#FACC15]" />
             </div>
-            <CardTitle className="text-xl sm:text-2xl">Vamos começar!</CardTitle>
-            <CardDescription className="mt-2 text-sm sm:text-base px-2">
+            <CardTitle className="text-xl sm:text-2xl tracking-tight">Vamos começar!</CardTitle>
+            <CardDescription className="mt-2 text-sm sm:text-base px-2 text-muted-foreground/90">
               Dê um nome para o seu novo deck de estudos.
             </CardDescription>
             <Input 
@@ -602,7 +708,7 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
               placeholder="Ex: Biologia - Fotossíntese" 
               value={data.name} 
               onChange={(e) => setData({ ...data, name: e.target.value })} 
-              className="mt-4 sm:mt-6 max-w-sm mx-auto text-center text-base sm:text-lg h-11 sm:h-12"
+              className="mt-4 sm:mt-6 max-w-sm mx-auto text-center text-base sm:text-lg h-11 sm:h-12 border-border/60 dark:border-zinc-700/70"
             />
             <Button 
               onClick={handleNext} 
@@ -616,10 +722,10 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         
         {currentStep === "content" && (
           <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-            <CardTitle className="text-center text-xl sm:text-2xl mt-8 sm:mt-0">
+            <CardTitle className="text-center text-xl sm:text-2xl mt-8 sm:mt-0 tracking-tight">
               Forneça o Conteúdo
             </CardTitle>
-            <CardDescription className="text-center mt-2 text-sm sm:text-base px-2">
+            <CardDescription className="text-center mt-2 text-sm sm:text-base px-2 text-muted-foreground/90">
               Escolha como inserir o seu material de estudo.
             </CardDescription>
              <Tabs 
@@ -730,12 +836,12 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         {currentStep === "pdf-pages" && (
           <CardContent className="pt-8 pb-6 px-4 sm:px-6 space-y-5">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-3 sm:mb-4">
-                <FileText className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#48cfea]/10 mb-3 sm:mb-4 dark:bg-[#48cfea]/8">
+                <FileText className="w-7 h-7 sm:w-8 sm:h-8 text-[#48cfea]" />
               </div>
-              <CardTitle className="text-xl sm:text-2xl">Escolha as páginas do PDF</CardTitle>
-              <CardDescription className="mt-2 text-sm sm:text-base px-2">
-                Use todas as páginas ou informe um filtro como <span className="font-medium">1,2,5-8</span>.
+              <CardTitle className="text-xl sm:text-2xl tracking-tight">Escolha as páginas do PDF</CardTitle>
+              <CardDescription className="mt-2 text-sm sm:text-base px-2 text-muted-foreground/90">
+                Use todas as páginas ou informe um filtro como <span className="font-medium text-foreground/80">1,2,5-8</span>.
               </CardDescription>
             </div>
 
@@ -825,56 +931,103 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
         )}
 
         {currentStep === "customize" && (
-            <CardContent className="pt-6 sm:pt-8 pb-6 sm:pb-8 px-4 sm:px-6 space-y-5 sm:space-y-6">
+          <CardContent className="pt-6 sm:pt-8 pb-6 sm:pb-8 px-4 sm:px-6 space-y-5 sm:space-y-6">
                 <div className="text-center mb-6 sm:mb-8">
-                    <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-3 sm:mb-4">
-                      <Settings2 className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+                    <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-muted/70 mb-3 sm:mb-4 dark:bg-zinc-800/60">
+                      <Settings2 className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/80" />
                     </div>
-                    <CardTitle className="text-xl sm:text-2xl">Customize a Geração</CardTitle>
-                    <CardDescription className="mt-2 text-sm sm:text-base px-2">
+                    <CardTitle className="text-xl sm:text-2xl tracking-tight">Customize a Geração</CardTitle>
+                    <CardDescription className="mt-2 text-sm sm:text-base px-2 text-muted-foreground/90">
                       Ajuste as opções de IA para o seu material.
                     </CardDescription>
                 </div>
 
-                <div className="space-y-2.5 sm:space-y-3">
+                <div className="space-y-3 rounded-2xl border border-border/50 bg-card px-4 py-4 dark:border-zinc-800/60 dark:bg-background/40">
                   <Label className="text-sm sm:text-base font-semibold">O que deseja criar?</Label>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Cada formato usa uma leitura diferente do mesmo conteúdo. Escolha um só ou saia com o pacote completo.
+                  </p>
                   <ToggleGroup
                       type="single" value={data.contentType}
                       onValueChange={(value: WizardData['contentType']) => value && setData({ ...data, contentType: value })}
-                      className="w-full grid grid-cols-3 gap-1.5 sm:gap-2"
+                      className="w-full grid grid-cols-3 gap-2 sm:gap-2.5"
                   >
                       <ToggleGroupItem 
                         value="flashcards" 
-                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                        className={cn(
+                          "flex-col h-auto min-h-[80px] gap-2.5 py-3.5 sm:min-h-[88px] sm:py-4 text-xs sm:text-sm border rounded-xl transition-all duration-200",
+                          data.contentType === "flashcards"
+                            ? CREATE_MODE_STYLES.flashcards
+                            : CREATE_MODE_BASE_STYLES.flashcards
+                        )}
                       >
-                        <Layers className="w-4 h-4" />
-                        <span className="leading-tight">Flash-<br className="sm:hidden"/>cards</span>
+                        <Layers className="w-5 h-5" />
+                        <span>Flashcards</span>
                       </ToggleGroupItem>
                       <ToggleGroupItem 
                         value="quiz" 
-                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                        className={cn(
+                          "flex-col h-auto min-h-[80px] gap-2.5 py-3.5 sm:min-h-[88px] sm:py-4 text-xs sm:text-sm border rounded-xl transition-all duration-200",
+                          data.contentType === "quiz"
+                            ? CREATE_MODE_STYLES.quiz
+                            : CREATE_MODE_BASE_STYLES.quiz
+                        )}
                       >
-                        <BrainCircuit className="w-4 h-4" />
-                        <span>Quiz</span>
+                        <BrainCircuit className="w-5 h-5" />
+                        <span>Quizzes</span>
                       </ToggleGroupItem>
                       <ToggleGroupItem 
                         value="both" 
-                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                        className={cn(
+                          "flex-col h-auto min-h-[80px] gap-1.5 py-3.5 sm:min-h-[88px] sm:py-4 text-xs sm:text-sm border rounded-xl transition-all duration-200",
+                          data.contentType === "both"
+                            ? CREATE_MODE_STYLES.both
+                            : CREATE_MODE_BASE_STYLES.both
+                        )}
                       >
-                        <Combine className="w-4 h-4" />
+                        <Combine className="w-5 h-5" />
                         <span>Ambos</span>
+                        <span className={cn(
+                          "text-[10px] uppercase tracking-[0.14em]",
+                          data.contentType === "both"
+                            ? "text-black/70"
+                            : "text-[#2f8a57] dark:text-[#a5edbd]"
+                        )}>
+                          + guiado
+                        </span>
                       </ToggleGroupItem>
                   </ToggleGroup>
+                  {requestedGeneratesGuided && (
+                    <div className="mt-1 rounded-xl border border-[#7FD9A0]/25 bg-gradient-to-r from-[#7FD9A0]/8 via-transparent to-[#7FD9A0]/5 px-4 py-3.5 dark:border-[#7FD9A0]/15 dark:from-[#7FD9A0]/6 dark:to-transparent">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#7FD9A0]/15 dark:bg-[#7FD9A0]/10">
+                          <Map className="h-4 w-4 text-[#7FD9A0]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground">
+                            Trilha guiada inclusa
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                            Flashcards e quiz combinados em uma trilha de estudo sequencial.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {(data.contentType === 'flashcards' || data.contentType === 'both') && (
-                  <div className="animate-in fade-in-20 duration-300 space-y-2.5 sm:space-y-3">
+                  <div className={cn(
+                    "animate-in fade-in-20 duration-300 space-y-2.5 sm:space-y-3 rounded-2xl border px-4 py-4",
+                    OUTPUT_THEMES.flashcards.border,
+                    "bg-[#FACC15]/10 dark:bg-[#FACC15]/8"
+                  )}>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="num-flashcards" className="text-sm sm:text-base font-semibold flex items-center gap-1.5 sm:gap-2">
-                          <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-primary/70" />
+                        <Label htmlFor="num-flashcards" className={cn("text-sm sm:text-base font-semibold flex items-center gap-1.5 sm:gap-2", OUTPUT_THEMES.flashcards.text)}>
+                          <Layers className={cn("w-4 h-4 sm:w-5 sm:h-5", OUTPUT_THEMES.flashcards.text)} />
                           <span className="text-xs sm:text-base">Número de Flashcards</span>
                         </Label>
-                        <span className="text-base sm:text-lg font-bold text-primary">{data.num_flashcards}</span>
+                        <span className={cn("text-base sm:text-lg font-bold", OUTPUT_THEMES.flashcards.text)}>{data.num_flashcards}</span>
                       </div>
                       <Slider 
                         id="num-flashcards" 
@@ -883,9 +1036,9 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                         step={1} 
                         value={[data.num_flashcards]} 
                         onValueChange={(v) => setData({ ...data, num_flashcards: v[0] })}
-                        className="mt-2"
+                        className={cn("mt-2", CONTENT_SLIDER_STYLES.flashcards)}
                       />
-                      <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
+                      <div className={cn("flex justify-between text-[10px] sm:text-xs", OUTPUT_THEMES.flashcards.softText)}>
                         <span>Mínimo: 5</span>
                         <span>Máximo: 20</span>
                       </div>
@@ -893,13 +1046,17 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                 )}
 
                 {(data.contentType === 'quiz' || data.contentType === 'both') && (
-                  <div className="animate-in fade-in-20 duration-300 space-y-2.5 sm:space-y-3">
+                  <div className={cn(
+                    "animate-in fade-in-20 duration-300 space-y-2.5 sm:space-y-3 rounded-2xl border px-4 py-4",
+                    OUTPUT_THEMES.quiz.border,
+                    "bg-[#48cfea]/10 dark:bg-[#48cfea]/8"
+                  )}>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="num-questions" className="text-sm sm:text-base font-semibold flex items-center gap-1.5 sm:gap-2">
-                          <BrainCircuit className="w-4 h-4 sm:w-5 sm:h-5 text-primary/70" />
+                        <Label htmlFor="num-questions" className={cn("text-sm sm:text-base font-semibold flex items-center gap-1.5 sm:gap-2", OUTPUT_THEMES.quiz.text)}>
+                          <BrainCircuit className={cn("w-4 h-4 sm:w-5 sm:h-5", OUTPUT_THEMES.quiz.text)} />
                           <span className="text-xs sm:text-base">Perguntas do Quiz</span>
                         </Label>
-                        <span className="text-base sm:text-lg font-bold text-primary">{data.num_questions}</span>
+                        <span className={cn("text-base sm:text-lg font-bold", OUTPUT_THEMES.quiz.text)}>{data.num_questions}</span>
                       </div>
                       <Slider 
                         id="num-questions" 
@@ -908,17 +1065,20 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                         step={1} 
                         value={[data.num_questions]} 
                         onValueChange={(v) => setData({ ...data, num_questions: v[0] })}
-                        className="mt-2"
+                        className={cn("mt-2", CONTENT_SLIDER_STYLES.quiz)}
                       />
-                      <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
+                      <div className={cn("flex justify-between text-[10px] sm:text-xs", OUTPUT_THEMES.quiz.softText)}>
                         <span>Mínimo: 3</span>
                         <span>Máximo: 15</span>
                       </div>
                   </div>
                 )}
 
-                <div className="space-y-2.5 sm:space-y-3">
+                <div className="space-y-3 rounded-2xl border border-border/50 bg-card px-4 py-4 dark:border-zinc-800/60">
                   <Label className="text-sm sm:text-base font-semibold">Nível de Dificuldade</Label>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Define o quanto a IA pode aumentar a complexidade conceitual das perguntas e respostas.
+                  </p>
                   <ToggleGroup
                       type="single" value={data.difficulty}
                       onValueChange={(value: string) => value && setData({ ...data, difficulty: value })}
@@ -926,21 +1086,30 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                   >
                       <ToggleGroupItem 
                         value="Fácil" 
-                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                        className={cn(
+                          "flex-col h-auto gap-1.5 py-3 sm:py-3.5 text-xs sm:text-sm border border-gray-200 rounded-xl bg-background/70 text-muted-foreground transition-all duration-200 hover:bg-muted/40 dark:border-zinc-700/60 dark:bg-background/60 dark:hover:bg-muted/30",
+                          DIFFICULTY_STYLES.easy
+                        )}
                       >
                         <Sprout className="w-4 h-4" />
                         <span>Fácil</span>
                       </ToggleGroupItem>
                       <ToggleGroupItem 
                         value="Médio" 
-                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                        className={cn(
+                          "flex-col h-auto gap-1.5 py-3 sm:py-3.5 text-xs sm:text-sm border border-gray-200 rounded-xl bg-background/70 text-muted-foreground transition-all duration-200 hover:bg-muted/40 dark:border-zinc-700/60 dark:bg-background/60 dark:hover:bg-muted/30",
+                          DIFFICULTY_STYLES.medium
+                        )}
                       >
                         <Leaf className="w-4 h-4" />
                         <span>Médio</span>
                       </ToggleGroupItem>
                       <ToggleGroupItem 
                         value="Difícil" 
-                        className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex-col h-auto gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm"
+                        className={cn(
+                          "flex-col h-auto gap-1.5 py-3 sm:py-3.5 text-xs sm:text-sm border border-gray-200 rounded-xl bg-background/70 text-muted-foreground transition-all duration-200 hover:bg-muted/40 dark:border-zinc-700/60 dark:bg-background/60 dark:hover:bg-muted/30",
+                          DIFFICULTY_STYLES.hard
+                        )}
                       >
                         <Trees className="w-4 h-4" />
                         <span>Difícil</span>
@@ -949,23 +1118,154 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
                 </div>
 
                 <Button 
-                  onClick={handleSubmit} 
-                  className="w-full !mt-6 sm:!mt-8 h-11 sm:h-12 text-sm sm:text-base font-semibold" 
+                  onClick={() => setCurrentStep("review")} 
+                  className="w-full !mt-6 sm:!mt-8 h-11 sm:h-12 text-sm sm:text-base font-semibold shadow-sm" 
                   disabled={isSubmitting || isProcessing || ((limitInfo?.remaining ?? 0) < requestedGenerationUnits)}
                 >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
-                        Criando...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                        Gerar Conteúdo
-                      </>
-                    )}
+                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                  Revisar geração
                 </Button>
             </CardContent>
+        )}
+
+        {currentStep === "review" && (
+          <CardContent className="pt-6 sm:pt-8 pb-6 sm:pb-8 px-4 sm:px-6 space-y-5 sm:space-y-6">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#7FD9A0]/10 mb-3 sm:mb-4 dark:bg-[#7FD9A0]/8">
+                <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 text-[#7FD9A0]" />
+              </div>
+              <CardTitle className="text-xl sm:text-2xl tracking-tight">Revise sua geração</CardTitle>
+              <CardDescription className="mt-2 text-sm sm:text-base px-2 text-muted-foreground/90">
+                Confira o pacote que vai ser criado antes de iniciar o processamento.
+              </CardDescription>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-border/50 bg-card px-4 py-4 dark:border-zinc-800/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">Resumo</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-gray-200 bg-muted/30 px-3 py-3 dark:border-zinc-700/60 dark:bg-white/[0.03]">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Deck</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground">{data.name}</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-muted/30 px-3 py-3 dark:border-zinc-700/60 dark:bg-white/[0.03]">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Fonte</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground break-all">{sourceLabel}</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-muted/30 px-3 py-3 dark:border-zinc-700/60 dark:bg-white/[0.03]">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Dificuldade</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground">{data.difficulty}</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-muted/30 px-3 py-3 dark:border-zinc-700/60 dark:bg-white/[0.03]">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Gerações</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground">
+                        {requestedGenerationUnits} {requestedGenerationUnits === 1 ? "unidade" : "unidades"}
+                      </p>
+                    </div>
+                    {pageSelectionLabel ? (
+                      <div className="rounded-xl border border-gray-200 bg-muted/30 px-3 py-3 dark:border-zinc-700/60 sm:col-span-2 dark:bg-white/[0.03]">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Páginas do PDF</p>
+                        <p className="mt-2 text-sm font-semibold text-foreground">{pageSelectionLabel}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border/50 bg-card px-4 py-4 dark:border-zinc-800/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">Conteúdos gerados</p>
+                  <div className="mt-3 space-y-3">
+                    {outputSummary.map((item) => {
+                      const theme = OUTPUT_THEMES[item.id];
+                      const Icon = item.id === "flashcards" ? Layers : item.id === "quiz" ? BrainCircuit : Map;
+                      return (
+                        <div
+                          key={item.id}
+                          className={cn("rounded-xl border px-4 py-4", theme.border, theme.panel)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={cn("rounded-xl p-2.5", theme.badge)}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className={cn("text-sm font-semibold", theme.text)}>{item.title}</p>
+                              <p className={cn("mt-1 text-sm", theme.softText)}>{item.description}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-border/50 bg-card px-4 py-4 dark:border-zinc-800/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+                    Próximas experiências
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {requestedGeneratesFlashcards ? (
+                      <div className={cn("rounded-xl border px-4 py-4", OUTPUT_THEMES.flashcards.border, OUTPUT_THEMES.flashcards.panel)}>
+                        <p className={cn("text-sm font-semibold", OUTPUT_THEMES.flashcards.text)}>Flashcards prontos para estudar</p>
+                        <p className={cn("mt-1 text-sm", OUTPUT_THEMES.flashcards.softText)}>
+                          O deck já sai preparado para revisão imediata e ciclos de repetição.
+                        </p>
+                      </div>
+                    ) : null}
+                    {requestedGeneratesQuizzes ? (
+                      <div className={cn("rounded-xl border px-4 py-4", OUTPUT_THEMES.quiz.border, OUTPUT_THEMES.quiz.panel)}>
+                        <p className={cn("text-sm font-semibold", OUTPUT_THEMES.quiz.text)}>Quiz pronto para validar desempenho</p>
+                        <p className={cn("mt-1 text-sm", OUTPUT_THEMES.quiz.softText)}>
+                          As perguntas já chegam organizadas para prática e revisão futura.
+                        </p>
+                      </div>
+                    ) : null}
+                    {requestedGeneratesGuided ? (
+                      <div className={cn("rounded-xl border px-4 py-4", OUTPUT_THEMES.guided.border, OUTPUT_THEMES.guided.panel)}>
+                        <p className={cn("text-sm font-semibold", OUTPUT_THEMES.guided.text)}>Estudo guiado incluso no pacote</p>
+                        <p className={cn("mt-1 text-sm", OUTPUT_THEMES.guided.softText)}>
+                          A trilha será montada no mesmo processamento para conectar revisão e validação.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-gray-200 bg-muted/20 px-4 py-4 dark:border-zinc-700/60 dark:bg-white/[0.03]">
+                        <p className="text-sm font-semibold text-foreground">Você pode expandir depois</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Se quiser, o restante do pacote continua disponível no dashboard do deck depois.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border/50 bg-muted/20 px-4 py-4 dark:border-zinc-800/60 dark:bg-background/60">
+                  <p className="text-sm font-semibold text-foreground">Antes de gerar</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Revise se as quantidades e o formato escolhido representam bem o material que você enviou.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button 
+              onClick={handleSubmit} 
+              className="w-full h-11 sm:h-12 text-sm sm:text-base font-semibold shadow-sm" 
+              disabled={isSubmitting || isProcessing || ((limitInfo?.remaining ?? 0) < requestedGenerationUnits)}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
+                  Criando...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                  Gerar conteúdo
+                </>
+              )}
+            </Button>
+          </CardContent>
         )}
       </div>
     );
@@ -974,18 +1274,21 @@ export function CreationWizard({ onCreationSuccess, folderId }: CreationWizardPr
   return (
     <>
       <div className="w-full max-w-3xl mx-auto px-4 sm:px-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2">
+          <div className="mb-3 sm:mb-4">
               <Link 
                 href="/library" 
-                className="inline-flex items-center text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors duration-200"
               >
-                <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                Voltar para a Biblioteca
+                <ArrowLeft className="w-3 h-3" />
+                Biblioteca
               </Link>
           </div>
 
           {!isProcessing && <WizardProgress/>}
-          <Card className="relative overflow-hidden">{renderStepContent()}</Card>
+          <Card className="relative overflow-hidden border-border/60 bg-card shadow-sm dark:border-zinc-800/80 dark:shadow-none">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-[linear-gradient(90deg,transparent,rgba(250,204,21,0.6),rgba(72,207,234,0.55),transparent)]" />
+            {renderStepContent()}
+          </Card>
       </div>
 
       {/* Dialog de Limite Atingido */}
