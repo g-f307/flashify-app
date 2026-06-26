@@ -1,27 +1,27 @@
 // Caminho: components/landing/AboutSection.tsx (Atualizado com Transições)
 
-import { FaClock, FaInfinity, FaBrain } from 'react-icons/fa';
+import { FaLayerGroup, FaQuestionCircle, FaRoute } from 'react-icons/fa';
 import SimpleWaveDivider from './SimpleWaveDivider';
 
 const AboutSection = () => {
   const features = [
     {
-      icon: <FaClock />,
-      title: 'Deixe o trabalho repetitivo para a nossa IA',
+      icon: <FaLayerGroup />,
+      title: 'Flashcards para revisar',
       description:
-        'O seu tempo é valioso demais para ser gasto criando decks de estudo manualmente. Deixe que a nossa tecnologia faça o trabalho pesado por você.',
+        'Transforme conceitos importantes em cards objetivos para revisar com mais frequência e menos esforço manual.',
     },
     {
-      icon: <FaInfinity />,
-      title: 'Se pode ser lido, pode virar material de estudo',
+      icon: <FaQuestionCircle />,
+      title: 'Quizzes para testar',
       description:
-        'Esqueça as limitações. O Flashify adapta-se ao seu material de estudo, seja ele qual for, centralizando todo o seu conhecimento num só lugar.',
+        'Valide o que você realmente entendeu com perguntas geradas a partir do mesmo material de estudo.',
     },
     {
-      icon: <FaBrain />,
-      title: 'Aprenda de forma mais inteligente, não mais difícil',
+      icon: <FaRoute />,
+      title: 'Estudo guiado para avançar',
       description:
-        'Estudar não é só ler, é reter. O nosso sistema é baseado na ciência da memória para garantir que o conteúdo fique fixado.',
+        'Quando você cria o pacote completo, o Flashify organiza flashcards e quiz em uma trilha de estudo sequencial.',
     },
   ];
 
@@ -34,8 +34,8 @@ const AboutSection = () => {
         <div className="text-center mb-16 animate-fadeInUp">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">POR QUE USAR O FLASHIFY?</h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            O Flashify é uma plataforma que transforma o seu material de estudo em flashcards e quizzes utilizando
-            Inteligência Artificial.
+            O Flashify transforma o seu material em formatos complementares de estudo: revisão,
+            validação e uma rota guiada para continuar aprendendo.
           </p>
         </div>
 

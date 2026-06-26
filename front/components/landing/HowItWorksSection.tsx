@@ -15,16 +15,16 @@ const HowItWorksSection = () => {
     {
       number: 2,
       icon: <FaMagic />,
-      title: 'Deixe a IA Trabalhar',
+      title: 'Escolha o formato ideal',
       description:
-        'Com um clique, a nossa Inteligência Artificial analisa o seu material, identifica os conceitos chave e gera automaticamente flashcards e quizzes completos para você.',
+        'Com um clique, a Inteligência Artificial analisa o seu material e gera flashcards, quizzes ou o pacote completo com estudo guiado.',
     },
     {
       number: 3,
       icon: <FaGraduationCap />,
       title: 'Comece a Aprender',
       description:
-        'Use o nosso modo de estudo inteligente, baseado em repetição espaçada, para memorizar o conteúdo de forma eficaz e garantir que o conhecimento dure muito para além da prova.',
+        'Revise com flashcards, teste seu desempenho com quizzes e siga uma trilha guiada para estudar com mais direção.',
     },
   ];
 
@@ -38,8 +38,8 @@ const HowItWorksSection = () => {
         <div className="text-center mb-16 animate-fadeInUp">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">COMO FUNCIONA</h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            O nosso objetivo é remover a fricção entre o seu material de estudo e o aprendizado real. O processo é
-            rápido, intuitivo e focado na sua eficiência.
+            O nosso objetivo é remover a fricção entre o seu material de estudo e o aprendizado real.
+            O processo é rápido, intuitivo e acompanha diferentes momentos da sua rotina.
           </p>
         </div>
 

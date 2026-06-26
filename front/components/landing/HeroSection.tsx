@@ -27,7 +27,7 @@ const HeroSection = () => {
 
             <p className="text-xl md:text-2xl text-white/80 max-w-2xl mx-auto md:mx-0 animate-fadeInLeft delay-200">
               O Flashify usa Inteligência Artificial para extrair o essencial de qualquer texto
-              e criar decks de estudo inteligente.
+              e criar flashcards, quizzes e trilhas guiadas de estudo.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start animate-fadeInLeft delay-300">
