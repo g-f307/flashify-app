@@ -100,16 +100,12 @@ function DeckSection({
   title,
   count,
   documents,
-  emptyTitle,
-  emptyDescription,
   onNewUpload,
   onUpdate,
 }: {
   title: string;
   count: number;
   documents: Document[];
-  emptyTitle: string;
-  emptyDescription: string;
   onNewUpload: () => void;
   onUpdate: () => void;
 }) {
@@ -133,8 +129,10 @@ function DeckSection({
         </>
       ) : (
         <Card className="rounded-2xl border border-dashed border-border/70 bg-card/70 px-5 py-8 text-center shadow-none dark:border-zinc-700/80 dark:bg-[#2a2e38]/70">
-          <p className="text-base font-semibold text-foreground">{emptyTitle}</p>
-          <p className="mt-2 text-sm text-muted-foreground">{emptyDescription}</p>
+          <p className="text-base font-semibold text-foreground">Nenhum deck encontrado nesta seção</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ajuste os filtros ou a busca para ver mais resultados.
+          </p>
         </Card>
       )}
     </section>
@@ -249,21 +247,25 @@ export default function LibraryPage() {
     [filteredRootDocuments]
   );
 
-  const totalPages = Math.max(1, Math.ceil(filteredRootDocuments.length / ITEMS_PER_PAGE));
-  const paginatedDocuments = useMemo(
-    () => paginateDocuments(filteredRootDocuments, currentPage),
-    [filteredRootDocuments, currentPage]
-  );
+  const totalPendingPages = Math.max(1, Math.ceil(pendingDocuments.length / ITEMS_PER_PAGE));
+  const totalRegularPages = Math.max(1, Math.ceil(regularDocuments.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(totalPendingPages, totalRegularPages);
 
   const paginatedPendingDocuments = useMemo(
-    () => paginatedDocuments.filter((document) => getPendingReviewsCount(document) > 0),
-    [paginatedDocuments]
+    () => paginateDocuments(pendingDocuments, currentPage),
+    [pendingDocuments, currentPage]
   );
 
   const paginatedRegularDocuments = useMemo(
-    () => paginatedDocuments.filter((document) => getPendingReviewsCount(document) === 0),
-    [paginatedDocuments]
+    () => paginateDocuments(regularDocuments, currentPage),
+    [regularDocuments, currentPage]
   );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <>
@@ -347,25 +349,21 @@ export default function LibraryPage() {
                 </Card>
               ) : (
                 <div className="space-y-10">
-                  {pendingDocuments.length > 0 ? (
+                  {paginatedPendingDocuments.length > 0 ? (
                     <DeckSection
                       title="Revisões pendentes"
                       count={pendingDocuments.length}
                       documents={paginatedPendingDocuments}
-                      emptyTitle="Nenhum deck com revisão pendente nesta página"
-                      emptyDescription="Os decks com revisão pendente aparecem aqui quando fazem parte do recorte atual da paginação."
                       onNewUpload={handleNewUpload}
                       onUpdate={fetchLibraryData}
                     />
                   ) : null}
 
-                  {regularDocuments.length > 0 ? (
+                  {paginatedRegularDocuments.length > 0 ? (
                     <DeckSection
                       title="Sem revisões pendentes"
                       count={regularDocuments.length}
                       documents={paginatedRegularDocuments}
-                      emptyTitle="Nenhum deck sem revisão pendente nesta página"
-                      emptyDescription="Os decks sem revisão pendente aparecem aqui quando fazem parte do recorte atual da paginação."
                       onNewUpload={handleNewUpload}
                       onUpdate={fetchLibraryData}
                     />
