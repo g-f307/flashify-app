@@ -36,7 +36,7 @@ services:
       - ./back/app:/app/app
       - ./back/alembic:/app/alembic
       - ./back/alembic.ini:/app/alembic.ini
-      - ./back/gcp-credentials.json:/app/gcp-credentials.json
+      - ./back/gcp-credentials.json:/app/gcp-credentials.json:ro
     depends_on:
       db:
         condition: service_healthy
@@ -55,7 +55,7 @@ services:
       - ./back/app:/app/app
       - ./back/alembic:/app/alembic
       - ./back/alembic.ini:/app/alembic.ini
-      - ./back/gcp-credentials.json:/app/gcp-credentials.json
+      - ./back/gcp-credentials.json:/app/gcp-credentials.json:ro
     depends_on:
       db:
         condition: service_healthy
@@ -92,7 +92,7 @@ services:
       - ./back/app:/app/app
       - ./back/alembic:/app/alembic
       - ./back/alembic.ini:/app/alembic.ini
-      - ./back/gcp-credentials.json:/app/gcp-credentials.json
+      - ./back/gcp-credentials.json:/app/gcp-credentials.json:ro
     restart: unless-stopped
 
 volumes:

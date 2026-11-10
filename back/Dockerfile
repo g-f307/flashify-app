@@ -1,7 +1,6 @@
 # Dockerfile para o backend FastAPI
 FROM python:3.11-slim
 WORKDIR /app
-COPY ./gcp-credentials.json /app/gcp-credentials.json
 COPY app /app/app
 COPY alembic /app/alembic
 COPY alembic.ini /app/alembic.ini
