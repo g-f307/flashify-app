@@ -1,20 +1,61 @@
 import httpx
 import os
+import logging
 from typing import Annotated
 from ..models import AuthProvider
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, SQLModel
 from datetime import datetime, timezone
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from redis import Redis
+from redis.exceptions import RedisError
 
 from .. import crud, models, schemas, security
+from ..account_policy import can_access_application
+from ..auth_rate_limit import LoginRateLimiter, RateLimitExceeded
 from ..analytics import mark_user_first_login, track_product_event, update_user_lifecycle_stage
 from ..database import get_session
 from ..email_service import email_service  # 🆕 IMPORTAR
 
 router = APIRouter(tags=["Authentication"])
+logger = logging.getLogger(__name__)
+
+login_rate_limiter = LoginRateLimiter(
+    Redis.from_url(
+        os.getenv("REDIS_URL", "redis://redis:6379/0"),
+        decode_responses=True,
+        socket_connect_timeout=1,
+        socket_timeout=1,
+    ),
+    limit=int(os.getenv("LOGIN_RATE_LIMIT", "10")),
+    window_seconds=int(os.getenv("LOGIN_RATE_WINDOW_SECONDS", "300")),
+)
+
+
+def _client_host(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _check_login_rate_limit(request: Request, identifier: str) -> None:
+    try:
+        login_rate_limiter.check(_client_host(request), identifier)
+    except RateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Muitas tentativas de login. Tente novamente em alguns minutos.",
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
+    except RedisError:
+        logger.exception("Falha ao consultar o limitador de login no Redis.")
+
+
+def _reset_login_rate_limit(request: Request, identifier: str) -> None:
+    try:
+        login_rate_limiter.reset(_client_host(request), identifier)
+    except RedisError:
+        logger.exception("Falha ao limpar o limitador de login no Redis.")
 
 @router.post("/users", response_model=schemas.UserRead, status_code=status.HTTP_201_CREATED)
 async def create_new_user(user: schemas.UserCreate, session: Session = Depends(get_session)):
@@ -58,12 +99,19 @@ async def create_new_user(user: schemas.UserCreate, session: Session = Depends(g
 
 @router.post("/token", response_model=schemas.Token)
 def login_for_access_token(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: Session = Depends(get_session)
 ):
+    _check_login_rate_limit(request, form_data.username)
     user = crud.get_user_by_username_or_email(session=session, identifier=form_data.username)
     
-    if not user or not user.hashed_password or not security.verify_password(form_data.password, user.hashed_password):
+    if (
+        not user
+        or not can_access_application(user)
+        or not user.hashed_password
+        or not security.verify_password(form_data.password, user.hashed_password)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Nome de usuário/email ou senha incorretos",
@@ -77,6 +125,7 @@ def login_for_access_token(
     session.commit()
     mark_user_first_login(session, user)
     
+    _reset_login_rate_limit(request, form_data.username)
     access_token = security.create_access_token(subject=user.email)
     track_product_event(
         session,
@@ -146,6 +195,8 @@ async def auth_google(
         profile_picture_url=profile_picture_url,
         acquisition_context=auth_code.acquisition_context,
     )
+    if not can_access_application(db_user):
+        raise HTTPException(status_code=403, detail="Conta indisponível.")
     is_new_user = (datetime.now(timezone.utc) - db_user.created_at).total_seconds() < 60
     if is_new_user:
         track_product_event(
@@ -244,6 +295,8 @@ async def auth_google_mobile(
             username=name,
             profile_picture_url=picture
         )
+        if not can_access_application(db_user):
+            raise HTTPException(status_code=403, detail="Conta indisponível.")
         is_new_user = (datetime.now(timezone.utc) - db_user.created_at).total_seconds() < 60
         if is_new_user:
             track_product_event(

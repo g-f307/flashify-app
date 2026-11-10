@@ -13,6 +13,7 @@ from sqlmodel import Session
 from jose import JWTError, jwt
 
 from . import crud, models
+from .account_policy import can_access_application
 from .database import get_session
 
 load_dotenv()
@@ -65,6 +66,11 @@ def get_current_user(
     user = crud.get_user_by_email(session=session, email=email)
     if user is None:
         raise credentials_exception
+    if not can_access_application(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Conta indisponível.",
+        )
     return user
 
 
@@ -75,10 +81,5 @@ def get_current_team_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito à equipe interna.",
-        )
-    if current_user.is_blocked:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuário bloqueado.",
         )
     return current_user
