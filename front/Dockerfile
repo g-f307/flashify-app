@@ -8,11 +8,11 @@ ARG NEXT_PUBLIC_CLARITY_PROJECT_ID
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 COPY package.json pnpm-lock.yaml* next.config.mjs postcss.config.mjs tailwind.config.js tsconfig.json* ./
 
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
@@ -22,7 +22,7 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next

@@ -4,7 +4,8 @@ from sqlmodel import SQLModel
 from .models import DocumentStatus, AuthProvider
 from typing import List, Optional, Literal
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from .password_policy import validate_password
 
 # --- Schemas de Usuário e Autenticação ---
 class AcquisitionContext(SQLModel):
@@ -25,6 +26,8 @@ class UserCreate(SQLModel):
     password: str
     acquisition_context: Optional[AcquisitionContext] = None
 
+    _validate_password = field_validator("password")(validate_password)
+
 class UserRead(SQLModel):
     id: int
     username: str
@@ -37,6 +40,8 @@ class UserRead(SQLModel):
 class UserPasswordUpdate(SQLModel):
     current_password: str
     new_password: str
+
+    _validate_new_password = field_validator("new_password")(validate_password)
 
 class Token(SQLModel):
     access_token: str
