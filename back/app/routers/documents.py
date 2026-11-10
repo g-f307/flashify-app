@@ -1,6 +1,5 @@
 # back/app/routers/documents.py
 
-import shutil
 import os
 import tempfile
 from datetime import datetime, timezone, timedelta
@@ -18,6 +17,13 @@ from ..pdf_page_selection import PageSelectionError, parse_page_selection
 from ..security import get_current_user
 from ..tasks import process_document 
 from ..text_extractor import get_pdf_page_count, get_pdf_page_previews
+from ..upload_security import (
+    UploadTooLarge,
+    UploadValidationError,
+    build_unique_storage_name,
+    copy_with_size_limit,
+    validate_file_content,
+)
 from ..ai_generator import (
     generate_flashcards_from_text,
     generate_guided_study_topics,
@@ -32,6 +38,7 @@ CurrentUser = Annotated[models.User, Depends(security.get_current_user)]
 
 UPLOAD_DIRECTORY = Path("uploads")
 UPLOAD_DIRECTORY.mkdir(exist_ok=True)
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10")) * 1024 * 1024
 
 ALLOWED_UPLOAD_MIME_TYPES = {
     "application/pdf",
@@ -82,26 +89,6 @@ class TextInput(BaseModel):
 
 
 T = TypeVar("T")
-
-def sanitize_filename(name: str) -> str:
-    """Cria um nome de arquivo seguro a partir de uma string."""
-    name = name.lower().replace(' ', '_')
-    name = re.sub(r'[^a-z0-9_.-]', '', name)
-    return name[:100]
-
-
-def build_storage_basename(title: str, original_filename: Optional[str] = None) -> str:
-    safe_title = sanitize_filename(title)
-    if safe_title:
-        return safe_title
-
-    original_stem = Path(original_filename or "").stem
-    safe_original_stem = sanitize_filename(original_stem)
-    if safe_original_stem:
-        return safe_original_stem
-
-    return "documento"
-
 
 def _is_allowed_upload(file: UploadFile) -> bool:
     suffix = Path(file.filename or "").suffix.lower()
@@ -593,13 +580,24 @@ def upload_document(
         )
 
     original_suffix = Path(file.filename or "").suffix.lower()
-    safe_basename = build_storage_basename(title, file.filename)
-    final_filename = f"{current_user.id}_{safe_basename}{original_suffix}"
+    final_filename = build_unique_storage_name(current_user.id, title, original_suffix)
     
     file_path_on_disk = UPLOAD_DIRECTORY / final_filename
     
-    with file_path_on_disk.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with file_path_on_disk.open("wb") as buffer:
+            copy_with_size_limit(
+                file.file,
+                buffer,
+                max_bytes=MAX_UPLOAD_BYTES,
+            )
+        validate_file_content(file_path_on_disk, original_suffix)
+    except UploadTooLarge as exc:
+        file_path_on_disk.unlink(missing_ok=True)
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except UploadValidationError as exc:
+        file_path_on_disk.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     normalized_page_selection = None
     normalized_study_language = _normalize_study_language(study_language)
@@ -675,8 +673,14 @@ def inspect_pdf(
             suffix=".pdf",
             dir=UPLOAD_DIRECTORY,
         ) as temp_file:
-            shutil.copyfileobj(file.file, temp_file)
             temp_path = Path(temp_file.name)
+            copy_with_size_limit(
+                file.file,
+                temp_file,
+                max_bytes=MAX_UPLOAD_BYTES,
+            )
+
+        validate_file_content(temp_path, ".pdf")
 
         total_pages = get_pdf_page_count(str(temp_path))
         return schemas.PdfInspectResponse(
@@ -687,6 +691,10 @@ def inspect_pdf(
                 for page_preview in get_pdf_page_previews(str(temp_path))
             ],
         )
+    except UploadTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
         if temp_path and temp_path.exists():
             temp_path.unlink()
