@@ -1,31 +1,16 @@
 # back/app/ai_generator.py
-import os
 import ast
 import json
 import re
 import time
 from typing import List, Dict, Any, Optional
-import google.generativeai as genai
 from dotenv import load_dotenv
+
+from .ai.contracts import AIRequest
+from .ai.factory import get_ai_provider
 
 load_dotenv()
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-
-if not GOOGLE_API_KEY:
-    raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi configurada.")
-
-genai.configure(api_key=GOOGLE_API_KEY)
-
-DEFAULT_SAFETY_SETTINGS = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-]
-
-_MODEL_CACHE: dict[tuple[str, str], genai.GenerativeModel] = {}
 _LANGUAGE_INFERENCE_PATTERNS: dict[str, tuple[str, ...]] = {
     "en": (
         r"\bem ingl[eê]s\b",
@@ -79,35 +64,6 @@ _EDITORIAL_NOISE_RE = re.compile(
     r"(?:isbn(?:-1[03])?\s*:?\s*[\d-]+|todos os direitos reservados|all rights reserved|copyright\s+\d{4})",
     re.IGNORECASE,
 )
-
-
-def _get_model(
-    *,
-    temperature: float,
-    max_output_tokens: int = 8192,
-    response_mime_type: Optional[str] = None,
-) -> genai.GenerativeModel:
-    cache_key = (f"{temperature}:{max_output_tokens}", response_mime_type or "")
-    cached_model = _MODEL_CACHE.get(cache_key)
-    if cached_model is not None:
-        return cached_model
-
-    generation_config: dict[str, Any] = {
-        "temperature": temperature,
-        "top_p": 1,
-        "top_k": 1,
-        "max_output_tokens": max_output_tokens,
-    }
-    if response_mime_type:
-        generation_config["response_mime_type"] = response_mime_type
-
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        generation_config=generation_config,
-        safety_settings=DEFAULT_SAFETY_SETTINGS,
-    )
-    _MODEL_CACHE[cache_key] = model
-    return model
 
 
 def _normalize_text_snippet(text: str, max_chars: int) -> str:
@@ -512,25 +468,6 @@ def _parse_jsonish_object(raw_text: str) -> Dict[str, Any]:
     raise json.JSONDecodeError("Não foi possível interpretar o JSON retornado pela IA.", cleaned_text, 0)
 
 
-def _extract_response_text(response: Any) -> str:
-    direct_text = getattr(response, "text", None)
-    if isinstance(direct_text, str) and direct_text.strip():
-        return direct_text
-
-    candidates = getattr(response, "candidates", None) or []
-    text_parts: list[str] = []
-
-    for candidate in candidates:
-        content = getattr(candidate, "content", None)
-        parts = getattr(content, "parts", None) or []
-        for part in parts:
-            part_text = getattr(part, "text", None)
-            if isinstance(part_text, str) and part_text.strip():
-                text_parts.append(part_text)
-
-    return "\n".join(text_parts).strip()
-
-
 def _log_raw_ai_response(label: str, response_text: str, *, max_chars: int = 1800) -> None:
     normalized = (response_text or "").strip()
     if not normalized:
@@ -686,12 +623,6 @@ def _repair_quiz_response(
     if not raw_response_text.strip():
         return None
 
-    repair_model = _get_model(
-        temperature=0.2,
-        max_output_tokens=8192,
-        response_mime_type="application/json",
-    )
-
     prompt_parts = [
         "Você é um especialista em reparar saídas de quiz geradas por IA.",
         "Reescreva a resposta abaixo em JSON VÁLIDO e no formato EXATO esperado pelo sistema.",
@@ -714,15 +645,15 @@ def _repair_quiz_response(
     ]
 
     try:
-        response = repair_model.generate_content(
-            prompt_parts,
-            request_options={"timeout": 60.0},
-        )
-        repaired_text = _extract_response_text(response)
+        response = get_ai_provider().generate(AIRequest(
+            prompt=prompt_parts, temperature=0.2, max_output_tokens=8192,
+            response_format="json", timeout_seconds=60.0, operation="repair",
+        ))
+        repaired_text = response.text
         if not repaired_text:
             return None
 
-        _log_raw_ai_response("Resposta reparada do Gemini para quiz", repaired_text)
+        _log_raw_ai_response("Resposta reparada da IA para quiz", repaired_text)
         data = _parse_jsonish_object(repaired_text)
         if "title" in data and "questions" in data and isinstance(data["questions"], list):
             return data
@@ -784,8 +715,9 @@ def chat_about_flashcard(
     Responda como um professor dedicado que quer genuinamente ajudar o aluno a compreender e aprofundar o conhecimento:"""
 
     try:
-        model = _get_model(temperature=0.45, max_output_tokens=4096)
-        response = model.generate_content(prompt)
+        response = get_ai_provider().generate(AIRequest(
+            prompt=prompt, temperature=0.45, max_output_tokens=4096, operation="chat",
+        ))
         return response.text.strip()
     except Exception as e:
         return f"Desculpe, ocorreu um erro ao processar sua pergunta: {e}"
@@ -811,7 +743,6 @@ def generate_flashcards_from_text(
     difficulty = _normalize_difficulty_label(difficulty)
     effective_study_language = _resolve_effective_study_language(text, study_language)
     foreign_language_study_mode = _is_foreign_language_study_mode(effective_study_language)
-    model = _get_model(temperature=0.7, max_output_tokens=8192)
     
     difficulty_map = {
         "Fácil": {
@@ -1097,23 +1028,24 @@ Foque em {difficulty_instruction}."""
                 "- Não devolva menos itens por excesso de perfeccionismo: complete a cobertura com precisão prática.",
             ])
 
-        print(f"Enviando texto para o Gemini. Qtd: {num_flashcards}, Dificuldade: {difficulty}")
+        print(f"Enviando texto para a IA. Qtd: {num_flashcards}, Dificuldade: {difficulty}")
         start = time.time()
-        response = model.generate_content(
-            prompt_parts,
-            request_options={"timeout": 60.0}
-        )
+        response = get_ai_provider().generate(AIRequest(
+            prompt=prompt_parts, temperature=0.7, max_output_tokens=8192,
+            timeout_seconds=60.0, operation="completion" if _attempt else "flashcards",
+        ))
         elapsed = time.time() - start
-        print(f"⏱️ Tempo de resposta Gemini: {elapsed:.2f}s")
-        response_text = _extract_response_text(response)
+        print(f"Provider={response.provider} model={response.model}")
+        print(f"⏱️ Tempo de resposta IA: {elapsed:.2f}s")
+        response_text = response.text
         if not response_text:
-            print("❌ Erro: resposta vazia retornada pelo Gemini na geração de flashcards.")
+            print("❌ Erro: resposta vazia retornada pela IA na geração de flashcards.")
             raise ValueError("Resposta vazia retornada pela IA.")
 
         try:
             data = _parse_jsonish_object(response_text)
         except json.JSONDecodeError:
-            _log_raw_ai_response("Resposta bruta do Gemini para flashcards", response_text)
+            _log_raw_ai_response("Resposta bruta da IA para flashcards", response_text)
             raise
         if "flashcards" in data and isinstance(data["flashcards"], list):
             normalized_flashcards = _normalize_flashcards(
@@ -1130,7 +1062,7 @@ Foque em {difficulty_instruction}."""
                 while len(normalized_flashcards) < num_flashcards and completion_attempt < max_completion_attempts:
                     missing_count = num_flashcards - len(normalized_flashcards)
                     print(
-                        f"⚠️ Gemini retornou {len(normalized_flashcards)}/{num_flashcards} flashcards válidos. "
+                        f"⚠️ IA retornou {len(normalized_flashcards)}/{num_flashcards} flashcards válidos. "
                         f"Tentando completar {missing_count}. (passo complementar {completion_attempt + 1}/{max_completion_attempts})"
                     )
                     supplemental_flashcards = generate_flashcards_from_text(
@@ -1152,7 +1084,7 @@ Foque em {difficulty_instruction}."""
                     completion_attempt += 1
 
             if len(normalized_flashcards) == num_flashcards:
-                print(f"✅ Flashcards gerados com sucesso pelo Gemini ({len(normalized_flashcards)}/{num_flashcards}).")
+                print(f"✅ Flashcards gerados com sucesso pela IA ({len(normalized_flashcards)}/{num_flashcards}).")
             else:
                 print(f"⚠️ Geração parcial de flashcards ({len(normalized_flashcards)}/{num_flashcards}).")
             return normalized_flashcards
@@ -1181,7 +1113,6 @@ def generate_quiz_from_text(
     difficulty = _normalize_difficulty_label(difficulty)
     effective_study_language = _resolve_effective_study_language(text, study_language)
     foreign_language_study_mode = _is_foreign_language_study_mode(effective_study_language)
-    model = _get_model(temperature=0.8, max_output_tokens=8192)
     
     difficulty_map = {
         "Fácil": {
@@ -1406,23 +1337,24 @@ Foque em {difficulty_instruction}."""
         ]
 
     try:
-        print(f"Enviando texto para o Gemini para gerar Quiz. Qtd: {num_questions}, Dificuldade: {difficulty}")
+        print(f"Enviando texto para a IA para gerar Quiz. Qtd: {num_questions}, Dificuldade: {difficulty}")
         start = time.time()
-        response = model.generate_content(
-            prompt_parts,
-            request_options={"timeout": 90.0}
-        )
+        response = get_ai_provider().generate(AIRequest(
+            prompt=prompt_parts, temperature=0.8, max_output_tokens=8192,
+            timeout_seconds=90.0, operation="completion" if _attempt else "quiz",
+        ))
         elapsed = time.time() - start
-        print(f"⏱️ Tempo de resposta Gemini (Quiz): {elapsed:.2f}s")
-        response_text = _extract_response_text(response)
+        print(f"Provider={response.provider} model={response.model}")
+        print(f"⏱️ Tempo de resposta IA (Quiz): {elapsed:.2f}s")
+        response_text = response.text
         if not response_text:
-            print("❌ Erro: resposta vazia retornada pelo Gemini na geração de quiz.")
+            print("❌ Erro: resposta vazia retornada pela IA na geração de quiz.")
             return None
 
         try:
             data = _parse_jsonish_object(response_text)
         except json.JSONDecodeError:
-            _log_raw_ai_response("Resposta bruta do Gemini para quiz", response_text)
+            _log_raw_ai_response("Resposta bruta da IA para quiz", response_text)
             repaired_data = _repair_quiz_response(
                 response_text,
                 num_questions=num_questions,
@@ -1436,7 +1368,7 @@ Foque em {difficulty_instruction}."""
         if "title" in data and "questions" in data and isinstance(data["questions"], list):
             normalized_questions = _normalize_quiz_questions(data["questions"], num_questions)
             if len(normalized_questions) < num_questions:
-                _log_raw_ai_response("Resposta estruturalmente incompleta do Gemini para quiz", response_text)
+                _log_raw_ai_response("Resposta estruturalmente incompleta da IA para quiz", response_text)
                 repaired_data = _repair_quiz_response(
                     response_text,
                     num_questions=num_questions,
@@ -1454,7 +1386,7 @@ Foque em {difficulty_instruction}."""
 
             if len(normalized_questions) < num_questions and _attempt < 1:
                 missing_count = num_questions - len(normalized_questions)
-                print(f"⚠️ Gemini retornou {len(normalized_questions)}/{num_questions} perguntas válidas. Tentando completar {missing_count}.")
+                print(f"⚠️ IA retornou {len(normalized_questions)}/{num_questions} perguntas válidas. Tentando completar {missing_count}.")
                 supplemental_quiz = generate_quiz_from_text(
                     text=text,
                     num_questions=missing_count,
@@ -1468,14 +1400,14 @@ Foque em {difficulty_instruction}."""
                     num_questions,
                 )
 
-            print(f"✅ Quiz gerado com sucesso pelo Gemini ({len(normalized_questions)}/{num_questions}).")
+            print(f"✅ Quiz gerado com sucesso pela IA ({len(normalized_questions)}/{num_questions}).")
             return {
                 "title": " ".join(str(data.get("title", "Quiz sobre o Texto")).split()).strip() or "Quiz sobre o Texto",
                 "questions": normalized_questions,
             }
         else:
             print("❌ Erro: resposta da IA não continha a estrutura esperada ('title', 'questions').")
-            _log_raw_ai_response("Resposta bruta inesperada do Gemini para quiz", response_text)
+            _log_raw_ai_response("Resposta bruta inesperada da IA para quiz", response_text)
             raise ValueError("Resposta da IA malformada.")
     except Exception as e:
         print(f"🚨 Erro ao gerar quiz: {type(e).__name__} - {e}")
@@ -1501,11 +1433,9 @@ def generate_guided_study_topics(
     attempts = [
         {
             "label": "full-json",
-            "model": _get_model(
-                temperature=0.35,
-                max_output_tokens=4096,
-                response_mime_type="application/json",
-            ),
+            "temperature": 0.35,
+            "max_output_tokens": 4096,
+            "response_format": "json",
             "prompt_parts": _build_guided_study_prompt_parts(
                 context_snippet=context_snippet or "",
                 flashcards_payload=flashcards_payload,
@@ -1515,11 +1445,9 @@ def generate_guided_study_topics(
         },
         {
             "label": "compact-json",
-            "model": _get_model(
-                temperature=0.2,
-                max_output_tokens=3072,
-                response_mime_type=None,
-            ),
+            "temperature": 0.2,
+            "max_output_tokens": 3072,
+            "response_format": "text",
             "prompt_parts": _build_guided_study_prompt_parts(
                 context_snippet="",
                 flashcards_payload=flashcards_payload,
@@ -1531,23 +1459,26 @@ def generate_guided_study_topics(
 
     for attempt_index, attempt in enumerate(attempts, start=1):
         try:
-            print(f"Enviando conteúdo para o Gemini estruturar o estudo guiado. tentativa={attempt_index} modo={attempt['label']}")
+            print(f"Enviando conteúdo para a IA estruturar o estudo guiado. tentativa={attempt_index} modo={attempt['label']}")
             start = time.time()
-            response = attempt["model"].generate_content(
-                attempt["prompt_parts"],
-                request_options={"timeout": 90.0},
-            )
+            response = get_ai_provider().generate(AIRequest(
+                prompt=attempt["prompt_parts"], temperature=attempt["temperature"],
+                max_output_tokens=attempt["max_output_tokens"],
+                response_format=attempt["response_format"],
+                timeout_seconds=90.0, operation="guided_study",
+            ))
             elapsed = time.time() - start
-            print(f"⏱️ Tempo de resposta Gemini (Estudo guiado, tentativa {attempt_index}): {elapsed:.2f}s")
+            print(f"Provider={response.provider} model={response.model}")
+            print(f"⏱️ Tempo de resposta IA (Estudo guiado, tentativa {attempt_index}): {elapsed:.2f}s")
 
-            response_text = _extract_response_text(response)
+            response_text = response.text
             if not response_text:
-                print(f"⚠️ Gemini retornou resposta vazia no estudo guiado. tentativa={attempt_index}")
+                print(f"⚠️ IA retornou resposta vazia no estudo guiado. tentativa={attempt_index}")
                 continue
 
             data = _parse_jsonish_object(response_text)
             if "topics" in data and isinstance(data["topics"], list):
-                print(f"✅ Estrutura guiada gerada com sucesso pelo Gemini na tentativa {attempt_index}.")
+                print(f"✅ Estrutura guiada gerada com sucesso pela IA na tentativa {attempt_index}.")
                 return data
 
             print(f"❌ Estudo guiado: resposta sem 'topics' válida na tentativa {attempt_index}.")
