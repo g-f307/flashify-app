@@ -170,7 +170,7 @@ def create_document_for_user(
     return db_document
 
 def create_flashcards_for_document(
-    session: Session, flashcards_data: list[dict], document_id: int
+    session: Session, flashcards_data: list[dict], document_id: int, *, commit: bool = True
 ) -> list[models.Flashcard]:
     db_flashcards = []
     for fc_data in flashcards_data:
@@ -184,7 +184,7 @@ def create_flashcards_for_document(
             db_flashcards.append(db_flashcard)
     if db_flashcards:
         session.add_all(db_flashcards)
-        session.commit()
+        session.commit() if commit else session.flush()
         for db_fc in db_flashcards:
             session.refresh(db_fc)
     return db_flashcards
@@ -446,6 +446,28 @@ def get_flashcard(session: Session, flashcard_id: int, user_id: int) -> models.F
         .where(models.Document.user_id == user_id)
     )
     return session.exec(statement).first()
+
+def get_flashcard_conversations(session: Session, flashcard_id: int) -> list[models.FlashcardConversation]:
+    statement = (
+        select(models.FlashcardConversation)
+        .where(models.FlashcardConversation.flashcard_id == flashcard_id)
+        .order_by(models.FlashcardConversation.id.asc())
+    )
+    return session.exec(statement).all()
+
+
+def create_flashcard_conversation(
+    session: Session, flashcard_id: int, user_message: str, assistant_response: str
+) -> models.FlashcardConversation:
+    conversation = models.FlashcardConversation(
+        flashcard_id=flashcard_id, user_message=user_message,
+        assistant_response=assistant_response, created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    session.add(conversation)
+    session.commit()
+    session.refresh(conversation)
+    return conversation
+
 
 def create_study_log(
     session: Session,
@@ -725,7 +747,7 @@ def can_claim_feedback_reward(user: models.User) -> bool:
 
     return (datetime.now(timezone.utc) - user.feedback_reward_offer_shown_at) <= FEEDBACK_REWARD_CLAIM_WINDOW
 
-def check_and_reset_daily_limit(session: Session, user: models.User) -> None:
+def check_and_reset_daily_limit(session: Session, user: models.User, *, commit: bool = True) -> None:
     """
     Verifica se precisa resetar o contador diário do usuário.
     Reseta se passou mais de 24h desde o último reset.
@@ -738,7 +760,7 @@ def check_and_reset_daily_limit(session: Session, user: models.User) -> None:
         user.daily_generation_count = 0
         user.daily_bonus_generation_count = 0
         session.add(user)
-        session.commit()
+        session.commit() if commit else session.flush()
         return
     
     # Verifica se passou 24h
@@ -748,14 +770,14 @@ def check_and_reset_daily_limit(session: Session, user: models.User) -> None:
         user.daily_generation_count = 0
         user.daily_bonus_generation_count = 0
         session.add(user)
-        session.commit()
+        session.commit() if commit else session.flush()
         return
 
     effective_limit = get_effective_generation_limit(user)
     if user.daily_generation_count > effective_limit:
         user.daily_generation_count = effective_limit
         session.add(user)
-        session.commit()
+        session.commit() if commit else session.flush()
 
 def can_user_generate_deck(
     session: Session,
@@ -778,14 +800,14 @@ def can_user_generate_deck(
     
     return can_generate, remaining
 
-def increment_user_generation_count(session: Session, user_id: int, amount: int = 1) -> None:
+def increment_user_generation_count(session: Session, user_id: int, amount: int = 1, *, commit: bool = True) -> None:
     """
     Incrementa o contador de gerações do usuário.
     Deve ser chamado APENAS quando a geração for bem-sucedida.
     """
     user = session.get(models.User, user_id)
     if user and amount > 0:
-        check_and_reset_daily_limit(session, user)
+        check_and_reset_daily_limit(session, user, commit=commit)
         session.refresh(user)
         effective_limit = get_effective_generation_limit(user)
         user.daily_generation_count = min(
@@ -793,7 +815,7 @@ def increment_user_generation_count(session: Session, user_id: int, amount: int 
             user.daily_generation_count + amount,
         )
         session.add(user)
-        session.commit()
+        session.commit() if commit else session.flush()
 
 
 def mark_feedback_reward_offer_shown(session: Session, user: models.User) -> bool:
@@ -870,7 +892,7 @@ def shuffle_quiz_answers(quiz_data: dict) -> dict:
     
     return shuffled_quiz
 
-def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, document_id: int) -> models.Quiz:
+def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, document_id: int, *, commit: bool = True) -> models.Quiz:
     """
     Cria um novo quiz completo, com todas as suas perguntas e respostas,
     e associa-o a um documento existente.
@@ -899,7 +921,7 @@ def create_quiz_for_document(db: Session, quiz_data: schemas.QuizCreate, documen
     )
     
     db.add(db_quiz)
-    db.commit()
+    db.commit() if commit else db.flush()
     db.refresh(db_quiz)
     
     return db_quiz

@@ -1,7 +1,11 @@
 import os
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from .ai.errors import AIError
 
 from .routers import auth
 from .routers import folders
@@ -16,6 +20,12 @@ from .routers import study_feedback
 frontend_url = os.getenv("FRONTEND_URL", "http://flashify.cloud")
 
 app = FastAPI(title="Flashify API")
+
+@app.exception_handler(AIError)
+async def ai_error_handler(request, exc):
+    logging.getLogger(__name__).warning("ai_request_failed error=%s", type(exc).__name__)
+    return JSONResponse(status_code=500, content={"detail": "A IA não conseguiu concluir a geração. Tente novamente mais tarde."})
+
 
 # Configure CORS
 origins = [

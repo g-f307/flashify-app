@@ -88,7 +88,8 @@ with patch("dotenv.load_dotenv"), patch.dict(sys.modules, {"openai": None, "goog
     import app.ai_generator
 assert "app.ai.providers.openai" not in sys.modules
 '''
-        subprocess.run([sys.executable, "-c", script], check=True, capture_output=True)
+        subprocess.run([sys.executable, "-c", script], check=True, capture_output=True,
+                       env={**os.environ, "PYTHONPATH": str(Path(domain.__file__).parents[1])})
 
     def test_client_configuration_error_is_sanitized(self):
         self.constructor.side_effect = ValueError("private-client-config")

@@ -39,8 +39,8 @@ def process_document(
             print(f"[TASK] ERRO: Documento ID {document_id} não encontrado.")
             return
 
-        if db_document.status == models.DocumentStatus.CANCELLED:
-            print(f"[TASK] Processamento para o documento {document_id} foi cancelado.")
+        if db_document.status in (models.DocumentStatus.CANCELLED, models.DocumentStatus.COMPLETED):
+            print(f"[TASK] Processamento para o documento {document_id} já foi encerrado.")
             return
 
         try:
@@ -151,18 +151,24 @@ def process_document(
             if not flashcards_data and not quiz_data_dict:
                 raise ValueError("A IA não retornou nenhum conteúdo válido.")
 
+            # Publish progress before opening the atomic content/quota transaction.
+            if content_type == "both":
+                db_document.current_step = "gerando estudo guiado"
+                session.add(db_document)
+                session.commit()
+
             # --- PASSO 3: FINALIZAR ---
             success_parts = []
             if flashcards_data:
                 crud.create_flashcards_for_document(
-                    session=session, flashcards_data=flashcards_data, document_id=db_document.id
+                    session=session, flashcards_data=flashcards_data, document_id=db_document.id, commit=False
                 )
                 success_parts.append(f"{len(flashcards_data)} flashcards")
 
             if quiz_data_dict:
                 quiz_schema = schemas.QuizCreate(**quiz_data_dict)
                 crud.create_quiz_for_document(
-                    db=session, quiz_data=quiz_schema, document_id=db_document.id
+                    db=session, quiz_data=quiz_schema, document_id=db_document.id, commit=False
                 )
                 success_parts.append("1 quiz")
 
@@ -174,10 +180,10 @@ def process_document(
 
                 db_document.current_step = "gerando estudo guiado"
                 session.add(db_document)
-                session.commit()
+                session.flush()
                 print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
 
-                build_guided_study_response(db_document, session)
+                build_guided_study_response(db_document, session, commit=False)
                 guided_generated = True
 
                 db_document = crud.get_document(session=session, document_id=document_id)
@@ -186,7 +192,7 @@ def process_document(
 
                 db_document.current_step = "salvando estudo guiado"
                 session.add(db_document)
-                session.commit()
+                session.flush()
                 print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
                 success_parts.append("estudo guiado")
 
@@ -194,7 +200,9 @@ def process_document(
             db_document.current_step = "concluído"
             db_document.processing_progress = 100
             session.add(db_document)
-            session.commit()
+            crud.increment_user_generation_count(
+                session, db_document.user_id, amount=generation_units, commit=False
+            )
             track_product_event(
                 session,
                 "deck_processing_completed",
@@ -206,10 +214,9 @@ def process_document(
                     "quiz_created": bool(quiz_data_dict),
                     "guided_study_created": guided_generated,
                 },
+                commit=False,
             )
-            
-            # 🆕 INCREMENTAR CONTADOR APENAS QUANDO GERAÇÃO FOR BEM-SUCEDIDA
-            crud.increment_user_generation_count(session, db_document.user_id, amount=generation_units)
+            session.commit()
             
             print(f"[TASK] Doc {document_id} - Passo: {db_document.current_step}")
             print(f"[TASK] Documento {document_id} processado com sucesso.")
