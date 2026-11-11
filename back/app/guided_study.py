@@ -155,6 +155,7 @@ def guided_study_requires_ai_generation(db_document: models.Document) -> bool:
 def build_guided_study_response(
     db_document: models.Document,
     session: Session,
+    *, commit: bool = True,
 ) -> schemas.GuidedStudyResponse:
     if db_document.guided_study_cache:
         try:
@@ -323,6 +324,6 @@ def build_guided_study_response(
 
     db_document.guided_study_cache = cache_payload
     session.add(db_document)
-    session.commit()
+    session.commit() if commit else session.flush()
 
     return response

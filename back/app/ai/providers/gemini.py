@@ -97,8 +97,9 @@ class GeminiProvider:
                 }
                 if request.response_format == "json":
                     config["response_mime_type"] = "application/json"
-                if request.schema is not None:
-                    config["response_schema"] = request.schema
+                # The pinned legacy SDK cannot accept full JSON Schema ($defs,
+                # anyOf, additionalProperties). Domain Pydantic validation is
+                # authoritative; Gemini uses JSON MIME without a divergent schema.
                 model = self._sdk.GenerativeModel(
                     model_name=self.model, generation_config=config,
                     safety_settings=DEFAULT_SAFETY_SETTINGS,

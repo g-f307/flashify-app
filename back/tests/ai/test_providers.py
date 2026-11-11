@@ -63,7 +63,8 @@ with patch("dotenv.load_dotenv"), patch.dict(sys.modules, {"google.generativeai"
     import app.ai_generator
 assert "app.ai.providers.gemini" not in sys.modules
 '''
-        subprocess.run([sys.executable, "-c", script], check=True, capture_output=True)
+        subprocess.run([sys.executable, "-c", script], check=True, capture_output=True,
+                       env={**os.environ, "PYTHONPATH": str(Path(domain.__file__).parents[1])})
 
     def test_invalid_timeouts(self):
         for value in ("0", "-1", "nan", "inf", "invalid"):
@@ -147,6 +148,7 @@ assert "app.ai.providers.gemini" not in sys.modules
 class DomainTests(unittest.TestCase):
     def setUp(self):
         self.provider = Mock(name="fake-provider")
+        self.provider.name = "gemini"
         self.patch = patch.object(domain, "get_ai_provider", return_value=self.provider)
         self.patch.start()
         self.addCleanup(self.patch.stop)
@@ -155,7 +157,7 @@ class DomainTests(unittest.TestCase):
         import json
         self.provider.generate.side_effect = [AIResponse(
             text=json.dumps(p, ensure_ascii=False) if not isinstance(p, str) else p,
-            provider="fake", model="test") for p in payloads]
+            parsed=p if isinstance(p, dict) else None, provider="gemini", model="test") for p in payloads]
 
     @staticmethod
     def card(front="O que é fotossíntese?"):
@@ -174,11 +176,12 @@ class DomainTests(unittest.TestCase):
         self.assertTrue(all((r.temperature, r.max_output_tokens, r.timeout_seconds) == (.7, 8192, 60) for r in requests))
         self.assertIn(result[0]["front"], "\n".join(requests[1].prompt))
 
-    def test_flashcard_completion_limit_is_preserved(self):
-        self.respond(*[{"flashcards": [self.card()]}] * 4)
-        result = domain.generate_flashcards_from_text("Fotossíntese", num_flashcards=2)
-        self.assertEqual(len(result), 1)
-        self.assertEqual(self.provider.generate.call_count, 4)
+    def test_flashcard_completion_limit_is_one_and_partial_results_fail(self):
+        self.respond(*[{"flashcards": [self.card()]}] * 2)
+        from app.ai.errors import AIInvalidResponseError
+        with self.assertRaises(AIInvalidResponseError):
+            domain.generate_flashcards_from_text("Fotossíntese", num_flashcards=2)
+        self.assertEqual(self.provider.generate.call_count, 2)
 
     def test_quiz_uses_provider_and_preserves_shape(self):
         self.respond({"title": "Energia", "questions": [self.question()]})
@@ -196,20 +199,21 @@ class DomainTests(unittest.TestCase):
 
     def test_quiz_supplement_uses_provider(self):
         self.respond({"title": "Energia", "questions": [self.question()]},
-                     {"title": "Energia", "questions": [self.question()]},
                      {"title": "Energia", "questions": [self.question("Qual é o produto final?")]})
         result = domain.generate_quiz_from_text("Fotossíntese", num_questions=2)
         self.assertEqual(len(result["questions"]), 2)
-        self.assertEqual([c.args[0].operation for c in self.provider.generate.call_args_list], ["quiz", "repair", "completion"])
+        self.assertEqual([c.args[0].operation for c in self.provider.generate.call_args_list], ["quiz", "completion"])
 
-    def test_guided_study_both_attempts_use_provider(self):
+    def test_guided_study_uses_full_schema_and_preserves_id_group_return(self):
+        from ai.fixtures import guided_payload
         payload = {"topics": [{"title": "Energia", "flashcard_ids": [1], "question_ids": [2]}]}
-        self.respond("invalid", payload)
+        self.respond(guided_payload())
         result = domain.generate_guided_study_topics("Contexto", [dict(self.card(), id=1)], [dict(self.question(), id=2)])
         self.assertEqual(result, payload)
-        requests = [c.args[0] for c in self.provider.generate.call_args_list]
-        self.assertEqual([(r.operation, r.temperature, r.max_output_tokens, r.response_format, r.timeout_seconds) for r in requests], [
-            ("guided_study", .35, 4096, "json", 90), ("guided_study", .2, 3072, "text", 90)])
+        request = self.provider.generate.call_args.args[0]
+        self.assertEqual((request.operation, request.temperature, request.max_output_tokens, request.response_format, request.timeout_seconds),
+                         ("guided_study", .35, 4096, "json", 90))
+        self.assertIn("summary", request.schema["properties"])
 
     def test_chat_uses_provider_and_limits_history(self):
         self.respond("  **Explicação**  ")

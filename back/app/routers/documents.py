@@ -1483,6 +1483,10 @@ def generate_flashcards_for_existing_document(
     crud.increment_user_generation_count(session, current_user.id)
     _clear_guided_study_cache(db_document, session)
 
+    # Cache invalidation commits and expires SQLModel attributes. Reload the
+    # returned instances so serialization preserves the existing HTTP fields.
+    for flashcard in db_flashcards:
+        session.refresh(flashcard)
     return db_flashcards
 
 @router.post("/{document_id}/add-flashcards", response_model=List[models.Flashcard], status_code=status.HTTP_201_CREATED)
@@ -1561,6 +1565,10 @@ Agora, com base no MESMO CONTEÚDO ORIGINAL abaixo, gere {requested_count} NOVOS
     crud.increment_user_generation_count(session, current_user.id)
     _clear_guided_study_cache(db_document, session)
 
+    # Cache invalidation commits and expires SQLModel attributes. Reload the
+    # returned instances so serialization preserves the existing HTTP fields.
+    for flashcard in db_flashcards:
+        session.refresh(flashcard)
     return db_flashcards
 
 

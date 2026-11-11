@@ -2,15 +2,18 @@
 import ast
 import json
 import re
-import time
+import logging
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
 from .ai.contracts import AIRequest
-from .ai.errors import AIError
+from .ai.errors import AIError, AIInvalidResponseError
+from .ai.output_schemas import FlashcardsOutput, QuizOutput, GuidedStudyOutput, strict_json_schema
+from pydantic import ValidationError
 from .ai.factory import get_ai_provider
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 _LANGUAGE_INFERENCE_PATTERNS: dict[str, tuple[str, ...]] = {
     "en": (
@@ -383,7 +386,13 @@ def _build_guided_study_prompt_parts(
         "- Cada tópico deve ter pelo menos 1 flashcard_id e 1 question_id.",
         "- Cada ID pode aparecer no máximo uma vez.",
         "- Prefira menos tópicos, mais coesos.",
-        '- Responda exatamente no formato: {"topics":[{"title":"...", "flashcard_ids":[1,2], "question_ids":[10]}]}',
+        "- Retorne o contrato completo fornecido no schema: document_id, title, mode, topics e summary.",
+        "- Use document_id=0, title='Estudo guiado' e mode='guided'; o servidor atribui os metadados reais.",
+        "- Cada tópico tem id='topic-N', title, order e steps; cada step referencia um único ID fornecido.",
+        "- Para flashcards: type='flashcard', flashcard_id e id='step-fc-ID'. Para perguntas: type='question', question_id e id='step-q-ID'.",
+        "- Use null nos campos opcionais não aplicáveis; answers=[] pois as respostas persistidas são montadas pelo servidor.",
+        "- Não invente conteúdo: front/back/prompt podem ser null; o servidor usa os itens originais.",
+        "- summary contém topics_count, steps_count, flashcards_count, questions_count e is_fallback=false.",
         "",
         "TÍTULOS:",
         "- 2 a 4 palavras.",
@@ -467,19 +476,6 @@ def _parse_jsonish_object(raw_text: str) -> Dict[str, Any]:
             pass
 
     raise json.JSONDecodeError("Não foi possível interpretar o JSON retornado pela IA.", cleaned_text, 0)
-
-
-def _log_raw_ai_response(label: str, response_text: str, *, max_chars: int = 1800) -> None:
-    normalized = (response_text or "").strip()
-    if not normalized:
-        print(f"🧾 {label}: resposta vazia.")
-        return
-
-    snippet = normalized[:max_chars]
-    if len(normalized) > max_chars:
-        snippet = f"{snippet}..."
-
-    print(f"🧾 {label} ({len(normalized)} chars): {snippet}")
 
 
 def _normalize_flashcards(
@@ -587,7 +583,7 @@ def _normalize_quiz_questions(raw_questions: Any, requested_count: int) -> List[
                 {
                     "text": answer_text,
                     "is_correct": is_correct,
-                    "explanation": " ".join(str(answer.get("explanation", "")).split()).strip() or None,
+                    "explanation": " ".join(str(answer.get("explanation") or "").split()).strip() or None,
                 }
             )
 
@@ -614,13 +610,13 @@ def _normalize_quiz_questions(raw_questions: Any, requested_count: int) -> List[
     return normalized
 
 
-def _repair_quiz_response(
+def _build_quiz_repair_prompt(
     raw_response_text: str,
     *,
     num_questions: int,
     study_language: Optional[str],
     foreign_language_study_mode: bool,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[List[str]]:
     if not raw_response_text.strip():
         return None
 
@@ -645,28 +641,10 @@ def _repair_quiz_response(
         raw_response_text[:12000],
     ]
 
-    try:
-        response = get_ai_provider().generate(AIRequest(
-            prompt=prompt_parts, temperature=0.2, max_output_tokens=8192,
-            response_format="json", timeout_seconds=60.0, operation="repair",
-        ))
-        repaired_text = response.text
-        if not repaired_text:
-            return None
+    return prompt_parts
 
-        _log_raw_ai_response("Resposta reparada da IA para quiz", repaired_text)
-        data = _parse_jsonish_object(repaired_text)
-        if "title" in data and "questions" in data and isinstance(data["questions"], list):
-            return data
-    except AIError:
-        raise
-    except Exception as exc:
-        print(f"⚠️ Falha ao tentar reparar estrutura do quiz: {type(exc).__name__} - {exc}")
 
-    return None
-
-# --- Função existente (permanece igual) ---
-def chat_about_flashcard(
+def _build_chat_prompt(
     message: str,
     flashcard_front: str,
     flashcard_back: str,
@@ -717,16 +695,10 @@ def chat_about_flashcard(
 
     Responda como um professor dedicado que quer genuinamente ajudar o aluno a compreender e aprofundar o conhecimento:"""
 
-    try:
-        response = get_ai_provider().generate(AIRequest(
-            prompt=prompt, temperature=0.45, max_output_tokens=4096, operation="chat",
-        ))
-        return response.text.strip()
-    except Exception as e:
-        return f"Desculpe, ocorreu um erro ao processar sua pergunta: {e}"
+    return prompt
 
-# --- Função nova e melhorada ---
-def generate_flashcards_from_text(
+
+def _build_flashcards_prompt(
     text: str,
     num_flashcards: int = 10,
     difficulty: str = "Médio",
@@ -734,13 +706,12 @@ def generate_flashcards_from_text(
     _attempt: int = 0,
     _allow_completion: bool = True,
     _existing_fronts: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:
+) -> List[str]:
     """
-    Gera flashcards com formatação rica, foco pedagógico e compatibilidade com conteúdo técnico.
+    Monta o prompt de flashcards com formatação rica, foco pedagógico e compatibilidade com conteúdo técnico.
     """
     source_text = _prepare_generation_source_text(text)
     if not source_text or source_text.isspace():
-        print("Texto de entrada está vazio. Pulando a geração de flashcards.")
         return []
 
     difficulty = _normalize_difficulty_label(difficulty)
@@ -1009,108 +980,43 @@ Foque em {difficulty_instruction}."""
             "✗ Respostas incompletas que não respondem totalmente a pergunta",
         ]
 
-    try:
-        if existing_fronts:
-            prompt_parts.extend([
-                "",
-                "FLASHCARDS JÁ GERADOS (NÃO REPETIR NEM PARAFRASEAR):",
-                json.dumps(existing_fronts[:30], ensure_ascii=False),
-                "",
-                "Gere SOMENTE flashcards novos que complementem os já listados acima.",
-                "Entregue exatamente a quantidade restante pedida nesta chamada.",
-                "Se o conteúdo principal já foi coberto, avance para exemplos, aplicações, comparações, interpretações e erros comuns.",
-            ])
 
-        if relaxed_mode:
-            prompt_parts.extend([
-                "",
-                "AJUSTE DE COMPLEMENTO:",
-                "- Você está gerando apenas os cards restantes de um conjunto maior.",
-                "- Priorize cobrir lacunas do conteúdo ainda não exploradas.",
-                "- Mantenha objetividade, mas aceite respostas levemente mais completas se isso evitar descarte por insuficiência.",
-                "- Não devolva menos itens por excesso de perfeccionismo: complete a cobertura com precisão prática.",
-            ])
+    if existing_fronts:
+        prompt_parts.extend([
+            "",
+            "FLASHCARDS JÁ GERADOS (NÃO REPETIR NEM PARAFRASEAR):",
+            json.dumps(existing_fronts, ensure_ascii=False),
+            "",
+            "Gere SOMENTE flashcards novos que complementem os já listados acima.",
+            "Entregue exatamente a quantidade restante pedida nesta chamada.",
+            "Se o conteúdo principal já foi coberto, avance para exemplos, aplicações, comparações, interpretações e erros comuns.",
+        ])
 
-        print(f"Enviando texto para a IA. Qtd: {num_flashcards}, Dificuldade: {difficulty}")
-        start = time.time()
-        response = get_ai_provider().generate(AIRequest(
-            prompt=prompt_parts, temperature=0.7, max_output_tokens=8192,
-            timeout_seconds=60.0, operation="completion" if _attempt else "flashcards",
-        ))
-        elapsed = time.time() - start
-        print(f"Provider={response.provider} model={response.model}")
-        print(f"⏱️ Tempo de resposta IA: {elapsed:.2f}s")
-        response_text = response.text
-        if not response_text:
-            print("❌ Erro: resposta vazia retornada pela IA na geração de flashcards.")
-            raise ValueError("Resposta vazia retornada pela IA.")
+    if relaxed_mode:
+        prompt_parts.extend([
+            "",
+            "AJUSTE DE COMPLEMENTO:",
+            "- Você está gerando apenas os cards restantes de um conjunto maior.",
+            "- Priorize cobrir lacunas do conteúdo ainda não exploradas.",
+            "- Mantenha objetividade, mas aceite respostas levemente mais completas se isso evitar descarte por insuficiência.",
+            "- Não devolva menos itens por excesso de perfeccionismo: complete a cobertura com precisão prática.",
+        ])
 
-        try:
-            data = _parse_jsonish_object(response_text)
-        except json.JSONDecodeError:
-            _log_raw_ai_response("Resposta bruta da IA para flashcards", response_text)
-            raise
-        if "flashcards" in data and isinstance(data["flashcards"], list):
-            normalized_flashcards = _normalize_flashcards(
-                data["flashcards"],
-                num_flashcards,
-                difficulty,
-                relaxed=relaxed_mode,
-                existing_fronts=set(front.casefold() for front in existing_fronts),
-            )
-            if len(normalized_flashcards) < num_flashcards and _allow_completion:
-                max_completion_attempts = 3
-                completion_attempt = 0
+    return prompt_parts
 
-                while len(normalized_flashcards) < num_flashcards and completion_attempt < max_completion_attempts:
-                    missing_count = num_flashcards - len(normalized_flashcards)
-                    print(
-                        f"⚠️ IA retornou {len(normalized_flashcards)}/{num_flashcards} flashcards válidos. "
-                        f"Tentando completar {missing_count}. (passo complementar {completion_attempt + 1}/{max_completion_attempts})"
-                    )
-                    supplemental_flashcards = generate_flashcards_from_text(
-                        text=text,
-                        num_flashcards=missing_count,
-                        difficulty=difficulty,
-                        study_language=effective_study_language,
-                        _attempt=_attempt + completion_attempt + 1,
-                        _allow_completion=False,
-                        _existing_fronts=[card["front"] for card in normalized_flashcards],
-                    )
-                    normalized_flashcards = _merge_flashcard_batches(
-                        normalized_flashcards,
-                        supplemental_flashcards,
-                        num_flashcards,
-                        difficulty,
-                        relaxed=True,
-                    )
-                    completion_attempt += 1
 
-            if len(normalized_flashcards) == num_flashcards:
-                print(f"✅ Flashcards gerados com sucesso pela IA ({len(normalized_flashcards)}/{num_flashcards}).")
-            else:
-                print(f"⚠️ Geração parcial de flashcards ({len(normalized_flashcards)}/{num_flashcards}).")
-            return normalized_flashcards
-        else:
-            print("❌ Erro: resposta da IA não continha a estrutura esperada ('flashcards').")
-            raise ValueError("Resposta da IA malformada.")
-    except Exception as e:
-        print(f"🚨 Erro ao gerar flashcards: {type(e).__name__} - {e}")
-        raise e
-
-def generate_quiz_from_text(
+def _build_quiz_prompt(
     text: str,
     num_questions: int = 5,
     difficulty: str = "Médio",
     study_language: Optional[str] = None,
     _attempt: int = 0,
-) -> Optional[Dict[str, Any]]:
+) -> List[str]:
     """
-    Gera quizzes otimizados com alternativas equilibradas e não previsíveis.
+    Monta o prompt de quizzes otimizados com alternativas equilibradas e não previsíveis.
     """
     source_text = _prepare_generation_source_text(text)
     if not source_text or source_text.isspace():
-        print("Texto de entrada está vazio. Pulando a geração de quiz.")
         return None
         
     difficulty = _normalize_difficulty_label(difficulty)
@@ -1339,157 +1245,171 @@ Foque em {difficulty_instruction}."""
             "✗ Explicações que simplesmente repetem a alternativa",
         ]
 
+    return prompt_parts
+
+
+def _structured_result(provider, response, output_model):
+    """Revalidate parsed values even when the adapter already validates its schema."""
+    parsed = response.parsed
+    if parsed is None and provider.name == "gemini":
+        try:
+            parsed = _parse_jsonish_object(response.text)
+        except (ValueError, TypeError):
+            raise AIInvalidResponseError("JSON inválido retornado pela IA.") from None
     try:
-        print(f"Enviando texto para a IA para gerar Quiz. Qtd: {num_questions}, Dificuldade: {difficulty}")
-        start = time.time()
+        return output_model.model_validate(parsed, strict=True).model_dump()
+    except (ValidationError, ValueError, TypeError):
+        raise AIInvalidResponseError("Resposta da IA incompatível com o contrato esperado.") from None
+
+
+def _generate_structured(prompt, output_model, *, temperature, max_output_tokens,
+                         timeout_seconds, operation, repair_quiz=None):
+    provider = get_ai_provider()
+    response = provider.generate(AIRequest(
+        prompt=prompt, temperature=temperature, max_output_tokens=max_output_tokens,
+        timeout_seconds=timeout_seconds, response_format="json",
+        schema=strict_json_schema(output_model), operation=operation,
+    ))
+    # Legacy Gemini may emit malformed JSON. Only that syntactic failure may repair.
+    if provider.name == "gemini" and response.parsed is None and repair_quiz is not None:
+        try:
+            _parse_jsonish_object(response.text)
+        except (ValueError, TypeError):
+            return _repair_quiz_response(response.text, **repair_quiz)
+    return _structured_result(provider, response, output_model)
+
+
+def _repair_quiz_response(raw_response_text: str, *, num_questions: int,
+                          study_language: Optional[str], foreign_language_study_mode: bool) -> Optional[Dict[str, Any]]:
+    if not raw_response_text.strip():
+        return None
+    if get_ai_provider().name != "gemini":
+        raise AIInvalidResponseError("Reparo de JSON indisponível para o provedor selecionado.")
+    return _generate_structured(
+        _build_quiz_repair_prompt(raw_response_text, num_questions=num_questions,
+                                 study_language=study_language, foreign_language_study_mode=foreign_language_study_mode),
+        QuizOutput, temperature=0.2, max_output_tokens=8192, timeout_seconds=60.0, operation="repair",
+    )
+
+
+def chat_about_flashcard(message: str, flashcard_front: str, flashcard_back: str,
+                         document_context: str, conversation_history: list[dict] = None) -> str:
+    if not message or message.isspace():
+        return "Por favor, faça uma pergunta sobre este tópico."
+    try:
         response = get_ai_provider().generate(AIRequest(
-            prompt=prompt_parts, temperature=0.8, max_output_tokens=8192,
-            timeout_seconds=90.0, operation="completion" if _attempt else "quiz",
+            prompt=_build_chat_prompt(message, flashcard_front, flashcard_back, document_context, conversation_history),
+            temperature=0.45, max_output_tokens=4096, operation="chat",
         ))
-        elapsed = time.time() - start
-        print(f"Provider={response.provider} model={response.model}")
-        print(f"⏱️ Tempo de resposta IA (Quiz): {elapsed:.2f}s")
-        response_text = response.text
-        if not response_text:
-            print("❌ Erro: resposta vazia retornada pela IA na geração de quiz.")
-            return None
+        if not response.text or not response.text.strip():
+            raise AIInvalidResponseError("Resposta vazia de chat.")
+        return response.text.strip()
+    except Exception as exc:
+        logger.warning("ai_chat_failed error=%s", type(exc).__name__)
+        return "Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente mais tarde."
 
-        try:
-            data = _parse_jsonish_object(response_text)
-        except json.JSONDecodeError:
-            _log_raw_ai_response("Resposta bruta da IA para quiz", response_text)
-            repaired_data = _repair_quiz_response(
-                response_text,
-                num_questions=num_questions,
-                study_language=effective_study_language,
-                foreign_language_study_mode=foreign_language_study_mode,
-            )
-            if not repaired_data:
-                raise
-            data = repaired_data
 
-        if "title" in data and "questions" in data and isinstance(data["questions"], list):
-            normalized_questions = _normalize_quiz_questions(data["questions"], num_questions)
-            if len(normalized_questions) < num_questions:
-                _log_raw_ai_response("Resposta estruturalmente incompleta da IA para quiz", response_text)
-                repaired_data = _repair_quiz_response(
-                    response_text,
-                    num_questions=num_questions,
-                    study_language=effective_study_language,
-                    foreign_language_study_mode=foreign_language_study_mode,
-                )
-                if repaired_data:
-                    repaired_questions = _normalize_quiz_questions(
-                        repaired_data.get("questions", []),
-                        num_questions,
-                    )
-                    if len(repaired_questions) > len(normalized_questions):
-                        normalized_questions = repaired_questions
-                        data = repaired_data
+def generate_flashcards_from_text(
+    text: str, num_flashcards: int = 10, difficulty: str = "Médio",
+    study_language: Optional[str] = None, _attempt: int = 0,
+    _allow_completion: bool = True, _existing_fronts: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    if not text or not text.strip():
+        return []
+    if num_flashcards <= 0:
+        raise AIInvalidResponseError("A quantidade de flashcards deve ser positiva.")
+    difficulty = _normalize_difficulty_label(difficulty)
+    existing = set(front.strip().casefold() for front in (_existing_fronts or []) if front and front.strip())
+    data = _generate_structured(
+        _build_flashcards_prompt(text, num_flashcards, difficulty, study_language, _attempt,
+                                _allow_completion, _existing_fronts),
+        FlashcardsOutput, temperature=0.7, max_output_tokens=8192, timeout_seconds=60.0,
+        operation="completion" if _attempt else "flashcards",
+    )
+    cards = _normalize_flashcards(data["flashcards"], num_flashcards, difficulty,
+                                 relaxed=_attempt > 0, existing_fronts=existing)
+    if len(cards) < num_flashcards and _allow_completion and _attempt < 1:
+        supplemental = generate_flashcards_from_text(
+            text, num_flashcards - len(cards), difficulty, study_language,
+            _attempt=_attempt + 1, _allow_completion=False,
+            _existing_fronts=list(_existing_fronts or []) + [card["front"] for card in cards],
+        )
+        cards = _merge_flashcard_batches(cards, supplemental, num_flashcards, difficulty, relaxed=True)
+    if len(cards) != num_flashcards:
+        raise AIInvalidResponseError("A IA não entregou a quantidade exata de flashcards válidos.")
+    return cards
 
-            if len(normalized_questions) < num_questions and _attempt < 1:
-                missing_count = num_questions - len(normalized_questions)
-                print(f"⚠️ IA retornou {len(normalized_questions)}/{num_questions} perguntas válidas. Tentando completar {missing_count}.")
-                supplemental_quiz = generate_quiz_from_text(
-                    text=text,
-                    num_questions=missing_count,
-                    difficulty=difficulty,
-                    study_language=effective_study_language,
-                    _attempt=_attempt + 1,
-                )
-                supplemental_questions = supplemental_quiz.get("questions", []) if supplemental_quiz else []
-                normalized_questions = _normalize_quiz_questions(
-                    normalized_questions + supplemental_questions,
-                    num_questions,
-                )
 
-            print(f"✅ Quiz gerado com sucesso pela IA ({len(normalized_questions)}/{num_questions}).")
-            return {
-                "title": " ".join(str(data.get("title", "Quiz sobre o Texto")).split()).strip() or "Quiz sobre o Texto",
-                "questions": normalized_questions,
-            }
-        else:
-            print("❌ Erro: resposta da IA não continha a estrutura esperada ('title', 'questions').")
-            _log_raw_ai_response("Resposta bruta inesperada da IA para quiz", response_text)
-            raise ValueError("Resposta da IA malformada.")
-    except AIError:
-        raise
-    except Exception as e:
-        print(f"🚨 Erro ao gerar quiz: {type(e).__name__} - {e}")
+def _generate_quiz_batch(text, num_questions, difficulty, study_language, attempt, existing_questions):
+    prompt = _build_quiz_prompt(text, num_questions, difficulty, study_language, attempt)
+    if existing_questions:
+        prompt.extend([
+            "PERGUNTAS JÁ GERADAS (NÃO REPETIR NEM PARAFRASEAR):",
+            json.dumps(existing_questions, ensure_ascii=False),
+            "Gere somente a quantidade restante pedida, com perguntas inéditas.",
+        ])
+    language = _resolve_effective_study_language(text, study_language)
+    data = _generate_structured(
+        prompt, QuizOutput, temperature=0.8, max_output_tokens=8192, timeout_seconds=90.0,
+        operation="completion" if attempt else "quiz",
+        repair_quiz={"num_questions": num_questions, "study_language": language,
+                     "foreign_language_study_mode": _is_foreign_language_study_mode(language)},
+    )
+    existing_keys = {" ".join(q["text"].split()).strip().casefold() for q in existing_questions}
+    questions = _normalize_quiz_questions(
+        [q for q in data["questions"] if " ".join(q["text"].split()).strip().casefold() not in existing_keys], num_questions)
+    if len(questions) < num_questions and attempt < 1:
+        supplemental = _generate_quiz_batch(text, num_questions - len(questions), difficulty,
+                                             study_language, attempt + 1, existing_questions + questions)
+        questions = _normalize_quiz_questions(questions + supplemental["questions"], num_questions)
+    if len(questions) != num_questions:
+        raise AIInvalidResponseError("A IA não entregou a quantidade exata de perguntas válidas.")
+    return {"title": data["title"], "questions": questions}
+
+
+def generate_quiz_from_text(text: str, num_questions: int = 5, difficulty: str = "Médio",
+                            study_language: Optional[str] = None, _attempt: int = 0) -> Optional[Dict[str, Any]]:
+    if not text or not text.strip():
         return None
+    if num_questions <= 0:
+        raise AIInvalidResponseError("A quantidade de perguntas deve ser positiva.")
+    return _generate_quiz_batch(text, num_questions, _normalize_difficulty_label(difficulty),
+                                study_language, _attempt, [])
 
 
-def generate_guided_study_topics(
-    text: str,
-    flashcards: List[Dict[str, Any]],
-    questions: List[Dict[str, Any]],
-) -> Optional[Dict[str, Any]]:
-    """
-    Organiza flashcards e perguntas já existentes em tópicos pedagógicos
-    para o modo de estudo guiado.
-    """
+def generate_guided_study_topics(text: str, flashcards: List[Dict[str, Any]],
+                                 questions: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     if not flashcards or not questions:
-        print("Flashcards ou perguntas ausentes. Pulando estruturação guiada com IA.")
         return None
-
-    context_snippet = _normalize_text_snippet(text, 3200)
-    flashcards_payload = _compact_flashcard_payload(flashcards, len(flashcards))
-    questions_payload = _compact_question_payload(questions, len(questions))
-    attempts = [
-        {
-            "label": "full-json",
-            "temperature": 0.35,
-            "max_output_tokens": 4096,
-            "response_format": "json",
-            "prompt_parts": _build_guided_study_prompt_parts(
-                context_snippet=context_snippet or "",
-                flashcards_payload=flashcards_payload,
-                questions_payload=questions_payload,
-                compact=False,
-            ),
-        },
-        {
-            "label": "compact-json",
-            "temperature": 0.2,
-            "max_output_tokens": 3072,
-            "response_format": "text",
-            "prompt_parts": _build_guided_study_prompt_parts(
-                context_snippet="",
-                flashcards_payload=flashcards_payload,
-                questions_payload=questions_payload,
-                compact=True,
-            ),
-        },
-    ]
-
-    for attempt_index, attempt in enumerate(attempts, start=1):
-        try:
-            print(f"Enviando conteúdo para a IA estruturar o estudo guiado. tentativa={attempt_index} modo={attempt['label']}")
-            start = time.time()
-            response = get_ai_provider().generate(AIRequest(
-                prompt=attempt["prompt_parts"], temperature=attempt["temperature"],
-                max_output_tokens=attempt["max_output_tokens"],
-                response_format=attempt["response_format"],
-                timeout_seconds=90.0, operation="guided_study",
-            ))
-            elapsed = time.time() - start
-            print(f"Provider={response.provider} model={response.model}")
-            print(f"⏱️ Tempo de resposta IA (Estudo guiado, tentativa {attempt_index}): {elapsed:.2f}s")
-
-            response_text = response.text
-            if not response_text:
-                print(f"⚠️ IA retornou resposta vazia no estudo guiado. tentativa={attempt_index}")
-                continue
-
-            data = _parse_jsonish_object(response_text)
-            if "topics" in data and isinstance(data["topics"], list):
-                print(f"✅ Estrutura guiada gerada com sucesso pela IA na tentativa {attempt_index}.")
-                return data
-
-            print(f"❌ Estudo guiado: resposta sem 'topics' válida na tentativa {attempt_index}.")
-        except AIError:
-            raise
-        except Exception as e:
-            print(f"🚨 Erro ao estruturar estudo guiado (tentativa {attempt_index}): {type(e).__name__} - {e}")
-
-    return None
+    data = _generate_structured(
+        _build_guided_study_prompt_parts(
+            context_snippet=_normalize_text_snippet(text, 3200),
+            flashcards_payload=_compact_flashcard_payload(flashcards, len(flashcards)),
+            questions_payload=_compact_question_payload(questions, len(questions)), compact=False,
+        ),
+        GuidedStudyOutput, temperature=0.35, max_output_tokens=4096,
+        timeout_seconds=90.0, operation="guided_study",
+    )
+    # Preserve the public ID-group return shape. Cache builders hydrate canonical
+    # database content and real document metadata, never model-generated copies.
+    known = {"flashcard": {item["id"] for item in flashcards}, "question": {item["id"] for item in questions}}
+    seen = {"flashcard": set(), "question": set()}
+    topics = []
+    for topic in data["topics"]:
+        ids = {"flashcard": [], "question": []}
+        for step in topic["steps"]:
+            kind = step["type"]
+            if kind not in known:
+                raise AIInvalidResponseError("Tipo de etapa de estudo guiado inválido.")
+            item_id = step[f"{kind}_id"]
+            other_kind = "question" if kind == "flashcard" else "flashcard"
+            if item_id not in known[kind] or item_id in seen[kind] or step[f"{other_kind}_id"] is not None:
+                raise AIInvalidResponseError("Referência de estudo guiado inválida ou duplicada.")
+            seen[kind].add(item_id)
+            ids[kind].append(item_id)
+        if not topic["title"].strip() or not ids["flashcard"] or not ids["question"]:
+            raise AIInvalidResponseError("Tópico de estudo guiado incompleto.")
+        topics.append({"title": topic["title"], "flashcard_ids": ids["flashcard"], "question_ids": ids["question"]})
+    if not topics:
+        raise AIInvalidResponseError("Nenhum tópico válido de estudo guiado retornado.")
+    return {"topics": topics}

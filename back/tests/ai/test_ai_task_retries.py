@@ -40,7 +40,7 @@ class TaskRetryTests(unittest.TestCase):
                     stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
                     tasks.process_document.push_request(retries=0)
                     try:
-                        expected = ValueError if content_type == "quiz" and error_cls is RuntimeError else error_cls
+                        expected = error_cls
                         with self.assertRaises(Retry if retryable else expected):
                             tasks.process_document.run(1, content_type, 1, "Médio", 1)
                     finally:
@@ -85,6 +85,7 @@ class TaskRetryTests(unittest.TestCase):
 
     def test_quiz_repair_and_guided_study_propagate_normalized_errors(self):
         provider = Mock()
+        provider.name = "gemini"
         for error_cls in (AIAuthenticationError, AIConfigurationError, AIInvalidResponseError,
                           AIRateLimitError, AITimeoutError, AIProviderUnavailableError):
             with self.subTest(error=error_cls.__name__), patch.object(domain, "get_ai_provider", return_value=provider):
