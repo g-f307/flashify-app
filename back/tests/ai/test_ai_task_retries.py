@@ -52,7 +52,9 @@ class TaskRetryTests(unittest.TestCase):
     def test_retry_exhaustion_marks_failed(self):
         task = tasks.process_document
         self.assertEqual(task.max_retries, 3)
-        self.assertEqual(task.default_retry_delay, 60)
+        self.assertEqual(task.retry_backoff, 60)
+        self.assertEqual(task.retry_backoff_max, 600)
+        self.assertTrue(task.retry_jitter)
         doc = SimpleNamespace(id=1, user_id=2, extracted_text="Test", study_language=None,
                               status=models.DocumentStatus.PROCESSING)
         with (patch.object(tasks, "Session"),

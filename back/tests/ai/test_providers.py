@@ -1,5 +1,6 @@
 import ast
 import inspect
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -90,6 +91,20 @@ assert "app.ai.providers.gemini" not in sys.modules
         provider.generate(AIRequest(prompt="other", timeout_seconds=60))
         self.assertEqual(self.model_cls.call_count, 2)
         self.model.generate_content.assert_called_with("other", request_options={"timeout": 60.0})
+
+    def test_gemini_emits_one_sanitized_metric_event_per_call(self):
+        request = AIRequest(prompt="private-document-content", operation="chat")
+        with self.assertLogs("app.ai.providers.gemini", level="INFO") as logs:
+            get_ai_provider().generate(request)
+        self.assertEqual(len(logs.records), 1)
+        event = json.loads(logs.records[0].getMessage())
+        self.assertEqual(event["operation"], "chat")
+        self.assertEqual(event["provider"], "gemini")
+        self.assertEqual(event["input_tokens"], 10)
+        self.assertEqual(event["output_tokens"], 5)
+        self.assertTrue(event["success"])
+        self.assertNotIn("private-document-content", logs.output[0])
+        self.assertNotIn(self.model.generate_content.return_value.text, logs.output[0])
 
     def test_sdk_errors_are_sanitized_and_categorized(self):
         cases = [

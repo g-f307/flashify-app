@@ -1,0 +1,74 @@
+[
+  {
+    "id": "short-humanities-pt", "category": "humanities", "size": "short",
+    "source_language": "pt-BR", "output_language": "pt-BR", "features": [],
+    "text": "A Revolução Industrial reorganizou o trabalho ao concentrar a produção em fábricas, ampliar a mecanização e acelerar a urbanização. Seus efeitos incluíram aumento da produtividade e condições laborais precárias.",
+    "chat": ["Qual foi a principal mudança produtiva?", "Como isso afetou as cidades?", "Quais contradições sociais surgiram?"]
+  },
+  {
+    "id": "short-exact-pt", "category": "exact_sciences", "size": "short",
+    "source_language": "pt-BR", "output_language": "pt-BR", "features": [],
+    "text": "Em um circuito resistivo, a lei de Ohm relaciona tensão, corrente e resistência por V = RI. Para 12 V e 4 ohms, a corrente é 3 A.",
+    "chat": ["Explique a relação entre as grandezas.", "Calcule para resistência de 6 ohms.", "O que ocorre se a resistência dobrar?"]
+  },
+  {
+    "id": "short-programming-pt", "category": "programming", "size": "short",
+    "source_language": "pt-BR", "output_language": "pt-BR", "features": [],
+    "text": "Uma função pura depende apenas de seus argumentos e não produz efeitos colaterais observáveis. Para a mesma entrada, ela sempre retorna a mesma saída.",
+    "chat": ["Dê um exemplo em Python.", "Por que isso facilita testes?", "Compare com uma função impura."]
+  },
+  {
+    "id": "long-humanities-pt", "category": "humanities", "size": "long",
+    "source_language": "pt-BR", "output_language": "pt-BR", "features": [],
+    "text": "O Estado moderno consolidou instituições administrativas, tributação regular e monopólio legítimo da força. A centralização não ocorreu de forma uniforme: assembleias, cidades e grupos locais negociaram limites e privilégios. A imprensa ampliou a circulação de normas e debates, enquanto guerras pressionaram governos a arrecadar e organizar exércitos. A formação estatal deve ser entendida como processo histórico, não como evento isolado. Diferentes regiões combinaram autoridade central, autonomia local e formas representativas. A legitimidade também mudou: além da tradição dinástica, governos passaram a justificar decisões por leis, constituições e noções de cidadania. O estudo comparativo evita tratar uma trajetória nacional como modelo universal e permite observar continuidades, rupturas e conflitos sociais.",
+    "chat": ["Por que a centralização foi negociada?", "Qual foi o papel das guerras?", "Como mudou a legitimidade política?"]
+  },
+  {
+    "id": "long-exact-pt", "category": "exact_sciences", "size": "long",
+    "source_language": "pt-BR", "output_language": "pt-BR", "features": [],
+    "text": "A conservação de energia afirma que, em um sistema isolado, a energia total permanece constante. Energia pode mudar de forma: potencial gravitacional converte-se em cinética durante uma queda, e parte da energia mecânica pode transformar-se em energia térmica quando há atrito. Em problemas ideais sem dissipação, a soma da energia cinética e potencial é constante. Em sistemas reais, a energia mecânica pode diminuir, mas a energia total, incluindo calor e deformações, conserva-se. A escolha da fronteira do sistema é essencial para classificar transferências como trabalho ou calor. Potência mede a taxa de transferência de energia e não deve ser confundida com a quantidade total transferida. Unidades coerentes permitem verificar equações: energia é medida em joules e potência em watts, equivalentes a joules por segundo.",
+    "chat": ["Energia mecânica sempre se conserva?", "Explique a fronteira do sistema.", "Diferencie energia e potência."]
+  },
+  {
+    "id": "long-programming-pt", "category": "programming", "size": "long",
+    "source_language": "pt-BR", "output_language": "pt-BR", "features": [],
+    "text": "Uma API HTTP confiável separa validação, regras de negócio e persistência. A camada de entrada converte dados externos em tipos internos e rejeita formatos inválidos. O domínio expressa invariantes sem depender do framework web. A persistência agrupa mudanças relacionadas em transações para impedir estados parciais. Operações que podem ser repetidas precisam de idempotência, especialmente quando filas entregam mensagens mais de uma vez. Timeouts devem ser explícitos e erros transitórios podem usar retentativas limitadas com backoff. Erros permanentes não devem ser repetidos. Logs estruturados registram metadados operacionais, mas evitam credenciais e conteúdo privado. Testes unitários cobrem regras puras; testes de integração verificam fronteiras como banco, fila e serialização. Métricas de latência e erro orientam limites e rollback durante implantações graduais.",
+    "chat": ["Por que usar transações?", "Como implementar idempotência?", "Quais dados não devem aparecer nos logs?"]
+  },
+  {
+    "id": "english-biology", "category": "exact_sciences", "size": "short",
+    "source_language": "en", "output_language": "en", "features": [],
+    "text": "Photosynthesis converts light energy into chemical energy. Plants use carbon dioxide and water to produce glucose, releasing oxygen as a by-product.",
+    "chat": ["What energy conversion occurs?", "Which inputs are required?", "Why is oxygen released?"]
+  },
+  {
+    "id": "english-programming", "category": "programming", "size": "short",
+    "source_language": "en", "output_language": "en", "features": [],
+    "text": "A queue decouples producers from consumers. Acknowledgements and idempotent handlers help systems recover from duplicate delivery without duplicating effects.",
+    "chat": ["Why can delivery be duplicated?", "What does acknowledgement mean?", "Show an idempotent strategy."]
+  },
+  {
+    "id": "english-to-portuguese", "category": "humanities", "size": "short",
+    "source_language": "en", "output_language": "pt-BR", "features": [],
+    "text": "Historical sources reflect the perspective and context of their authors. Corroborating independent sources helps distinguish supported claims from interpretation.",
+    "chat": ["Explique o que é corroboração.", "Por que o contexto do autor importa?", "Como separar evidência de interpretação?"]
+  },
+  {
+    "id": "latex-physics", "category": "exact_sciences", "size": "short",
+    "source_language": "pt-BR", "output_language": "pt-BR", "features": ["latex"],
+    "text": "O movimento uniformemente variado obedece a \\(v = v_0 + at\\) e \\(s = s_0 + v_0t + \\frac{at^2}{2}\\). Para aceleração constante, a velocidade varia linearmente com o tempo.",
+    "chat": ["Explique cada variável.", "Derive a segunda equação.", "Resolva um exemplo numérico."]
+  },
+  {
+    "id": "code-html", "category": "programming", "size": "short",
+    "source_language": "pt-BR", "output_language": "pt-BR", "features": ["code_html"],
+    "text": "Em Python, `def dobro(x): return 2 * x` define uma função determinística. Em HTML, <strong>ênfase semântica</strong> comunica importância sem estilos inline ou scripts.",
+    "chat": ["Mostre um teste da função.", "Por que usar strong?", "Quais elementos HTML são seguros aqui?"]
+  },
+  {
+    "id": "noisy-document", "category": "humanities", "size": "long",
+    "source_language": "pt-BR", "output_language": "pt-BR", "features": ["noisy_metadata"],
+    "text": "RELATÓRIO DIDÁTICO — versão pública — página 1 de 3. SUMÁRIO: 1. Água; 2. Saneamento; 3. Saúde. Cabeçalho repetido. A água potável deve atender a padrões microbiológicos e físico-químicos. O tratamento convencional combina coagulação, floculação, decantação, filtração e desinfecção. página 2 de 3. Cabeçalho repetido. Coagulação desestabiliza partículas; floculação promove agregados maiores; decantação remove parte dos flocos por gravidade; filtração retém partículas remanescentes; desinfecção reduz microrganismos patogênicos. Rodapé institucional. página 3 de 3. Saneamento também envolve coleta e tratamento de esgoto, drenagem e manejo de resíduos. A prevenção de doenças depende da continuidade do serviço, do monitoramento e da comunicação de risco. FIM DO DOCUMENTO.",
+    "chat": ["Liste as etapas do tratamento.", "Qual é a função da desinfecção?", "Por que saneamento vai além da água potável?"]
+  }
+]

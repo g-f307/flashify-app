@@ -1,7 +1,9 @@
 """The only module allowed to depend on the Gemini SDK."""
 import json
+import logging
 import math
 import os
+import time
 
 from ..contracts import AIRequest, AIResponse, AIUsage
 from ..errors import (
@@ -17,6 +19,7 @@ DEFAULT_SAFETY_SETTINGS = [
         "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT",
     )
 ]
+logger = logging.getLogger(__name__)
 
 
 def _positive_timeout(value: object) -> float:
@@ -83,10 +86,14 @@ class GeminiProvider:
         self._models: dict[tuple, object] = {}
 
     def generate(self, request: AIRequest) -> AIResponse:
-        timeout = self.timeout_seconds if request.timeout_seconds is None else _positive_timeout(request.timeout_seconds)
-        if request.response_format not in ("text", "json"):
-            raise AIConfigurationError("Formato de resposta de IA inválido.")
+        started = time.monotonic()
+        usage_value = AIUsage()
+        request_id = None
+        error_name = None
         try:
+            timeout = self.timeout_seconds if request.timeout_seconds is None else _positive_timeout(request.timeout_seconds)
+            if request.response_format not in ("text", "json"):
+                raise AIConfigurationError("Formato de resposta de IA inválido.")
             cache_key = (request.temperature, request.max_output_tokens, request.response_format,
                          json.dumps(request.schema, sort_keys=True) if request.schema else None)
             model = self._models.get(cache_key)
@@ -117,16 +124,31 @@ class GeminiProvider:
                     # Legacy domain parsers/repair retain responsibility for JSONish output.
                     pass
             usage = getattr(response, "usage_metadata", None)
+            usage_value = AIUsage(
+                input_tokens=getattr(usage, "prompt_token_count", None),
+                output_tokens=getattr(usage, "candidates_token_count", None),
+                total_tokens=getattr(usage, "total_token_count", None),
+            )
+            request_id = getattr(response, "response_id", None)
             return AIResponse(
                 text=text, parsed=parsed, provider=self.name, model=self.model,
-                usage=AIUsage(
-                    input_tokens=getattr(usage, "prompt_token_count", None),
-                    output_tokens=getattr(usage, "candidates_token_count", None),
-                    total_tokens=getattr(usage, "total_token_count", None),
-                ),
-                request_id=getattr(response, "response_id", None),
+                usage=usage_value, request_id=request_id,
             )
-        except AIError:
+        except AIError as exc:
+            error_name = type(exc).__name__
             raise
         except Exception as exc:
-            raise _normalize_error(exc) from None
+            normalized = _normalize_error(exc)
+            error_name = type(normalized).__name__
+            raise normalized from None
+        finally:
+            logger.info(json.dumps({
+                "event": "ai_call", "operation": request.operation,
+                "provider": self.name, "model": self.model,
+                "duration_ms": round((time.monotonic() - started) * 1000, 2),
+                "input_tokens": usage_value.input_tokens,
+                "output_tokens": usage_value.output_tokens,
+                "total_tokens": usage_value.total_tokens,
+                "success": error_name is None, "error": error_name,
+                "request_id": request_id,
+            }))
