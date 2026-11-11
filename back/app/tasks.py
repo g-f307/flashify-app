@@ -3,6 +3,7 @@
 import traceback
 from pathlib import Path
 from sqlmodel import Session, select  # ✅ ADICIONAR select aqui
+from .ai.errors import AIRateLimitError, AITimeoutError, AIProviderUnavailableError
 from .worker import celery_app
 from .database import engine
 from . import crud, models, schemas
@@ -17,8 +18,7 @@ import asyncio
 
 @celery_app.task(
     bind=True,
-    autoretry_for=(Exception,),
-    dont_autoretry_for=(ValueError,),
+    autoretry_for=(AIRateLimitError, AITimeoutError, AIProviderUnavailableError),
     max_retries=3,
     default_retry_delay=60
 )
@@ -218,16 +218,13 @@ def process_document(
         except Exception as e:
             session.rollback()
             error_message = f"Erro: {str(e)}"
-            will_retry = not isinstance(e, ValueError) and self.request.retries < self.max_retries
+            will_retry = (
+                isinstance(e, (AIRateLimitError, AITimeoutError, AIProviderUnavailableError))
+                and self.request.retries < self.max_retries
+            )
 
             if not will_retry:
-                final_reason = (
-                    final_error := (
-                        f"Falha final após {self.request.retries + 1} tentativa(s). {error_message}"
-                        if isinstance(e, ValueError)
-                        else f"Falha final após {self.max_retries + 1} tentativas. {error_message}"
-                    )
-                )
+                final_reason = f"Falha final após {self.request.retries + 1} tentativa(s). {error_message}"
                 db_document.status = models.DocumentStatus.FAILED
                 db_document.current_step = final_reason
                 session.add(db_document)
@@ -244,24 +241,6 @@ def process_document(
                     },
                 )
                 print(f"[TASK] Tarefa para doc {document_id} FALHOU: {traceback.format_exc()}")
-            elif self.request.retries >= self.max_retries:
-                final_error = f"Falha final após {self.max_retries + 1} tentativas. {error_message}"
-                db_document.status = models.DocumentStatus.FAILED
-                db_document.current_step = final_error
-                session.add(db_document)
-                session.commit()
-                track_product_event(
-                    session,
-                    "deck_processing_failed",
-                    user_id=db_document.user_id,
-                    document_id=db_document.id,
-                    properties={
-                        "content_type": content_type,
-                        "error": str(e),
-                        "retries": self.request.retries,
-                    },
-                )
-                print(f"[TASK] Tarefa para doc {document_id} FALHOU PERMANENTEMENTE: {traceback.format_exc()}")
             else:
                 retry_count = self.request.retries + 1
                 db_document.current_step = f"Tentativa {retry_count}/{self.max_retries + 1} falhou. {error_message}"

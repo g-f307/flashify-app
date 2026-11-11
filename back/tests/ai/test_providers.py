@@ -44,7 +44,7 @@ class ProviderTests(unittest.TestCase):
             self.assertIs(first, get_ai_provider())
 
     def test_factory_rejects_unknown_provider(self):
-        with patch.dict(os.environ, {"AI_PROVIDER": "openai"}):
+        with patch.dict(os.environ, {"AI_PROVIDER": "unknown"}):
             with self.assertRaises(AIConfigurationError):
                 get_ai_provider()
 
