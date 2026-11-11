@@ -20,7 +20,9 @@ import asyncio
     bind=True,
     autoretry_for=(AIRateLimitError, AITimeoutError, AIProviderUnavailableError),
     max_retries=3,
-    default_retry_delay=60
+    retry_backoff=60,
+    retry_backoff_max=600,
+    retry_jitter=True,
 )
 def process_document(
     self,

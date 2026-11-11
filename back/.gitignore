@@ -4,6 +4,7 @@
 .env
 .env.*
 *.json
+!tests/ai/migration_dataset.json
 
 # Arquivos do Python
 venv/
