@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
 from .ai.contracts import AIRequest
+from .ai.errors import AIError
 from .ai.factory import get_ai_provider
 
 load_dotenv()
@@ -657,6 +658,8 @@ def _repair_quiz_response(
         data = _parse_jsonish_object(repaired_text)
         if "title" in data and "questions" in data and isinstance(data["questions"], list):
             return data
+    except AIError:
+        raise
     except Exception as exc:
         print(f"⚠️ Falha ao tentar reparar estrutura do quiz: {type(exc).__name__} - {exc}")
 
@@ -1409,6 +1412,8 @@ Foque em {difficulty_instruction}."""
             print("❌ Erro: resposta da IA não continha a estrutura esperada ('title', 'questions').")
             _log_raw_ai_response("Resposta bruta inesperada da IA para quiz", response_text)
             raise ValueError("Resposta da IA malformada.")
+    except AIError:
+        raise
     except Exception as e:
         print(f"🚨 Erro ao gerar quiz: {type(e).__name__} - {e}")
         return None
@@ -1482,6 +1487,8 @@ def generate_guided_study_topics(
                 return data
 
             print(f"❌ Estudo guiado: resposta sem 'topics' válida na tentativa {attempt_index}.")
+        except AIError:
+            raise
         except Exception as e:
             print(f"🚨 Erro ao estruturar estudo guiado (tentativa {attempt_index}): {type(e).__name__} - {e}")
 

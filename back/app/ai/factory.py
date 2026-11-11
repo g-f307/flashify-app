@@ -12,6 +12,10 @@ def _create_provider(name: str) -> AIProvider:
         from .providers.gemini import GeminiProvider
 
         return GeminiProvider()
+    if name == "openai":
+        from .providers.openai import OpenAIProvider
+
+        return OpenAIProvider()
     raise AIConfigurationError("Provedor de IA não suportado.")
 
 
